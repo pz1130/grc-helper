@@ -19,6 +19,12 @@ def create_app() -> FastAPI:
     async def health() -> dict[str, str]:
         return {"status": "ok", "version": settings.app_version}
 
+    from app.errors import install_error_handlers
+    from app.iam.router import router as iam_router
+
+    install_error_handlers(application)
+    application.include_router(iam_router)
+
     return application
 
 
