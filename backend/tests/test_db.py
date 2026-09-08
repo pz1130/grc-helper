@@ -1,6 +1,13 @@
 import pytest
 from sqlalchemy import text
 
+from app.db import engine
+
+
+def test_module_engine_targets_test_database():
+    """app.db.engine is created at import; conftest must retarget it before collection."""
+    assert engine.url.database == "grc_test"
+
 
 @pytest.mark.asyncio
 async def test_pgvector_extension_is_installed(db_session):

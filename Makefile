@@ -10,7 +10,7 @@ logs:
 	docker compose logs -f api worker
 
 test:
-	docker compose run --rm -e DATABASE_URL=postgresql+asyncpg://grc:grc@db:5432/grc_test api pytest -v
+	docker compose run --rm -e TEST_DATABASE_URL=postgresql+asyncpg://grc:grc@db:5432/grc_test api pytest -v
 
 migrate:
 	docker compose run --rm api alembic upgrade head

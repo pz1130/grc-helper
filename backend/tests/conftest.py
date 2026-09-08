@@ -2,7 +2,6 @@ import asyncio
 import os
 from collections.abc import AsyncGenerator
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -13,12 +12,12 @@ TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+asyncpg://grc:grc@db:5432/grc_test"
 )
 
+# 必须在任何 test 模块被导入前生效：app.db 在 import 时就用 get_settings()
+# 建了模块级 engine，晚一步就会绑到开发库上。
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+from app.config import get_settings  # noqa: E402
 
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
+get_settings.cache_clear()
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -27,12 +26,8 @@ async def _schema() -> AsyncGenerator[None, None]:
     from alembic import command
     from alembic.config import Config
 
-    from app.config import get_settings
-
     cfg = Config("alembic.ini")
     cfg.set_main_option("sqlalchemy.url", TEST_DATABASE_URL)
-    os.environ["DATABASE_URL"] = TEST_DATABASE_URL
-    get_settings.cache_clear()
 
     admin_engine = create_async_engine(
         TEST_DATABASE_URL.rsplit("/", 1)[0] + "/postgres",
