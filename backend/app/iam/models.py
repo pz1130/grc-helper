@@ -1,6 +1,17 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum as SAEnum, Integer, String
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum as SAEnum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    func,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base, TimestampMixin
@@ -29,3 +40,27 @@ class User(Base, TimestampMixin):
     # 外部审计员账号：限时 + 限某次审计范围（spec §8.1）
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     engagement_scope_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class AuditLog(Base):
+    """操作审计日志。只增不删（spec §8.2）。"""
+
+    __tablename__ = "audit_log"
+    __table_args__ = (
+        Index("ix_audit_log_entity", "entity_type", "entity_id"),
+        Index("ix_audit_log_at", "at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    action: Mapped[str] = mapped_column(String(100), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    before: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    after: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
