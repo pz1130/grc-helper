@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import session_factory
 from app.ingest.models import DocStatus, DocType, Document
+from app.ingest.storage import save
 from app.parsing.contract import ParseError
 from app.parsing.flatten import persist
 from app.parsing.registry import get_parser
@@ -21,6 +22,12 @@ async def run_parse(session: AsyncSession, document: Document) -> dict[str, Any]
 
     try:
         path = Path(document.file_path)
+        if path.parent == Path("/tmp"):
+            stored = save(path.read_bytes(), document.original_filename)
+            document.file_path = stored.path
+            path.unlink(missing_ok=True)
+            await session.flush()
+            path = Path(document.file_path)
         parsed = get_parser(path).parse(path)
     except ParseError as exc:
         document.status = DocStatus.PARSE_FAILED

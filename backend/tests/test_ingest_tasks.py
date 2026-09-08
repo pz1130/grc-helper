@@ -49,6 +49,40 @@ async def test_successful_parse_activates_document(db_session, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_worker_moves_root_tmp_upload_into_document_store(db_session, tmp_path):
+    source = tmp_path / "staged.docx"
+    _make_docx(tmp_path).replace(source)
+    document = await _doc(db_session, source)
+    document.file_path = f"/tmp/{source.name}"
+    source.rename(document.file_path)
+
+    from app.parsing.contract import DocumentMeta, ParsedDocument
+
+    stored_path = tmp_path / "stored.docx"
+    parsed = ParsedDocument(
+        meta=DocumentMeta(
+            title=None,
+            version=None,
+            owner=None,
+            approver=None,
+            approved_date=None,
+            effective_date=None,
+            doc_type=None,
+        ),
+        clauses=[],
+    )
+    with patch("app.ingest.tasks.save") as save_mock, patch(
+        "app.ingest.tasks.get_parser"
+    ) as get_parser_mock:
+        save_mock.return_value.path = str(stored_path)
+        get_parser_mock.return_value.parse.return_value = parsed
+        await run_parse(db_session, document)
+
+    save_mock.assert_called_once()
+    assert document.file_path == str(stored_path)
+
+
+@pytest.mark.asyncio
 async def test_parse_writes_clauses(db_session, tmp_path):
     document = await _doc(db_session, _make_docx(tmp_path))
     await run_parse(db_session, document)

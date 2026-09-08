@@ -1,7 +1,7 @@
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -78,7 +78,7 @@ async def upload(
 
 @router.get("", response_model=list[DocumentOut])
 async def list_documents(
-    status_filter: DocStatus | None = None,
+    status_filter: DocStatus | None = Query(default=None, alias="status"),
     doc_type: DocType | None = None,
     _: User = Depends(require(Permission.READ)),
     session: AsyncSession = Depends(get_session),
