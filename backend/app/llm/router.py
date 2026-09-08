@@ -11,7 +11,12 @@ from app.iam.models import User
 from app.iam.permissions import Permission
 from app.llm import budget
 from app.llm.models import AppSetting, LLMCall, LLMProviderConfig, RedactionRule, TaskRouting
-from app.llm.providers.base import CompletionRequest, ProviderError
+from app.clauses.models import EMBEDDING_DIM
+from app.llm.providers.base import (
+    CompletionRequest,
+    EmbeddingRequest,
+    ProviderError,
+)
 from app.llm.providers.factory import build_provider
 from app.llm.redaction import load_engine
 from app.llm.schemas import (
@@ -142,8 +147,16 @@ async def test_provider(
     config = await session.get(LLMProviderConfig, config_id)
     if config is None:
         raise NotFound("provider 不存在")
+
+    # 一个 provider 配的可能是聊天模型，也可能是向量模型，两者接口不同。
+    # 只探聊天会让 embedding provider 永远报错（实测 embo-01 打 chat 返回
+    # 400 unknown model），管理员会误以为是 key 或网络的问题。
+    # 所以两种能力都探，报出它实际能干什么。
+    provider = build_provider(config)
+    failures: list[str] = []
+
     try:
-        await build_provider(config).complete(
+        await provider.complete(
             CompletionRequest(
                 system="You are a connectivity probe.",
                 prompt="Reply with the single word: ok",
@@ -152,8 +165,35 @@ async def test_provider(
             )
         )
     except ProviderError as exc:
-        return {"ok": False, "message": str(exc)}
-    return {"ok": True, "message": "连接正常"}
+        failures.append(f"chat: {exc}")
+    else:
+        return {"ok": True, "capability": "chat", "message": "连接正常（聊天模型）"}
+
+    try:
+        result = await provider.embed(
+            EmbeddingRequest(texts=["connectivity probe"], model=config.model)
+        )
+    except ProviderError as exc:
+        failures.append(f"embedding: {exc}")
+    else:
+        dim = len(result.vectors[0]) if result.vectors else 0
+        if dim != EMBEDDING_DIM:
+            # 维度对不上，写库时才炸就太晚了——在这里就说清楚
+            return {
+                "ok": False,
+                "capability": "embedding",
+                "message": (
+                    f"可连通，但向量维度是 {dim}，本系统的向量列是 {EMBEDDING_DIM} 维，"
+                    "换一个 1536 维的模型，或另开一次迁移改列宽"
+                ),
+            }
+        return {
+            "ok": True,
+            "capability": "embedding",
+            "message": f"连接正常（向量模型，{dim} 维）",
+        }
+
+    return {"ok": False, "capability": None, "message": "；".join(failures)}
 
 
 @router.get("/routing", response_model=list[RoutingOut])
