@@ -21,6 +21,8 @@ dependencies = [
     "anthropic>=0.40",
     "httpx>=0.28",
     "python-multipart>=0.0.20",
+    "python-docx>=1.1.2",
+    "pdfplumber>=0.11.4",
 ]
 
 [project.optional-dependencies]
