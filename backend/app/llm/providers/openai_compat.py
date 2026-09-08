@@ -5,6 +5,8 @@ OpenAI / Azure OpenAI / DeepSeek / 通义千问 / Ollama / 任意自建兼容服
 且会让"新增一家厂商"变成改代码而不是改配置。
 """
 
+from urllib.parse import urlsplit, urlunsplit
+
 import httpx
 
 from app.crypto import decrypt
@@ -19,6 +21,15 @@ from app.llm.providers.base import (
 )
 
 _TIMEOUT = httpx.Timeout(120.0, connect=10.0)
+_MAX_DETAIL = 300
+
+
+def _safe_detail(response: httpx.Response) -> str:
+    """上游响应体的截断片段。响应体里没有我们的凭据，回显它是安全的。"""
+    try:
+        return response.text[:_MAX_DETAIL].replace("\n", " ").strip() or "(空响应体)"
+    except Exception:  # noqa: BLE001
+        return "(响应体不可读)"
 
 
 class OpenAICompatProvider:
@@ -36,18 +47,31 @@ class OpenAICompatProvider:
             "Content-Type": "application/json",
         }
 
+    def _url(self, path: str) -> str:
+        """把 path 接到 base_url 的**路径**上，保留它自带的查询参数。
+
+        朴素的字符串拼接会得到 `...?GroupId=123/embeddings`——path 跑到了
+        查询串后面。这不是某一家的特例：MiniMax 中国站要 ?GroupId=，
+        Azure OpenAI 要 ?api-version=，两者都会被拼坏。
+        """
+        parts = urlsplit(self._base_url)
+        return urlunsplit(
+            (parts.scheme, parts.netloc, parts.path.rstrip("/") + path, parts.query, "")
+        )
+
     async def _post(self, path: str, payload: dict) -> dict:
         try:
             response = await self._client.post(
-                f"{self._base_url}{path}", json=payload, headers=self._headers()
+                self._url(path), json=payload, headers=self._headers()
             )
         except httpx.HTTPError as exc:
             raise ProviderError(f"网络错误: {type(exc).__name__}", retryable=True) from exc
 
         if response.status_code >= 400:
-            # 刻意不回显请求体或请求头——里面有 API key。
+            # 回显**响应**体，不回显请求体或请求头——API key 在后两者里。
+            # 只报状态码等于把上游给的原因扔掉，问题就没法诊断。
             raise ProviderError(
-                f"上游返回 {response.status_code}",
+                f"上游返回 {response.status_code}: {_safe_detail(response)}",
                 retryable=classify(response.status_code),
             )
         return response.json()
