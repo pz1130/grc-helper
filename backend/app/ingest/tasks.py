@@ -62,16 +62,21 @@ async def run_parse(session: AsyncSession, document: Document) -> dict[str, Any]
 
 async def parse_document(ctx: dict[str, Any], document_id: int) -> dict[str, Any]:
     """ARQ task entrypoint."""
+    # try/finally 必须在 async with **内部**：session 一 close，document 就变成
+    # detached 对象，对它的所有赋值（status、file_path、封面元数据）在 flush 时
+    # 会被静默丢弃——而 persist() 新 add 的 Clause 照常落库，所以看起来"解析成功了"，
+    # 实际文档状态永远停在 uploaded、file_path 还指向已被删掉的 /tmp 路径。
     async with session_factory() as session:
         document = await session.get(Document, document_id)
         if document is None:
             return {"clauses": 0, "warnings": [f"文档 {document_id} 不存在"]}
-    try:
-        result = await run_parse(session, document)
-    finally:
-        await session.commit()
+        try:
+            result = await run_parse(session, document)
+        finally:
+            await session.commit()
+
     # 解析成功后自动接上分块与向量化，避免用户手动触发第二个任务。
     from app.worker import enqueue
 
-    await enqueue("index_document", document.id)
+    await enqueue("index_document", document_id)
     return result

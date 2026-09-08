@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import app.models  # noqa: F401  — 注册全部模型，跨模块外键才解析得了
 from app.config import get_settings
 
 

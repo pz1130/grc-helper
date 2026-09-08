@@ -7,13 +7,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from app.config import get_settings
 from app.db import Base
 
-# 所有模型必须在此导入，autogenerate 才能看到它们。
-# 每新增一个模块的 models.py，都要在这里加一行。
-import app.iam.models  # noqa: F401
-import app.llm.models  # noqa: F401
-import app.ingest.models  # noqa: F401
-import app.clauses.models  # noqa: F401
-import app.search.models  # noqa: F401
+# 模型注册集中在 app.models，新增模型只需改那一处
+import app.models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

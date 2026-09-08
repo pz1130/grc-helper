@@ -43,5 +43,6 @@ retrieval:
 	docker compose run --rm --no-deps \
 	  -e TEST_DATABASE_URL=postgresql+asyncpg://grc:grc@db:5432/grc_test \
 	  -e RUN_RETRIEVAL_EVAL=1 \
+	  -e APP_DATABASE_URL=postgresql+asyncpg://grc:grc@db:5432/grc \
 	  -v "$(PWD)/sample docs:/samples:ro" \
 	  api pytest tests/test_retrieval_quality.py -v -s

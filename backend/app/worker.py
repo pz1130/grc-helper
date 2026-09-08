@@ -10,6 +10,7 @@ from typing import Any
 from arq import create_pool
 from arq.connections import RedisSettings
 
+import app.models  # noqa: F401  — 注册全部模型，跨模块外键才解析得了
 from app.config import get_settings
 from app.indexing.tasks import index_document, reindex_all
 from app.ingest.tasks import parse_document
