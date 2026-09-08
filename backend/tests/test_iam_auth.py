@@ -68,6 +68,19 @@ async def test_login_rejects_expired_auditor_account(client, db_session):
 
 
 @pytest.mark.asyncio
+async def test_unknown_email_still_runs_a_password_verify(client, monkeypatch):
+    """只统一文案不统一耗时挡不住账号枚举，账号不存在也必须跑一次等价校验。"""
+    calls: list[str] = []
+    monkeypatch.setattr("app.iam.router.dummy_verify", lambda raw: calls.append(raw))
+
+    resp = await client.post(
+        "/api/auth/login", json={"email": "ghost@example.com", "password": "some-pw"}
+    )
+    assert resp.status_code == 401
+    assert calls == ["some-pw"]
+
+
+@pytest.mark.asyncio
 async def test_me_requires_token(client):
     assert (await client.get("/api/auth/me")).status_code == 401
 

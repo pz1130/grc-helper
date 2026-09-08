@@ -1,5 +1,7 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, Request, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,9 +10,14 @@ from app.errors import Conflict, NotFound, Unauthorized
 from app.iam.audit import record
 from app.iam.deps import CurrentUser, require
 from app.iam.models import AuditLog, User
-from app.iam.permissions import Permission
+from app.iam.permissions import Permission, Role
 from app.iam.schemas import AuditLogOut, LoginIn, LoginOut, UserCreateIn, UserOut, UserUpdateIn
-from app.iam.security import create_access_token, hash_password, verify_password
+from app.iam.security import (
+    create_access_token,
+    dummy_verify,
+    hash_password,
+    verify_password,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -18,13 +25,17 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 @router.post("/login", response_model=LoginOut)
 async def login(payload: LoginIn, session: AsyncSession = Depends(get_session)) -> LoginOut:
     user = await session.scalar(select(User).where(User.email == payload.email))
+
     # 统一的失败信息，不区分"用户不存在"与"密码错误"，避免账号枚举。
-    if user is None or not verify_password(payload.password, user.password_hash):
+    # 账号不存在时也必须跑一次等价成本的校验：只统一文案不统一耗时，
+    # 攻击者仍能用响应时间把有效邮箱扫出来。
+    if user is None:
+        dummy_verify(payload.password)
+        raise Unauthorized("邮箱或密码不正确")
+    if not verify_password(payload.password, user.password_hash):
         raise Unauthorized("邮箱或密码不正确")
     if not user.is_active:
         raise Unauthorized("邮箱或密码不正确")
-    from datetime import UTC, datetime
-
     if user.expires_at is not None and user.expires_at <= datetime.now(UTC):
         raise Unauthorized("邮箱或密码不正确")
 
@@ -51,6 +62,34 @@ def _snapshot(user: User) -> dict:
         "expires_at": user.expires_at.isoformat() if user.expires_at else None,
         "engagement_scope_id": user.engagement_scope_id,
     }
+
+
+async def _would_orphan_admin(
+    session: AsyncSession, target: User, data: dict
+) -> bool:
+    """这次改动会不会让系统失去最后一名启用的管理员。
+
+    覆盖两种走法：把自己降级/停用，以及把别人降级/停用——真正要守的
+    不变量是"系统里始终至少有一名启用的 admin"，不只是"别动自己"。
+    """
+    if not (target.role is Role.ADMIN and target.is_active):
+        return False
+
+    stays_admin = data.get("role", target.role) is Role.ADMIN
+    stays_active = data.get("is_active", target.is_active)
+    if stays_admin and stays_active:
+        return False
+
+    others = await session.scalar(
+        select(func.count())
+        .select_from(User)
+        .where(
+            User.role == Role.ADMIN,
+            User.is_active.is_(True),
+            User.id != target.id,
+        )
+    )
+    return not others
 
 
 @users_router.get("", response_model=list[UserOut])
@@ -80,6 +119,8 @@ async def create_user(
     try:
         await session.flush()
     except IntegrityError as exc:
+        # 不回滚的话 session 停在失效态，这个请求里后续任何一次用它都会炸。
+        await session.rollback()
         raise Conflict("该邮箱已存在") from exc
 
     await record(
@@ -109,6 +150,8 @@ async def update_user(
 
     before = _snapshot(user)
     data = payload.model_dump(exclude_unset=True)
+    if await _would_orphan_admin(session, user, data):
+        raise Conflict("系统必须保留至少一名启用的管理员，无法执行该改动")
     if "password" in data:
         user.password_hash = hash_password(data.pop("password"))
     for field, value in data.items():

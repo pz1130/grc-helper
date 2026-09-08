@@ -49,7 +49,14 @@ async def db_session(_schema) -> AsyncGenerator[AsyncSession, None]:
     engine = create_async_engine(TEST_DATABASE_URL)
     connection = await engine.connect()
     transaction = await connection.begin()
-    factory = async_sessionmaker(bind=connection, expire_on_commit=False)
+    # create_savepoint：让被测代码里的 commit()/rollback() 只作用在 SAVEPOINT 上，
+    # 外层事务原封不动。没有它，路由里一次 session.rollback() 就会把整个
+    # 测试事务连同种子数据一起掀掉。
+    factory = async_sessionmaker(
+        bind=connection,
+        expire_on_commit=False,
+        join_transaction_mode="create_savepoint",
+    )
     session = factory()
     try:
         yield session

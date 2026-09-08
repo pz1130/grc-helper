@@ -24,6 +24,18 @@ def verify_password(raw: str, hashed: str) -> bool:
         return False
 
 
+# 账号不存在时用它跑一次等价成本的校验，抹平时序差异。
+_DUMMY_HASH = _hasher.hash("timing-equalizer")
+
+
+def dummy_verify(raw: str) -> None:
+    """恒定成本的假校验。必定失败，只为消耗与真校验相同的时间。
+
+    没有它，登录响应耗时会出卖"这个邮箱存不存在"，统一的错误文案就白写了。
+    """
+    verify_password(raw, _DUMMY_HASH)
+
+
 @dataclass(frozen=True)
 class TokenPayload:
     sub: int
