@@ -25,6 +25,12 @@ def sample_pdf(tmp_path: Path) -> Path:
         tmp_path / "procedure.pdf",
         [
             [
+                "IT Procedure - Change Management Procedure",
+                "Version: 2.01",
+                "Procedure Owners: IT Department",
+                "Approver: Chief Risk Officer",
+                "Approved Date: 1 December 2022",
+                "Effective Date: 1 December 2022",
                 "Change Log",
                 "1.0 01/06/2021 Start version of the Procedure",
                 "2.01 01/12/2022 Spelling errors fixed",
@@ -81,6 +87,19 @@ def test_page_reference_is_recorded(sample_pdf: Path):
 def test_warnings_report_what_was_filtered(sample_pdf: Path):
     parsed = PdfParser().parse(sample_pdf)
     assert any("目录行" in warning or "版本历史行" in warning for warning in parsed.warnings)
+
+
+def test_cover_metadata_is_extracted(sample_pdf: Path):
+    from datetime import date
+
+    meta = PdfParser().parse(sample_pdf).meta
+    assert meta.title == "IT Procedure - Change Management Procedure"
+    assert meta.version == "2.01"
+    assert meta.owner == "IT Department"
+    assert meta.approver == "Chief Risk Officer"
+    assert meta.approved_date == date(2022, 12, 1)
+    assert meta.effective_date == date(2022, 12, 1)
+    assert meta.doc_type == "procedure"
 
 
 def test_scanned_pdf_is_reported_not_silently_empty(tmp_path: Path):
