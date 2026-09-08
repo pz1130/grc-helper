@@ -26,3 +26,9 @@ create-admin:
 
 ping-worker:
 	docker compose run --rm api python -c "import asyncio; from app.worker import enqueue; print(asyncio.run(enqueue('ping')))"
+
+e2e:
+	docker compose up -d --build
+	docker compose run --rm api alembic upgrade head
+	docker compose run --rm api python -m app.cli create-admin admin@example.com Admin pw123456
+	cd frontend && npm install --silent && npx playwright install --with-deps chromium && npm run test:e2e
