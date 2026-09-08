@@ -1,6 +1,6 @@
 {
   "app": { "name": "GRC Helper", "logout": "Sign out", "language": "Language" },
-  "nav": { "overview": "Overview", "documents": "Documents", "settings": "Settings" },
+  "nav": { "overview": "Overview", "documents": "Documents", "search": "Search", "settings": "Settings" },
   "login": {
     "title": "Sign in",
     "email": "Email",
@@ -30,6 +30,19 @@
     "pasteText": "Paste plain text",
     "reparse": "Re-parse",
     "pasteHint": "Fallback when parsing fails: paste the text, clauses are split by numbering"
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Search policy clauses, Chinese or English",
+    "run": "Search",
+    "expanded": "Expanded terms",
+    "keywordOnly": "Keyword search only (semantic search unavailable: no embedding provider configured, or the index is incomplete)",
+    "indexing": "Index progress",
+    "indexIncomplete": "Index incomplete; results may be incomplete",
+    "noResults": "No matching clauses",
+    "matchedBy": "Matched by",
+    "byKeyword": "keyword",
+    "bySemantic": "semantic"
   },
   "settings": {
     "title": "Settings",

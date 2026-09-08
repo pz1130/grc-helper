@@ -12,6 +12,7 @@ import { Redaction } from "./pages/settings/Redaction";
 import { SettingsLayout } from "./pages/settings/SettingsLayout";
 import { ThresholdsPage } from "./pages/settings/Thresholds";
 import { Users } from "./pages/settings/Users";
+import { Search } from "./pages/Search";
 
 export function App() {
   const { user, loading } = useAuth();
@@ -24,6 +25,7 @@ export function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<Overview />} />
         <Route path="/documents" element={<Documents />} />
+        <Route path="/search" element={<Search />} />
         <Route path="/documents/:id" element={<DocumentDetail />} />
         <Route path="/settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="providers" replace />} />

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 
 import { request } from "../api";
 
@@ -71,6 +71,7 @@ function Tree({
 export function DocumentDetail() {
   const { t } = useTranslation();
   const { id } = useParams();
+  const location = useLocation();
   const [selected, setSelected] = useState<ClauseNode | null>(null);
 
   const doc = useQuery({
@@ -83,6 +84,24 @@ export function DocumentDetail() {
   });
 
   const total = clauses.data ? flatten(clauses.data).length : 0;
+
+  useEffect(() => {
+    if (!clauses.data) return;
+    const hashClauseId = location.hash.match(/^#clause-(\d+)$/)?.[1];
+    if (!hashClauseId) return;
+    const hashClause = flatten(clauses.data).find((node) => node.id === Number(hashClauseId));
+    if (hashClause) {
+      setSelected((current) => (current?.id === hashClause.id ? current : hashClause));
+    }
+  }, [clauses.data, location.hash]);
+
+  useEffect(() => {
+    if (selected) {
+      requestAnimationFrame(() =>
+        document.getElementById(`clause-${selected.id}`)?.scrollIntoView({ block: "start" }),
+      );
+    }
+  }, [selected]);
 
   return (
     <section>
@@ -113,7 +132,15 @@ export function DocumentDetail() {
             <Tree nodes={clauses.data} onSelect={setSelected} selected={selected?.id ?? null} />
           )}
         </nav>
-        <article style={{ flex: 1 }}>
+        <article
+          id={selected ? `clause-${selected.id}` : undefined}
+          style={{
+            flex: 1,
+            background: selected ? "#f5f7ff" : undefined,
+            padding: selected ? 12 : undefined,
+            borderRadius: selected ? 6 : undefined,
+          }}
+        >
           {selected ? (
             <>
               <h3>{selected.heading}</h3>

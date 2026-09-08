@@ -1,6 +1,6 @@
 {
   "app": { "name": "GRC Helper", "logout": "退出", "language": "语言" },
-  "nav": { "overview": "总览", "documents": "文档库", "settings": "设置" },
+  "nav": { "overview": "总览", "documents": "文档库", "search": "检索", "settings": "设置" },
   "login": {
     "title": "登录",
     "email": "邮箱",
@@ -30,6 +30,19 @@
     "pasteText": "粘贴纯文本",
     "reparse": "重新解析",
     "pasteHint": "解析失败时的兜底：把原文粘进来，按编号切条款"
+  },
+  "search": {
+    "title": "检索",
+    "placeholder": "搜索制度条款，中英文均可",
+    "run": "搜索",
+    "expanded": "已扩展检索词",
+    "keywordOnly": "当前仅使用关键词检索（语义检索不可用：未配置 embedding provider 或索引未建完）",
+    "indexing": "索引进度",
+    "indexIncomplete": "索引尚未完成，结果可能不全",
+    "noResults": "没有找到匹配的条款",
+    "matchedBy": "命中方式",
+    "byKeyword": "关键词",
+    "bySemantic": "语义"
   },
   "settings": {
     "title": "设置",
