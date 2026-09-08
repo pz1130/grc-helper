@@ -96,3 +96,74 @@ async def test_limit_is_respected(db_session):
 async def test_empty_query_returns_empty_without_touching_the_database(db_session):
     await _chunks(db_session, ["privileged access"])
     assert await search(db_session, "   ") == []
+
+
+# ── AND 语义缺陷的回归测试 ──────────────────────────────────
+# 实测：websearch_to_tsquery 是合取语义，问句里只要有一个词不在语料中，
+# 整句返回 0 条。修复前 8 条黄金查询里 4 条完全无召回，Recall@5 = 0.25。
+
+
+@pytest.mark.asyncio
+async def test_question_still_recalls_when_one_word_is_absent(db_session):
+    """核心回归：'rotated' 不在语料里，不能因此让整句归零。"""
+    await _chunks(db_session, ["Privileged accounts are vaulted in VaultKeeper."])
+
+    hits = await search(db_session, "how are privileged accounts stored and rotated")
+    assert hits, "问句里有一个语料中不存在的词，不该让整句无召回"
+
+
+@pytest.mark.asyncio
+async def test_natural_language_question_recalls(db_session):
+    await _chunks(
+        db_session,
+        [
+            "Threat intelligence sources are reviewed by the owner.",
+            "Change requests are approved by the CAB.",
+        ],
+    )
+    assert await search(db_session, "who owns the threat intelligence process") != []
+
+
+@pytest.mark.asyncio
+async def test_more_matching_terms_ranks_higher(db_session):
+    """OR 语义靠 ts_rank 排序：命中词多的应当排在前面。"""
+    await _chunks(
+        db_session,
+        [
+            "The CAB approves changes.",
+            "Privileged accounts are stored and reviewed by the account owner.",
+        ],
+    )
+    hits = await search(db_session, "privileged accounts stored owner")
+    assert hits[0].rank == 1
+    assert len(hits) >= 1
+
+
+@pytest.mark.asyncio
+async def test_quoted_phrase_still_uses_conjunctive_semantics(db_session):
+    """用户打了引号就是要精确，这时仍走 websearch_to_tsquery。"""
+    await _chunks(
+        db_session,
+        ["privileged access management", "access is privileged only in emergencies"],
+    )
+    assert len(await search(db_session, '"privileged access"')) == 1
+
+
+@pytest.mark.asyncio
+async def test_exclusion_still_works(db_session):
+    await _chunks(db_session, ["privileged access with VaultKeeper", "privileged access manual"])
+    assert len(await search(db_session, "privileged -vaultkeeper")) == 1
+
+
+@pytest.mark.asyncio
+async def test_hyphenated_word_is_not_mistaken_for_exclusion(db_session):
+    """'multi-factor' 里的连字符不是排除语法，不该被误判成精确模式。"""
+    await _chunks(db_session, ["Multi-factor authentication is required."])
+    assert await search(db_session, "multi-factor authentication nonexistentword") != []
+
+
+@pytest.mark.asyncio
+async def test_completely_unmatched_query_still_returns_empty(db_session):
+    """放宽成 OR 之后，也不能变成"什么都能命中"。"""
+    await _chunks(db_session, ["Change management process."])
+    assert await search(db_session, "kubernetes istio helm") == []
