@@ -28,9 +28,7 @@ EXPECTED_TABLES = {
 
 def _tables_after_importing(module: str) -> set[str]:
     code = (
-        f"import {module}\n"
-        "from app.db import Base\n"
-        "print(','.join(sorted(Base.metadata.tables)))\n"
+        f"import {module}\nfrom app.db import Base\nprint(','.join(sorted(Base.metadata.tables)))\n"
     )
     result = subprocess.run(
         [sys.executable, "-c", code], capture_output=True, text=True, check=True
@@ -63,14 +61,13 @@ def test_cross_module_foreign_keys_resolve():
         "import app.worker\n"
         "from app.db import Base\n"
         "from sqlalchemy import Table\n"
-        "for fk in Base.metadata.tables['documents'].foreign_keys:\n"
-        "    fk.column\n"       # 触发解析，解析不了会抛 NoReferencedTableError
-        "for fk in Base.metadata.tables['clause_chunks'].foreign_keys:\n"
-        "    fk.column\n"
+        "for table in Base.metadata.tables.values():\n"
+        "    for fk in table.foreign_keys:\n"
+        "        fk.column\n"
         "print('ok')\n"
     )
     result = subprocess.run(
-        [sys.executable, "-c", code], capture_output=True, text=True
+        [sys.executable, "-c", code], capture_output=True, text=True, check=False
     )
     assert result.returncode == 0, result.stderr[-400:]
     assert "ok" in result.stdout

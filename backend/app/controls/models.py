@@ -3,13 +3,15 @@ from enum import StrEnum
 
 from sqlalchemy import (
     DateTime,
-    Enum as SAEnum,
     Float,
     ForeignKey,
     Integer,
     String,
     Text,
     UniqueConstraint,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -19,7 +21,7 @@ from app.db import Base, TimestampMixin
 class SourceRelation(StrEnum):
     """条款是怎么支撑这个控制点的。"""
 
-    DEFINES = "defines"        # 定义
+    DEFINES = "defines"  # 定义
     ELABORATES = "elaborates"  # 细化
     IMPLEMENTS = "implements"  # 实施
 
@@ -28,7 +30,7 @@ class RelationType(StrEnum):
     IMPLEMENTS = "implements"
     REFINES = "refines"
     DEPENDS_ON = "depends_on"
-    CONFLICTS_WITH = "conflicts_with"   # M10 的冲突检测用
+    CONFLICTS_WITH = "conflicts_with"  # M10 的冲突检测用
     DUPLICATES = "duplicates"
 
 
@@ -72,9 +74,7 @@ class ControlSource(Base):
     """
 
     __tablename__ = "control_sources"
-    __table_args__ = (
-        UniqueConstraint("control_id", "clause_id", name="uq_control_clause"),
-    )
+    __table_args__ = (UniqueConstraint("control_id", "clause_id", name="uq_control_clause"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     control_id: Mapped[int] = mapped_column(
@@ -120,4 +120,3 @@ class ControlRelation(Base):
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-

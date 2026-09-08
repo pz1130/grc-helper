@@ -3,8 +3,8 @@
 M1 把这两个值存进了 AppSetting，M4 是第一个消费者。
 """
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -51,7 +51,7 @@ def bulk_acceptable(proposal: Proposal, thresholds: Thresholds, *, ocr_flag: boo
     if ocr_flag:
         return False
     if proposal.confidence is None:
-        return False   # 没有置信度就保守处理
+        return False  # 没有置信度就保守处理
     confidence = proposal.confidence
     return (
         not isinstance(confidence, bool)
@@ -61,4 +61,3 @@ def bulk_acceptable(proposal: Proposal, thresholds: Thresholds, *, ocr_flag: boo
         and confidence >= thresholds.auto_accept
         and confidence >= thresholds.force_manual
     )
-

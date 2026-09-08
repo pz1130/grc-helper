@@ -5,12 +5,12 @@ from app.review.models import Proposal, ProposalKind, ProposalStatus
 
 
 async def _proposal(db_session, **kwargs) -> Proposal:
-    defaults = dict(
-        kind=ProposalKind.CONTROL_EXTRACT,
-        payload={"title": "Dual approval", "statement": "Two approvers required."},
-        citations=[{"clause_id": 1, "quote": "two approvers"}],
-        confidence=0.87,
-    )
+    defaults = {
+        "kind": ProposalKind.CONTROL_EXTRACT,
+        "payload": {"title": "Dual approval", "statement": "Two approvers required."},
+        "citations": [{"clause_id": 1, "quote": "two approvers"}],
+        "confidence": 0.87,
+    }
     defaults.update(kwargs)
     proposal = Proposal(**defaults)
     db_session.add(proposal)
@@ -52,8 +52,14 @@ async def test_kind_persists_spec_value(db_session):
 async def test_all_eight_ai_task_kinds_plus_matrix_are_representable(db_session):
     """spec §6.5 的八个 AI 任务，加上 M4 的 Excel 列映射。"""
     expected = {
-        "control_extract", "mapping", "relation", "conflict",
-        "answer", "maturity_score", "evidence_suggestion", "audit_prediction",
+        "control_extract",
+        "mapping",
+        "relation",
+        "conflict",
+        "answer",
+        "maturity_score",
+        "evidence_suggestion",
+        "audit_prediction",
         "matrix_mapping",
     }
     assert {kind.value for kind in ProposalKind} == expected
@@ -86,4 +92,3 @@ async def test_reject_reason_is_recorded(db_session):
     await db_session.flush()
     found = await db_session.scalar(select(Proposal))
     assert "复述" in found.reject_reason
-

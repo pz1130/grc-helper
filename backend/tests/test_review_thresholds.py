@@ -9,6 +9,7 @@ def test_invalid_confidence_never_bulk_accepts(confidence):
 def test_inverted_thresholds_fail_closed():
     assert not bulk_acceptable(_proposal(1), Thresholds(0.5, 0.9), ocr_flag=False)
 
+
 from app.llm.models import AppSetting
 from app.review.models import Proposal, ProposalKind
 from app.review.thresholds import Thresholds, bulk_acceptable, load
