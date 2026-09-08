@@ -1,4 +1,4 @@
-.PHONY: up down logs test migrate revision fmt create-admin ping-worker e2e corpus
+.PHONY: up down logs test migrate revision fmt create-admin ping-worker e2e corpus retrieval
 
 up:
 	docker compose up -d --build db redis api
@@ -38,3 +38,10 @@ corpus:
 	  -e TEST_DATABASE_URL=postgresql+asyncpg://grc:grc@db:5432/grc_test \
 	  -v "$(PWD)/sample docs:/samples:ro" \
 	  api pytest tests/test_corpus_report.py -v -s
+
+retrieval:
+	docker compose run --rm --no-deps \
+	  -e TEST_DATABASE_URL=postgresql+asyncpg://grc:grc@db:5432/grc_test \
+	  -e RUN_RETRIEVAL_EVAL=1 \
+	  -v "$(PWD)/sample docs:/samples:ro" \
+	  api pytest tests/test_retrieval_quality.py -v -s
