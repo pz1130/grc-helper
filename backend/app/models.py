@@ -13,6 +13,7 @@ alembic）都导入本模块，而不是各自去 import 自己碰巧需要的�
 """
 
 from app.clauses import models as clauses_models
+from app.controls import models as controls_models
 from app.iam import models as iam_models
 from app.ingest import models as ingest_models
 from app.llm import models as llm_models
@@ -20,6 +21,7 @@ from app.search import models as search_models
 
 __all__ = [
     "clauses_models",
+    "controls_models",
     "iam_models",
     "ingest_models",
     "llm_models",

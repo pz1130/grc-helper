@@ -8,6 +8,9 @@ import subprocess
 import sys
 
 EXPECTED_TABLES = {
+    "controls",
+    "control_sources",
+    "control_relations",
     "users",
     "audit_log",
     "llm_provider_config",
