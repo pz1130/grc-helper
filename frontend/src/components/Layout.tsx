@@ -21,6 +21,12 @@ export function Layout() {
         <NavLink to="/search" style={{ display: "block", padding: "6px 0" }}>
           {t("nav.search")}
         </NavLink>
+        <NavLink to="/review" style={{ display: "block", padding: "6px 0" }}>
+          {t("nav.review")}
+        </NavLink>
+        <NavLink to="/controls" style={{ display: "block", padding: "6px 0" }}>
+          {t("nav.controls")}
+        </NavLink>
         <NavLink to="/settings" style={{ display: "block", padding: "6px 0" }}>
           {t("nav.settings")}
         </NavLink>

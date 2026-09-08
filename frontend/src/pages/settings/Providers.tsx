@@ -48,6 +48,7 @@ const TASK_KEYS = [
   "evidence_suggestion",
   "embedding",
   "query_expansion",
+  "matrix_mapping",
 ];
 
 export function Providers() {
