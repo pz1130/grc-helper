@@ -11,6 +11,8 @@ from app.db import Base
 # 每新增一个模块的 models.py，都要在这里加一行。
 import app.iam.models  # noqa: F401
 import app.llm.models  # noqa: F401
+import app.ingest.models  # noqa: F401
+import app.clauses.models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
