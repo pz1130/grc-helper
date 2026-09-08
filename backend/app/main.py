@@ -21,11 +21,13 @@ def create_app() -> FastAPI:
 
     from app.errors import install_error_handlers
     from app.iam.router import audit_router, router as iam_router, users_router
+    from app.llm.router import router as settings_router
 
     install_error_handlers(application)
     application.include_router(iam_router)
     application.include_router(users_router)
     application.include_router(audit_router)
+    application.include_router(settings_router)
 
     return application
 
