@@ -1,4 +1,4 @@
-.PHONY: up down logs test migrate revision fmt
+.PHONY: up down logs test migrate revision fmt create-admin ping-worker e2e
 
 up:
 	docker compose up -d --build db redis api
@@ -20,3 +20,9 @@ revision:
 
 fmt:
 	docker compose run --rm api ruff check --fix app tests
+
+create-admin:
+	docker compose run --rm api python -m app.cli create-admin "$(email)" "$(name)" "$(password)"
+
+ping-worker:
+	docker compose run --rm api python -c "import asyncio; from app.worker import enqueue; print(asyncio.run(enqueue('ping')))"

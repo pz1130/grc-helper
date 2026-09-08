@@ -1,0 +1,70 @@
+import pytest
+from sqlalchemy import select
+
+from app.cli import create_admin
+from app.iam.models import User
+from app.iam.permissions import Role
+from app.iam.security import hash_password, verify_password
+
+
+@pytest.mark.asyncio
+async def test_create_admin_inserts_user(db_session):
+    await create_admin("admin@example.com", "Admin", "pw123456", session=db_session)
+
+    user = await db_session.scalar(select(User).where(User.email == "admin@example.com"))
+    assert user is not None
+    assert user.role is Role.ADMIN
+    assert user.is_active is True
+    assert verify_password("pw123456", user.password_hash)
+
+
+@pytest.mark.asyncio
+async def test_create_admin_is_idempotent_and_resets_password(db_session):
+    await create_admin("admin@example.com", "Admin", "old-password", session=db_session)
+    await create_admin("admin@example.com", "Admin", "new-password", session=db_session)
+
+    users = list(await db_session.scalars(select(User).where(User.email == "admin@example.com")))
+    assert len(users) == 1
+    assert verify_password("new-password", users[0].password_hash)
+
+
+@pytest.mark.asyncio
+async def test_create_admin_promotes_existing_non_admin(db_session):
+    db_session.add(
+        User(
+            email="someone@example.com",
+            name="Someone",
+            role=Role.VIEWER,
+            password_hash=hash_password("pw"),
+        )
+    )
+    await db_session.flush()
+
+    await create_admin("someone@example.com", "Someone", "pw123456", session=db_session)
+
+    user = await db_session.scalar(select(User).where(User.email == "someone@example.com"))
+    assert user.role is Role.ADMIN
+
+
+@pytest.mark.asyncio
+async def test_create_admin_revives_a_locked_out_account(db_session):
+    """引导命令是管理员被锁死后的唯一退路，停用和过期都得一并清掉。"""
+    from datetime import UTC, datetime, timedelta
+
+    db_session.add(
+        User(
+            email="locked@example.com",
+            name="Locked",
+            role=Role.ADMIN,
+            password_hash=hash_password("pw"),
+            is_active=False,
+            expires_at=datetime.now(UTC) - timedelta(days=1),
+        )
+    )
+    await db_session.flush()
+
+    await create_admin("locked@example.com", "Locked", "pw123456", session=db_session)
+
+    user = await db_session.scalar(select(User).where(User.email == "locked@example.com"))
+    assert user.is_active is True
+    assert user.expires_at is None
