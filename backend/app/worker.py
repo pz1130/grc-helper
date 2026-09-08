@@ -11,6 +11,7 @@ from arq import create_pool
 from arq.connections import RedisSettings
 
 from app.config import get_settings
+from app.indexing.tasks import index_document, reindex_all
 from app.ingest.tasks import parse_document
 
 
@@ -34,7 +35,7 @@ async def enqueue(function: str, *args: Any) -> str:
 
 
 class WorkerSettings:
-    functions = [ping, parse_document]
+    functions = [ping, parse_document, index_document, reindex_all]
     redis_settings = _redis_settings()
     max_jobs = 4
     job_timeout = 900          # 15 分钟：够一份大 PDF 走完 OCR + 抽取

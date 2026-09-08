@@ -66,8 +66,12 @@ async def parse_document(ctx: dict[str, Any], document_id: int) -> dict[str, Any
         document = await session.get(Document, document_id)
         if document is None:
             return {"clauses": 0, "warnings": [f"文档 {document_id} 不存在"]}
-        try:
-            result = await run_parse(session, document)
-        finally:
-            await session.commit()
-        return result
+    try:
+        result = await run_parse(session, document)
+    finally:
+        await session.commit()
+    # 解析成功后自动接上分块与向量化，避免用户手动触发第二个任务。
+    from app.worker import enqueue
+
+    await enqueue("index_document", document.id)
+    return result
