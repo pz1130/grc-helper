@@ -14,3 +14,6 @@ uploads/
 *.db
 .DS_Store
 .worktrees/
+test-results/
+playwright-report/
+.playwright/

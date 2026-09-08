@@ -1,0 +1,33 @@
+{
+  "app": { "name": "GRC Helper", "logout": "Sign out", "language": "Language" },
+  "nav": { "overview": "Overview", "settings": "Settings" },
+  "login": {
+    "title": "Sign in",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "failed": "Incorrect email or password"
+  },
+  "overview": {
+    "title": "Overview",
+    "monthCost": "Month-to-date AI cost",
+    "budget": "Budget",
+    "calls": "Calls"
+  },
+  "settings": {
+    "title": "Settings",
+    "providers": "AI providers",
+    "routing": "Task routing",
+    "redaction": "Redaction rules",
+    "thresholds": "Thresholds & budget",
+    "users": "Users",
+    "auditLog": "Audit log"
+  },
+  "common": {
+    "save": "Save",
+    "add": "Add",
+    "test": "Test connection",
+    "cancel": "Cancel",
+    "empty": "No data"
+  }
+}

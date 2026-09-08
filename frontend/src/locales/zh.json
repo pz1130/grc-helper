@@ -1,0 +1,33 @@
+{
+  "app": { "name": "GRC Helper", "logout": "退出", "language": "语言" },
+  "nav": { "overview": "总览", "settings": "设置" },
+  "login": {
+    "title": "登录",
+    "email": "邮箱",
+    "password": "密码",
+    "submit": "登录",
+    "failed": "邮箱或密码不正确"
+  },
+  "overview": {
+    "title": "总览",
+    "monthCost": "本月 AI 花费",
+    "budget": "预算",
+    "calls": "调用次数"
+  },
+  "settings": {
+    "title": "设置",
+    "providers": "AI Provider",
+    "routing": "任务路由",
+    "redaction": "脱敏规则",
+    "thresholds": "阈值与预算",
+    "users": "用户管理",
+    "auditLog": "操作日志"
+  },
+  "common": {
+    "save": "保存",
+    "add": "新增",
+    "test": "测试连接",
+    "cancel": "取消",
+    "empty": "暂无数据"
+  }
+}
