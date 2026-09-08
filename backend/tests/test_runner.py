@@ -1,0 +1,242 @@
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from sqlalchemy import select
+
+from app.crypto import encrypt
+from app.llm.models import (
+    LLMCall,
+    LLMProviderConfig,
+    ProviderKind,
+    RedactionRule,
+    RulesetName,
+    TaskRouting,
+)
+from app.llm.providers.base import CompletionResponse, ProviderError
+from app.llm.runner import run
+
+SCHEMA = {
+    "type": "object",
+    "required": ["answer"],
+    "properties": {"answer": {"type": "string"}, "confidence": {"type": "number"}},
+}
+
+
+async def _setup(db_session, *, fallback: bool = False) -> LLMProviderConfig:
+    primary = LLMProviderConfig(
+        name="primary", kind=ProviderKind.ANTHROPIC, model="claude-opus-5",
+        api_key_encrypted=encrypt("sk-primary"),
+    )
+    db_session.add(primary)
+    if fallback:
+        db_session.add(
+            LLMProviderConfig(
+                name="backup", kind=ProviderKind.ANTHROPIC, model="claude-sonnet-5",
+                api_key_encrypted=encrypt("sk-backup"), is_fallback=True,
+            )
+        )
+    db_session.add(
+        RedactionRule(
+            ruleset=RulesetName.GENERATION, pattern_type="regex",
+            pattern=r"\b\d{1,3}(?:\.\d{1,3}){3}\b", replacement_prefix="IP", order_index=10,
+        )
+    )
+    await db_session.flush()
+    db_session.add(TaskRouting(task_key="answer_generation", provider_config_id=primary.id))
+    await db_session.flush()
+    return primary
+
+
+@pytest.mark.asyncio
+async def test_run_returns_validated_payload(db_session):
+    await _setup(db_session)
+    with patch(
+        "app.llm.runner.build_provider",
+        return_value=AsyncMock(
+            complete=AsyncMock(
+                return_value=CompletionResponse(
+                    text='{"answer": "已实施", "confidence": 0.9}', tokens_in=10, tokens_out=5
+                )
+            )
+        ),
+    ):
+        result = await run(
+            db_session, task_key="answer_generation", system="s", prompt="p", schema=SCHEMA
+        )
+    assert result.payload["answer"] == "已实施"
+    assert result.confidence == 0.9
+
+
+@pytest.mark.asyncio
+async def test_prompt_is_redacted_before_leaving(db_session):
+    """铁律：出网内容必须先脱敏。"""
+    await _setup(db_session)
+    fake = AsyncMock(
+        complete=AsyncMock(
+            return_value=CompletionResponse(text='{"answer": "ok"}', tokens_in=1, tokens_out=1)
+        )
+    )
+    with patch("app.llm.runner.build_provider", return_value=fake):
+        await run(
+            db_session,
+            task_key="answer_generation",
+            system="s",
+            prompt="跳板机 10.20.30.40 需复核",
+            schema=SCHEMA,
+        )
+    sent = fake.complete.call_args.args[0].prompt
+    assert "10.20.30.40" not in sent
+    assert "[[IP_1]]" in sent
+
+
+@pytest.mark.asyncio
+async def test_response_is_restored_after_return(db_session):
+    await _setup(db_session)
+    with patch(
+        "app.llm.runner.build_provider",
+        return_value=AsyncMock(
+            complete=AsyncMock(
+                return_value=CompletionResponse(
+                    text='{"answer": "请检查 [[IP_1]] 的日志"}', tokens_in=1, tokens_out=1
+                )
+            )
+        ),
+    ):
+        result = await run(
+            db_session,
+            task_key="answer_generation",
+            system="s",
+            prompt="跳板机 10.20.30.40 需复核",
+            schema=SCHEMA,
+        )
+    assert result.payload["answer"] == "请检查 10.20.30.40 的日志"
+
+
+@pytest.mark.asyncio
+async def test_schema_failure_triggers_correction_retry(db_session):
+    await _setup(db_session)
+    complete = AsyncMock(
+        side_effect=[
+            CompletionResponse(text='{"wrong": 1}', tokens_in=1, tokens_out=1),
+            CompletionResponse(text='{"answer": "修好了"}', tokens_in=1, tokens_out=1),
+        ]
+    )
+    with patch("app.llm.runner.build_provider", return_value=AsyncMock(complete=complete)):
+        result = await run(
+            db_session, task_key="answer_generation", system="s", prompt="p", schema=SCHEMA
+        )
+    assert result.payload["answer"] == "修好了"
+    assert complete.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_persistent_schema_failure_raises_after_two_retries(db_session):
+    from app.llm.validation import ValidationFailure
+
+    await _setup(db_session)
+    complete = AsyncMock(
+        return_value=CompletionResponse(text='{"wrong": 1}', tokens_in=1, tokens_out=1)
+    )
+    with patch("app.llm.runner.build_provider", return_value=AsyncMock(complete=complete)):
+        with pytest.raises(ValidationFailure):
+            await run(
+                db_session, task_key="answer_generation", system="s", prompt="p", schema=SCHEMA
+            )
+    assert complete.await_count == 3   # 首次 + 2 次纠错
+
+
+@pytest.mark.asyncio
+async def test_retryable_provider_error_falls_back(db_session):
+    await _setup(db_session, fallback=True)
+    primary = AsyncMock(complete=AsyncMock(side_effect=ProviderError("429", retryable=True)))
+    backup = AsyncMock(
+        complete=AsyncMock(
+            return_value=CompletionResponse(text='{"answer": "备用"}', tokens_in=1, tokens_out=1)
+        )
+    )
+    with patch("app.llm.runner.build_provider", side_effect=[primary, backup]):
+        with patch("app.llm.runner._sleep", new=AsyncMock()):
+            result = await run(
+                db_session, task_key="answer_generation", system="s", prompt="p", schema=SCHEMA
+            )
+    assert result.payload["answer"] == "备用"
+
+
+@pytest.mark.asyncio
+async def test_llm_call_is_recorded_with_redaction_facts(db_session):
+    await _setup(db_session)
+    with patch(
+        "app.llm.runner.build_provider",
+        return_value=AsyncMock(
+            complete=AsyncMock(
+                return_value=CompletionResponse(text='{"answer": "ok"}', tokens_in=10, tokens_out=5)
+            )
+        ),
+    ):
+        await run(
+            db_session,
+            task_key="answer_generation",
+            system="s",
+            prompt="主机 10.0.0.1",
+            schema=SCHEMA,
+        )
+    call = await db_session.scalar(select(LLMCall))
+    assert call.status == "ok"
+    assert call.redaction_applied is True
+    assert call.redaction_hits == {"IP": 1}
+    assert call.tokens_in == 10
+    assert call.cost > 0
+
+
+@pytest.mark.asyncio
+async def test_failed_call_is_also_recorded(db_session):
+    await _setup(db_session)
+    with patch(
+        "app.llm.runner.build_provider",
+        return_value=AsyncMock(complete=AsyncMock(side_effect=ProviderError("401", retryable=False))),
+    ):
+        with pytest.raises(ProviderError):
+            await run(
+                db_session, task_key="answer_generation", system="s", prompt="p", schema=SCHEMA
+            )
+    call = await db_session.scalar(select(LLMCall))
+    assert call.status == "error"
+    assert "401" in call.error
+
+
+@pytest.mark.asyncio
+async def test_citation_validator_rejection_raises(db_session):
+    from app.llm.validation import ValidationFailure
+
+    class _AlwaysReject:
+        async def check(self, payload):
+            return "引用的条款不存在"
+
+    await _setup(db_session)
+    with patch(
+        "app.llm.runner.build_provider",
+        return_value=AsyncMock(
+            complete=AsyncMock(
+                return_value=CompletionResponse(text='{"answer": "ok"}', tokens_in=1, tokens_out=1)
+            )
+        ),
+    ):
+        with pytest.raises(ValidationFailure, match="引用的条款不存在"):
+            await run(
+                db_session,
+                task_key="answer_generation",
+                system="s",
+                prompt="p",
+                schema=SCHEMA,
+                citation_validator=_AlwaysReject(),
+            )
+
+
+@pytest.mark.asyncio
+async def test_run_does_not_write_business_tables(db_session):
+    """铁律 2：run() 只返回纯数据，把它变成 Proposal 是 M4 的事。"""
+    import app.llm.runner as runner_module
+
+    source = open(runner_module.__file__, encoding="utf-8").read()
+    for forbidden in ("Proposal", "Control(", "Document("):
+        assert forbidden not in source, f"runner 不应引用业务实体 {forbidden}"
