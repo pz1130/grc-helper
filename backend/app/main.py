@@ -20,10 +20,12 @@ def create_app() -> FastAPI:
         return {"status": "ok", "version": settings.app_version}
 
     from app.errors import install_error_handlers
-    from app.iam.router import router as iam_router
+    from app.iam.router import audit_router, router as iam_router, users_router
 
     install_error_handlers(application)
     application.include_router(iam_router)
+    application.include_router(users_router)
+    application.include_router(audit_router)
 
     return application
 
