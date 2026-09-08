@@ -1,4 +1,4 @@
-.PHONY: up down logs test migrate revision fmt create-admin ping-worker e2e
+.PHONY: up down logs test migrate revision fmt create-admin ping-worker e2e corpus
 
 up:
 	docker compose up -d --build db redis api
@@ -32,3 +32,9 @@ e2e:
 	docker compose run --rm api alembic upgrade head
 	docker compose run --rm api python -m app.cli create-admin admin@example.com Admin pw123456
 	cd frontend && npm install --silent && npx playwright install --with-deps chromium && npm run test:e2e
+
+corpus:
+	docker compose run --rm --no-deps \
+	  -e TEST_DATABASE_URL=postgresql+asyncpg://grc:grc@db:5432/grc_test \
+	  -v "$(PWD)/sample docs:/samples:ro" \
+	  api pytest tests/test_corpus_report.py -v -s
