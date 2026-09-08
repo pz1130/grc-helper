@@ -8,8 +8,9 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # 测试必须指向独立的库，避免污染开发数据。
+# 不继承应用的 DATABASE_URL：pytest 若加载 .env 的 /grc，DROP 会毁掉开发库。
 TEST_DATABASE_URL = os.environ.get(
-    "DATABASE_URL", "postgresql+asyncpg://grc:grc@db:5432/grc_test"
+    "TEST_DATABASE_URL", "postgresql+asyncpg://grc:grc@db:5432/grc_test"
 )
 
 
@@ -26,9 +27,12 @@ async def _schema() -> AsyncGenerator[None, None]:
     from alembic import command
     from alembic.config import Config
 
+    from app.config import get_settings
+
     cfg = Config("alembic.ini")
     cfg.set_main_option("sqlalchemy.url", TEST_DATABASE_URL)
     os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+    get_settings.cache_clear()
 
     admin_engine = create_async_engine(
         TEST_DATABASE_URL.rsplit("/", 1)[0] + "/postgres",
