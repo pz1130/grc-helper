@@ -5,6 +5,7 @@ import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
 import { Overview } from "./pages/Overview";
 import { Documents } from "./pages/Documents";
+import { DocumentDetail } from "./pages/DocumentDetail";
 import { AuditLog } from "./pages/settings/AuditLog";
 import { Providers } from "./pages/settings/Providers";
 import { Redaction } from "./pages/settings/Redaction";
@@ -23,6 +24,7 @@ export function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<Overview />} />
         <Route path="/documents" element={<Documents />} />
+        <Route path="/documents/:id" element={<DocumentDetail />} />
         <Route path="/settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="providers" replace />} />
           <Route path="providers" element={<Providers />} />
