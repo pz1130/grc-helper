@@ -1,6 +1,6 @@
 """Persist clause chunks and find chunks that need embedding."""
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clauses.models import Clause, ClauseChunk
