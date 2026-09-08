@@ -75,3 +75,70 @@ def test_print_corpus_report(capsys):
             print(f"{len(nodes):>6} {tables:>5} {len(parsed.warnings):>5}  {path.name[:52]}")
             for warning in parsed.warnings:
                 print(f"{'':>18}⚠️  {warning}")
+
+
+# ── 结构性断言 ──────────────────────────────────────────────
+# 首版的语料测试只断言"不是已知的三类噪声"，从没断言"条款是不是真的条款"，
+# 结果 4/6 份文件的树塌了还全绿。下面三条断言的是**结构本身**。
+
+
+@pytest.mark.parametrize("path", _files(), ids=lambda p: p.name[:40])
+def test_top_level_clauses_are_top_level_numbers(path: Path):
+    """顶层条款的编号必须是单段的。
+
+    实测事故：噪声顶掉父节点后，1.1 / 1.2 / 2.1 全被打到顶层，
+    一份文件冒出 18 个"顶层"条款。
+    """
+    parsed = get_parser(path).parse(path)
+    offenders = [
+        n.number
+        for n in parsed.clauses
+        if n.kind == "section" and n.number and "." in n.number
+    ]
+    assert not offenders, f"{path.name}: 这些子条款被打到了顶层 → {offenders}"
+
+
+@pytest.mark.parametrize("path", _files(), ids=lambda p: p.name[:40])
+def test_child_number_extends_its_parent(path: Path):
+    """树的完整性：子条款编号必须是父条款编号的延长。"""
+    parsed = get_parser(path).parse(path)
+
+    def check(parent: ClauseNode) -> None:
+        for child in parent.children:
+            if parent.number and child.number:
+                assert child.number.startswith(f"{parent.number}."), (
+                    f"{path.name}: {child.number} 挂在了 {parent.number} 下面"
+                )
+            check(child)
+
+    for root in parsed.clauses:
+        check(root)
+
+
+@pytest.mark.parametrize("path", _files(), ids=lambda p: p.name[:40])
+def test_no_page_footer_or_list_item_became_a_clause(path: Path):
+    """页脚与操作步骤不得成为条款（实测各 17 / 41 条）。"""
+    import re
+
+    parsed = get_parser(path).parse(path)
+    for node in _walk(parsed.clauses):
+        assert not re.match(r"^\|?\s*P\s*a\s*g\s*e", node.heading), (
+            f"{path.name}: 页脚漏进来了 → {node.heading!r}"
+        )
+
+
+@pytest.mark.parametrize("path", _files(), ids=lambda p: p.name[:40])
+def test_house_style_anchors_are_present(path: Path):
+    """这批文件都以 Introduction 或 Role/Roles and Responsibility 起头。
+
+    锚点缺失意味着解析漏掉了文档开头——正是首版塌树时的症状。
+    """
+    parsed = get_parser(path).parse(path)
+    headings = {n.heading.strip().casefold() for n in _walk(parsed.clauses)}
+    anchors = {
+        "introduction",
+        "role and responsibility",
+        "roles and responsibilities",
+        "roles & responsibilities",
+    }
+    assert headings & anchors, f"{path.name}: 一个 house style 锚点都没找到"
