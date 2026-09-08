@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-import app.models  # noqa: F401  — 注册全部模型，跨模块外键才解析得了
+import app.models
 from app.config import get_settings
 
 
@@ -20,11 +20,16 @@ def create_app() -> FastAPI:
     async def health() -> dict[str, str]:
         return {"status": "ok", "version": settings.app_version}
 
+    from app.controls.router import router as controls_router
     from app.errors import install_error_handlers
+    from app.extraction.router import router as extraction_router
+    from app.iam.router import audit_router, users_router
+    from app.iam.router import router as iam_router
     from app.indexing.router import router as index_router
     from app.ingest.router import router as documents_router
-    from app.iam.router import audit_router, router as iam_router, users_router
     from app.llm.router import router as settings_router
+    from app.matrix.router import router as matrix_router
+    from app.review.router import router as review_router
     from app.search.router import router as search_router
 
     install_error_handlers(application)
@@ -35,6 +40,10 @@ def create_app() -> FastAPI:
     application.include_router(documents_router)
     application.include_router(search_router)
     application.include_router(index_router)
+    application.include_router(controls_router)
+    application.include_router(extraction_router)
+    application.include_router(matrix_router)
+    application.include_router(review_router)
 
     return application
 

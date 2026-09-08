@@ -5,13 +5,14 @@
 都注册在这里。
 """
 
-from typing import Any
+from typing import Any, ClassVar
 
 from arq import create_pool
 from arq.connections import RedisSettings
 
 import app.models  # noqa: F401  — 注册全部模型，跨模块外键才解析得了
 from app.config import get_settings
+from app.extraction.tasks import extract_controls
 from app.indexing.tasks import index_document, reindex_all
 from app.ingest.tasks import parse_document
 
@@ -36,7 +37,9 @@ async def enqueue(function: str, *args: Any) -> str:
 
 
 class WorkerSettings:
-    functions = [ping, parse_document, index_document, reindex_all]
+    functions: ClassVar[list[Any]] = [
+        ping, parse_document, index_document, reindex_all, extract_controls
+    ]
     redis_settings = _redis_settings()
     max_jobs = 4
     job_timeout = 900          # 15 分钟：够一份大 PDF 走完 OCR + 抽取
