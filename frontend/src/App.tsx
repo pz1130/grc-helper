@@ -4,6 +4,12 @@ import { useAuth } from "./auth";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
 import { Overview } from "./pages/Overview";
+import { AuditLog } from "./pages/settings/AuditLog";
+import { Providers } from "./pages/settings/Providers";
+import { Redaction } from "./pages/settings/Redaction";
+import { SettingsLayout } from "./pages/settings/SettingsLayout";
+import { ThresholdsPage } from "./pages/settings/Thresholds";
+import { Users } from "./pages/settings/Users";
 
 export function App() {
   const { user, loading } = useAuth();
@@ -15,6 +21,14 @@ export function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Overview />} />
+        <Route path="/settings" element={<SettingsLayout />}>
+          <Route index element={<Navigate to="providers" replace />} />
+          <Route path="providers" element={<Providers />} />
+          <Route path="redaction" element={<Redaction />} />
+          <Route path="thresholds" element={<ThresholdsPage />} />
+          <Route path="users" element={<Users />} />
+          <Route path="audit-log" element={<AuditLog />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
