@@ -11,3 +11,4 @@ data/
 uploads/
 *.db
 .DS_Store
+.worktrees/
