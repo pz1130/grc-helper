@@ -14,7 +14,14 @@ class User(Base, TimestampMixin):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[Role] = mapped_column(
-        SAEnum(Role, name="user_role", native_enum=False, length=32), nullable=False
+        SAEnum(
+            Role,
+            name="user_role",
+            native_enum=False,
+            length=32,
+            values_callable=lambda roles: [r.value for r in roles],
+        ),
+        nullable=False,
     )
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

@@ -25,10 +25,10 @@ def upgrade() -> None:
         sa.Column(
             "role",
             sa.Enum(
-                "ADMIN",
-                "GRC_LEAD",
-                "CONTRIBUTOR",
-                "VIEWER",
+                "admin",
+                "grc_lead",
+                "contributor",
+                "viewer",
                 name="user_role",
                 native_enum=False,
                 length=32,

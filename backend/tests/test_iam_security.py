@@ -1,5 +1,5 @@
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.iam.models import User
 from app.iam.permissions import Role
@@ -35,6 +35,13 @@ async def test_user_can_be_persisted(db_session):
     db_session.add(user)
     await db_session.flush()
 
+    raw_role = await db_session.scalar(
+        text("SELECT role FROM users WHERE email = :email"),
+        {"email": "lead@example.com"},
+    )
+    assert raw_role == "grc_lead"
+
+    db_session.expire(user)
     found = await db_session.scalar(select(User).where(User.email == "lead@example.com"))
     assert found is not None
     assert found.role is Role.GRC_LEAD
