@@ -23,7 +23,7 @@ async def _vector_hits(
 ) -> tuple[list[fulltext.RankedChunk], bool]:
     try:
         model = await current_model(session)
-        vectors, _ = await embed(session, texts=[query])
+        vectors, _ = await embed(session, texts=[query], purpose="query")
         if not vectors:
             return [], False
         hits = await vector.search(

@@ -27,6 +27,7 @@ class ProviderKind(StrEnum):
     DEEPSEEK = "deepseek"
     QWEN = "qwen"
     OLLAMA = "ollama"
+    MINIMAX = "minimax"
     OPENAI_COMPATIBLE = "openai_compatible"
 
 

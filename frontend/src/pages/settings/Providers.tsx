@@ -32,6 +32,7 @@ const KINDS = [
   "deepseek",
   "qwen",
   "ollama",
+  "minimax",
   "openai_compatible",
 ];
 

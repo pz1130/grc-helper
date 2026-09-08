@@ -22,6 +22,9 @@ class CompletionResponse:
 class EmbeddingRequest:
     texts: list[str]
     model: str
+    # 非对称向量：建库和检索用不同的编码方向。多数 provider 忽略它，
+    # 但 MiniMax 等要求显式区分，用错方向会实打实地降低检索质量。
+    purpose: str = "document"   # "document" | "query"
 
 
 @dataclass(frozen=True)

@@ -173,7 +173,9 @@ async def run(
     )
 
 
-async def embed(session: AsyncSession, *, texts: list[str]) -> tuple[list[list[float]], int]:
+async def embed(
+    session: AsyncSession, *, texts: list[str], purpose: str = "document"
+) -> tuple[list[list[float]], int]:
     """embedding 走同一套路由与留痕，但用 embedding 规则集（宽松，保留业务术语）。"""
     config, _ = await routing.resolve(session, EMBEDDING_TASK_KEY)
     await budget.check(session, interactive=False, provider=config)
@@ -189,7 +191,7 @@ async def embed(session: AsyncSession, *, texts: list[str]) -> tuple[list[list[f
 
     try:
         response = await build_provider(config).embed(
-            EmbeddingRequest(texts=batch.texts, model=config.model)
+            EmbeddingRequest(texts=batch.texts, model=config.model, purpose=purpose)
         )
         tokens_in = response.tokens_in
     except ProviderError as exc:
