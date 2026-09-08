@@ -13,6 +13,7 @@ import app.iam.models  # noqa: F401
 import app.llm.models  # noqa: F401
 import app.ingest.models  # noqa: F401
 import app.clauses.models  # noqa: F401
+import app.search.models  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:
