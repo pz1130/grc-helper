@@ -1,6 +1,6 @@
 {
   "app": { "name": "GRC Helper", "logout": "Sign out", "language": "Language" },
-  "nav": { "overview": "Overview", "settings": "Settings" },
+  "nav": { "overview": "Overview", "documents": "Documents", "settings": "Settings" },
   "login": {
     "title": "Sign in",
     "email": "Email",
@@ -13,6 +13,23 @@
     "monthCost": "Month-to-date AI cost",
     "budget": "Budget",
     "calls": "Calls"
+  },
+  "documents": {
+    "title": "Documents",
+    "upload": "Upload",
+    "dropHint": "Drop .pdf / .docx here, or click to choose (multiple allowed)",
+    "docType": "Type",
+    "status": "Status",
+    "version": "Version",
+    "owner": "Owner",
+    "effective": "Effective",
+    "review": "Review due",
+    "clauses": "Clauses",
+    "warnings": "Parse warnings",
+    "failed": "Parse failed",
+    "pasteText": "Paste plain text",
+    "reparse": "Re-parse",
+    "pasteHint": "Fallback when parsing fails: paste the text, clauses are split by numbering"
   },
   "settings": {
     "title": "Settings",

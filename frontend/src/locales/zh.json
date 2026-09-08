@@ -1,6 +1,6 @@
 {
   "app": { "name": "GRC Helper", "logout": "退出", "language": "语言" },
-  "nav": { "overview": "总览", "settings": "设置" },
+  "nav": { "overview": "总览", "documents": "文档库", "settings": "设置" },
   "login": {
     "title": "登录",
     "email": "邮箱",
@@ -13,6 +13,23 @@
     "monthCost": "本月 AI 花费",
     "budget": "预算",
     "calls": "调用次数"
+  },
+  "documents": {
+    "title": "文档库",
+    "upload": "上传文件",
+    "dropHint": "把 .pdf / .docx 拖到这里，或点击选择（可多选）",
+    "docType": "类型",
+    "status": "状态",
+    "version": "版本",
+    "owner": "责任部门",
+    "effective": "生效日",
+    "review": "复审到期",
+    "clauses": "条款数",
+    "warnings": "解析告警",
+    "failed": "解析失败",
+    "pasteText": "粘贴纯文本",
+    "reparse": "重新解析",
+    "pasteHint": "解析失败时的兜底：把原文粘进来，按编号切条款"
   },
   "settings": {
     "title": "设置",

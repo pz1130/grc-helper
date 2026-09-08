@@ -4,6 +4,7 @@ import { useAuth } from "./auth";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
 import { Overview } from "./pages/Overview";
+import { Documents } from "./pages/Documents";
 import { AuditLog } from "./pages/settings/AuditLog";
 import { Providers } from "./pages/settings/Providers";
 import { Redaction } from "./pages/settings/Redaction";
@@ -21,6 +22,7 @@ export function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Overview />} />
+        <Route path="/documents" element={<Documents />} />
         <Route path="/settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="providers" replace />} />
           <Route path="providers" element={<Providers />} />
