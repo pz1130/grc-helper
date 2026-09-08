@@ -240,3 +240,83 @@ async def test_run_does_not_write_business_tables(db_session):
     source = open(runner_module.__file__, encoding="utf-8").read()
     for forbidden in ("Proposal", "Control(", "Document("):
         assert forbidden not in source, f"runner 不应引用业务实体 {forbidden}"
+
+
+@pytest.mark.asyncio
+async def test_system_and_prompt_entities_do_not_collide(db_session):
+    """system 与 prompt 各含一个不同 IP 时，还原必须各归各位。
+
+    分两次 redact 的写法下，两边都是 [[IP_1]]，合并映射表时撞掉一个，
+    模型引用 prompt 里那个 IP 会被还原成 system 里的——静默且看着合理。
+    """
+    await _setup(db_session)
+    fake = AsyncMock(
+        complete=AsyncMock(
+            return_value=CompletionResponse(
+                text='{"answer": "请核查 [[IP_2]] 与 [[IP_1]]"}', tokens_in=1, tokens_out=1
+            )
+        )
+    )
+    with patch("app.llm.runner.build_provider", return_value=fake):
+        result = await run(
+            db_session,
+            task_key="answer_generation",
+            system="本行堡垒机是 192.168.1.1",
+            prompt="请核查 10.20.30.40 的访问日志",
+            schema=SCHEMA,
+        )
+
+    sent = fake.complete.call_args.args[0]
+    assert "192.168.1.1" not in sent.system
+    assert "10.20.30.40" not in sent.prompt
+    assert sent.system != sent.prompt
+    # IP_1 来自 system，IP_2 来自 prompt，各自还原到自己的原文
+    assert result.payload["answer"] == "请核查 10.20.30.40 与 192.168.1.1"
+
+
+@pytest.mark.asyncio
+async def test_redaction_hits_cover_both_system_and_prompt(db_session):
+    await _setup(db_session)
+    with patch(
+        "app.llm.runner.build_provider",
+        return_value=AsyncMock(
+            complete=AsyncMock(
+                return_value=CompletionResponse(text='{"answer": "ok"}', tokens_in=1, tokens_out=1)
+            )
+        ),
+    ):
+        await run(
+            db_session,
+            task_key="answer_generation",
+            system="堡垒机 192.168.1.1",
+            prompt="主机 10.0.0.1 与 10.0.0.2",
+            schema=SCHEMA,
+        )
+    call = await db_session.scalar(select(LLMCall))
+    assert call.redaction_hits == {"IP": 3}, "system 里那个实体不能漏统计"
+
+
+@pytest.mark.asyncio
+async def test_failed_embedding_is_also_recorded(db_session):
+    """spec §8.2：每次调用都要留痕，失败的也算。"""
+    from app.llm.runner import embed
+
+    primary = await _setup(db_session)
+    db_session.add(TaskRouting(task_key="embedding", provider_config_id=primary.id))
+    await db_session.flush()
+
+    with patch(
+        "app.llm.runner.build_provider",
+        return_value=AsyncMock(
+            embed=AsyncMock(side_effect=ProviderError("上游返回 500", retryable=True))
+        ),
+    ):
+        with pytest.raises(ProviderError):
+            await embed(db_session, texts=["条款正文"])
+
+    call = await db_session.scalar(
+        select(LLMCall).where(LLMCall.task_key == "embedding")
+    )
+    assert call is not None
+    assert call.status == "error"
+    assert "500" in call.error

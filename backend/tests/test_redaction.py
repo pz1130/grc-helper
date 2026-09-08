@@ -19,6 +19,8 @@ def _rule(pattern: str, prefix: str, *, pattern_type: str = "regex", order: int 
 
 IP_RULE = _rule(r"\b\d{1,3}(?:\.\d{1,3}){3}\b", "IP")
 DICT_RULE = _rule("新开发银行\n开发银行", "ORG", pattern_type="dictionary", order=5)
+# 形如 SVC_88 的系统账号号——企业里极常见，而且长得和占位符内部一模一样
+ACCT_RULE = _rule(r"\b[A-Z]{2,}_\d+\b", "ACCT", order=20)
 
 
 def test_redact_replaces_match_with_placeholder():
@@ -102,3 +104,72 @@ def test_property_redact_then_restore_is_identity(original):
     engine = RedactionEngine([IP_RULE, DICT_RULE])
     result = engine.redact(original)
     assert engine.restore(result.text, result.mapping) == original
+
+
+# ── 不变量 1：一次调用里编号全局唯一，多段文本不得撞号 ──────────
+
+
+def test_redact_many_shares_numbering_across_texts():
+    """分两次 redact 会让两边都从 IP_1 开始，合并映射表时直接撞掉一个。"""
+    engine = RedactionEngine([IP_RULE])
+    batch = engine.redact_many(["堡垒机 192.168.1.1", "请核查 10.20.30.40"])
+
+    assert batch.texts == ["堡垒机 [[IP_1]]", "请核查 [[IP_2]]"]
+    assert batch.mapping == {"[[IP_1]]": "192.168.1.1", "[[IP_2]]": "10.20.30.40"}
+
+
+def test_redact_many_restores_each_text_to_its_own_entity():
+    engine = RedactionEngine([IP_RULE])
+    batch = engine.redact_many(["堡垒机 192.168.1.1", "请核查 10.20.30.40"])
+
+    assert engine.restore("查 [[IP_2]] 的日志", batch.mapping) == "查 10.20.30.40 的日志"
+    assert engine.restore("查 [[IP_1]] 的日志", batch.mapping) == "查 192.168.1.1 的日志"
+
+
+def test_same_entity_in_two_texts_gets_one_placeholder():
+    engine = RedactionEngine([IP_RULE])
+    batch = engine.redact_many(["主机 10.0.0.1", "还是 10.0.0.1"])
+
+    assert batch.texts == ["主机 [[IP_1]]", "还是 [[IP_1]]"]
+    assert len(batch.mapping) == 1
+    assert batch.hits == {"IP": 1}
+
+
+# ── 不变量 2：后续规则不得扫进已生成的占位符 ────────────────────
+
+
+def test_later_rule_does_not_eat_earlier_placeholder():
+    """[[IP_1]] 内部的 IP_1 长得就像系统账号号，规则必须扫不进去。"""
+    engine = RedactionEngine([IP_RULE, ACCT_RULE])
+    result = engine.redact("主机 10.0.0.1 由账号 SVC_88 管理")
+
+    assert result.text == "主机 [[IP_1]] 由账号 [[ACCT_1]] 管理"
+    assert "[[[[" not in result.text
+    assert result.mapping == {"[[IP_1]]": "10.0.0.1", "[[ACCT_1]]": "SVC_88"}
+
+
+def test_reversible_even_when_a_rule_could_match_placeholders():
+    engine = RedactionEngine([IP_RULE, ACCT_RULE])
+    original = "主机 10.0.0.1 由账号 SVC_88 管理，备机 10.0.0.2"
+    result = engine.redact(original)
+
+    assert engine.restore(result.text, result.mapping) == original
+
+
+@pytest.mark.parametrize(
+    "texts",
+    [
+        ["主机 10.0.0.1 账号 SVC_88"],
+        ["堡垒机 192.168.1.1", "跳板机 10.20.30.40"],
+        ["新开发银行的 10.0.0.1", "账号 ADM_7 归 开发银行 管"],
+        ["", "10.0.0.1", "没有敏感信息"],
+        ["重复 SVC_88 重复 SVC_88", "别处也有 SVC_88"],
+    ],
+)
+def test_property_redact_many_then_restore_is_identity(texts):
+    """spec §6.2 硬约束的加强版：规则集里含有能匹配占位符形状的规则时也必须可逆。"""
+    engine = RedactionEngine([DICT_RULE, IP_RULE, ACCT_RULE])
+    batch = engine.redact_many(texts)
+
+    for original, redacted in zip(texts, batch.texts, strict=True):
+        assert engine.restore(redacted, batch.mapping) == original

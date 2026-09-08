@@ -95,17 +95,18 @@ async def run(
     citation_validator: CitationValidator | None = None,
 ) -> ValidatedResult:
     config, route = await routing.resolve(session, task_key)
-    await budget.check(session, interactive=interactive)
+    await budget.check(session, interactive=interactive, provider=config)
 
     engine = await load_engine(session, ruleset)
-    redacted = engine.redact(prompt)
-    redacted_system = engine.redact(system)
-    # 两段文本共用一张映射表，同一实体在 system 与 prompt 中代号一致
-    mapping = {**redacted.mapping, **redacted_system.mapping}
+    # 必须一次喂进去：分两次 redact 会让两边的编号各自从 1 开始，
+    # 合并映射表时键相撞，还原出来是另一个实体。
+    batch = engine.redact_many([system, prompt])
+    redacted_system_text, redacted_prompt_text = batch.texts
+    mapping = batch.mapping
 
-    prompt_hash = hashlib.sha256(redacted.text.encode()).hexdigest()
+    prompt_hash = hashlib.sha256(redacted_prompt_text.encode()).hexdigest()
     started = time.perf_counter()
-    current_prompt = redacted.text
+    current_prompt = redacted_prompt_text
     used_config = config
     tokens_in = tokens_out = 0
     error_text: str | None = None
@@ -116,7 +117,7 @@ async def run(
                 session,
                 config,
                 CompletionRequest(
-                    system=redacted_system.text,
+                    system=redacted_system_text,
                     prompt=current_prompt,
                     model=config.model,
                     temperature=route.temperature,
@@ -158,7 +159,7 @@ async def run(
             latency_ms=int((time.perf_counter() - started) * 1000),
             ruleset=ruleset,
             redaction_applied=bool(mapping),
-            redaction_hits=redacted.hits or None,
+            redaction_hits=batch.hits or None,
             status="error" if error_text else "ok",
             error=error_text,
         )
@@ -175,37 +176,44 @@ async def run(
 async def embed(session: AsyncSession, *, texts: list[str]) -> tuple[list[list[float]], int]:
     """embedding 走同一套路由与留痕，但用 embedding 规则集（宽松，保留业务术语）。"""
     config, _ = await routing.resolve(session, EMBEDDING_TASK_KEY)
-    await budget.check(session, interactive=False)
+    await budget.check(session, interactive=False, provider=config)
 
     engine = await load_engine(session, RulesetName.EMBEDDING)
-    results = [engine.redact(text) for text in texts]
+    # 所有 chunk 共享一套编号：同一实体在不同 chunk 里代号一致，向量更稳。
+    batch = engine.redact_many(texts)
 
     started = time.perf_counter()
-    provider = build_provider(config)
-    response = await provider.embed(
-        EmbeddingRequest(texts=[r.text for r in results], model=config.model)
-    )
+    prompt_hash = hashlib.sha256("".join(batch.texts).encode()).hexdigest()
+    tokens_in = 0
+    error_text: str | None = None
 
-    hits: dict[str, int] = {}
-    for result in results:
-        for prefix, count in result.hits.items():
-            hits[prefix] = hits.get(prefix, 0) + count
-
-    session.add(
-        LLMCall(
-            provider_config_id=config.id,
-            model=config.model,
-            task_key=EMBEDDING_TASK_KEY,
-            prompt_hash=hashlib.sha256("".join(r.text for r in results).encode()).hexdigest(),
-            tokens_in=response.tokens_in,
-            tokens_out=0,
-            cost=estimate_cost(config.model, response.tokens_in, 0),
-            latency_ms=int((time.perf_counter() - started) * 1000),
-            ruleset=RulesetName.EMBEDDING,
-            redaction_applied=bool(hits),
-            redaction_hits=hits or None,
-            status="ok",
+    try:
+        response = await build_provider(config).embed(
+            EmbeddingRequest(texts=batch.texts, model=config.model)
         )
-    )
-    await session.flush()
+        tokens_in = response.tokens_in
+    except ProviderError as exc:
+        # 失败也要留痕，否则合规证据缺一半（spec §8.2）。
+        error_text = str(exc)
+        raise
+    finally:
+        session.add(
+            LLMCall(
+                provider_config_id=config.id,
+                model=config.model,
+                task_key=EMBEDDING_TASK_KEY,
+                prompt_hash=prompt_hash,
+                tokens_in=tokens_in,
+                tokens_out=0,
+                cost=estimate_cost(config.model, tokens_in, 0),
+                latency_ms=int((time.perf_counter() - started) * 1000),
+                ruleset=RulesetName.EMBEDDING,
+                redaction_applied=bool(batch.mapping),
+                redaction_hits=batch.hits or None,
+                status="error" if error_text else "ok",
+                error=error_text,
+            )
+        )
+        await session.flush()
+
     return response.vectors, response.tokens_in
