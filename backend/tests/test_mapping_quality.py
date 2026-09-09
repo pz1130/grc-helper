@@ -16,6 +16,37 @@ CSF_KEY = "nist-csf-2.0"
 SP_KEY = "nist-800-53-r5"
 
 
+def _base_control(code: str) -> str:
+    """把增强项折叠到它的父控制项：AC-2.1 → AC-2，AC-2(1) → AC-2。
+
+    OLIR 只列基础控制项（夹具里 191 个引用无一含点或括号），而种子里
+    714/1014 个可映射条目是增强项。不折叠就等于把七成映射预判为不一致。
+    两种写法都处理：种子当前用 AC-2.1，NIST 别处也用 AC-2(1)。
+    """
+    return code.split("(")[0].split(".")[0]
+
+
+def test_enhancements_fold_to_their_parent_control():
+    assert _base_control("AC-2.1") == "AC-2"
+    assert _base_control("AC-17.1") == "AC-17"
+    assert _base_control("AC-2(1)") == "AC-2"
+    # 基础控制项不受影响——种子里 300 个基础控制项无一含点。
+    assert _base_control("AC-2") == "AC-2"
+    assert _base_control("SI-4") == "SI-4"
+
+
+def test_no_base_control_code_in_the_seed_contains_a_dot():
+    """折叠规则的前提：点只用于分隔增强项序号，不出现在基础控制项编号里。"""
+    import csv
+
+    seeds = Path(__file__).resolve().parents[1] / "seeds" / "nist-800-53-r5.csv"
+    reader = list(csv.reader(seeds.read_text(encoding="utf-8-sig").splitlines()))
+    codes = [row[0] for row in reader[1:] if row]
+    parents = {code.rsplit(".", 1)[0] for code in codes if "." in code}
+    assert parents, "种子里应当存在增强项"
+    assert all("." not in code for code in parents)
+
+
 def test_olir_fixture_covers_the_active_core_across_all_functions():
     fixture = json.loads(OLIR.read_text(encoding="utf-8"))
     assert len(fixture["pairs"]) == 106
@@ -101,7 +132,7 @@ async def test_mapping_quality_calibration(capsys: Any) -> None:
                     if not reference:
                         continue
                     total += 1
-                    roots = {code.split("(")[0] for code in sp_codes}
+                    roots = {_base_control(code) for code in sp_codes}
                     if roots & reference:
                         agree += 1
                     else:
