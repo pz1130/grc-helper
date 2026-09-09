@@ -1,4 +1,4 @@
-.PHONY: up down logs test migrate revision fmt create-admin ping-worker e2e corpus retrieval extraction-eval
+.PHONY: up down logs test migrate revision fmt create-admin ping-worker e2e corpus retrieval extraction-eval seed-frameworks mapping-eval
 
 up:
 	docker compose up -d --build db redis api
@@ -52,3 +52,15 @@ extraction-eval:
 	  -e RUN_EXTRACTION_EVAL=1 \
 	  -e APP_DATABASE_URL=postgresql+asyncpg://grc:grc@db:5432/grc \
 	  api pytest tests/test_extraction_quality.py -v -s
+
+seed-frameworks:
+	docker compose run --rm api python -m app.cli import-framework \
+	  seeds/nist-csf-2.0.csv nist-csf-2.0 "NIST 网络安全框架 2.0" "NIST CSF 2.0" 2.0 nist.gov
+	docker compose run --rm api python -m app.cli import-framework \
+	  seeds/nist-800-53-r5.csv nist-800-53-r5 "NIST SP 800-53 Rev.5" "NIST SP 800-53 Rev.5" 5.1.1 nist.gov
+
+mapping-eval:
+	docker compose run --rm --no-deps \
+	  -e RUN_MAPPING_EVAL=1 \
+	  -e APP_DATABASE_URL=postgresql+asyncpg://grc:grc@db:5432/grc \
+	  api pytest tests/test_mapping_quality.py -v -s
