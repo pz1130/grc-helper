@@ -15,6 +15,7 @@ from app.config import get_settings
 from app.extraction.tasks import extract_controls
 from app.indexing.tasks import index_document, reindex_all
 from app.ingest.tasks import parse_document
+from app.mapping.tasks import map_framework
 
 
 async def ping(ctx: dict[str, Any]) -> str:
@@ -38,7 +39,7 @@ async def enqueue(function: str, *args: Any) -> str:
 
 class WorkerSettings:
     functions: ClassVar[list[Any]] = [
-        ping, parse_document, index_document, reindex_all, extract_controls
+        ping, parse_document, index_document, reindex_all, extract_controls, map_framework
     ]
     redis_settings = _redis_settings()
     max_jobs = 4

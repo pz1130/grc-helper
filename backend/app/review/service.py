@@ -68,6 +68,17 @@ async def create(
         )
         if reason:
             raise AppError(f"引用校验失败：{reason}")
+    elif kind == ProposalKind.MAPPING:
+        from app.mapping.citations import MappingCitationValidator
+
+        item_id = payload.get("framework_item_id")
+        if type(item_id) is not int:
+            raise AppError("映射提案缺少 framework_item_id")
+        reason = await MappingCitationValidator(session, item_ids={item_id}).check(
+            {"mappings": [payload]}
+        )
+        if reason:
+            raise AppError(f"引用校验失败：{reason}")
     proposal = Proposal(
         kind=kind,
         payload=deepcopy(payload),

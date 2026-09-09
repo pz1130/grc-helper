@@ -1,0 +1,158 @@
+"""Pure orchestration tests; no database connection or shared fixtures."""
+
+from contextlib import asynccontextmanager
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+
+from app.errors import AppError, NotFound
+from app.frameworks.models import Framework
+from app.llm.runner import ValidatedResult
+from app.llm.validation import ValidationFailure, validate
+from app.mapping import tasks
+from app.mapping.prompts import MAPPING_SCHEMA
+
+ITEM_TEXT = "Identities and credentials are managed for authorized devices."
+
+
+def mapping(**overrides):
+    return {
+        "framework_item_id": 2, "control_id": 5, "strength": "partial",
+        "quote": "Identities and credentials are managed",
+        "rationale": "covers identity management", "confidence": 0.85,
+        **overrides,
+    }
+
+
+@pytest.fixture
+def harness(monkeypatch):
+    framework = SimpleNamespace(id=3, key="csf")
+    call = SimpleNamespace(id=10, redaction_hits={"dictionary": 2})
+    controls = [SimpleNamespace(
+        id=5, code="C-0005", title="Identity management",
+        statement="All identities are managed centrally.")]
+    items = [
+        SimpleNamespace(id=1, code="PR", title="Protect", description="", level=1),
+        SimpleNamespace(id=2, code="PR.AA-01", title="Identities",
+                        description=ITEM_TEXT, level=2),
+    ]
+
+    session = MagicMock()
+    session.get = AsyncMock(
+        side_effect=lambda model, key: framework if model is Framework else call)
+    session.scalars = AsyncMock(side_effect=[controls, items])
+    session.scalar = AsyncMock(return_value=None)
+    session.execute = AsyncMock()
+    session.commit = AsyncMock()
+    session.flush = AsyncMock()
+
+    @asynccontextmanager
+    async def savepoint():
+        yield None
+
+    session.begin_nested = savepoint
+
+    payload = {"mappings": [mapping()]}
+
+    async def runner(session, **kwargs):
+        validate(payload, kwargs["schema"])
+        reason = await kwargs["citation_validator"].check(payload)
+        if reason:
+            raise ValidationFailure(reason)
+        return ValidatedResult(payload, 0.9, 10)
+
+    run = AsyncMock(side_effect=runner)
+    create = AsyncMock(side_effect=lambda *a, **k: SimpleNamespace(id=21))
+    monkeypatch.setattr(tasks, "run", run)
+    monkeypatch.setattr(tasks.review_service, "create", create, raising=False)
+    monkeypatch.setattr(
+        tasks.MappingCitationValidator, "check", AsyncMock(return_value=None), raising=False)
+
+    return SimpleNamespace(session=session, framework=framework, call=call,
+                           controls=controls, items=items, run=run,
+                           create=create, payload=payload)
+
+
+async def test_a_valid_mapping_becomes_a_proposal_with_a_checkpoint(harness):
+    summary = await tasks.run_mapping(harness.session, 3, run_key="t1")
+
+    assert summary["proposals"] == 1
+    assert summary["proposal_ids"] == [21]
+    assert summary["rejected"] == 0
+    kind = harness.create.await_args.kwargs["kind"]
+    assert kind.value == "mapping"
+    assert harness.create.await_args.kwargs["confidence"] == 0.85
+    assert harness.call.redaction_hits[tasks.CHECKPOINT_KEY]["proposal_ids"] == [21]
+    assert harness.call.redaction_hits["dictionary"] == 2
+
+
+async def test_the_prompt_carries_both_the_batch_and_every_control(harness):
+    await tasks.run_mapping(harness.session, 3)
+    prompt = harness.run.await_args.kwargs["prompt"]
+    assert "[framework_item_id=2]" in prompt
+    assert "[control_id=5]" in prompt
+    assert "All identities are managed centrally." in prompt
+
+
+async def test_abstention_produces_no_proposal_and_is_not_an_error(harness, monkeypatch):
+    async def runner(session, **kwargs):
+        return ValidatedResult({"mappings": [], "insufficient_evidence": True}, None, 10)
+
+    monkeypatch.setattr(tasks, "run", AsyncMock(side_effect=runner))
+    summary = await tasks.run_mapping(harness.session, 3)
+
+    assert summary["proposals"] == 0
+    assert summary["rejected"] == 0
+    harness.create.assert_not_awaited()
+
+
+async def test_a_rejected_batch_is_counted_not_silently_dropped(harness, monkeypatch):
+    monkeypatch.setattr(
+        tasks, "run", AsyncMock(side_effect=ValidationFailure("引文在框架项中找不到")))
+    summary = await tasks.run_mapping(harness.session, 3)
+
+    assert summary["rejected"] == 1
+    assert summary["proposals"] == 0
+    harness.session.commit.assert_awaited()
+
+
+async def test_an_unknown_framework_raises(harness):
+    harness.session.get = AsyncMock(return_value=None)
+    with pytest.raises(NotFound):
+        await tasks.run_mapping(harness.session, 999999)
+
+
+async def test_a_framework_with_no_controls_refuses_to_run(harness):
+    harness.session.scalars = AsyncMock(side_effect=[[], []])
+    with pytest.raises(AppError):
+        await tasks.run_mapping(harness.session, 3)
+    harness.run.assert_not_awaited()
+
+
+async def test_a_control_library_over_the_limit_fails_before_spending_tokens(harness):
+    huge = [
+        SimpleNamespace(id=n, code=f"C-{n:04d}", title="t", statement="x" * 1000)
+        for n in range(1, 200)
+    ]
+    harness.session.scalars = AsyncMock(side_effect=[huge, harness.items])
+    with pytest.raises(AppError):
+        await tasks.run_mapping(harness.session, 3)
+    harness.run.assert_not_awaited()
+
+
+async def test_a_cached_checkpoint_skips_the_batch(harness):
+    harness.session.scalar = AsyncMock(return_value=SimpleNamespace(
+        id=10, redaction_hits={tasks.CHECKPOINT_KEY: {"fingerprint": "x",
+                                                      "proposal_ids": [99]}}))
+    summary = await tasks.run_mapping(harness.session, 3, run_key="t2")
+
+    assert summary["skipped_batches"] == 1
+    assert summary["resumed_proposal_ids"] == [99]
+    harness.run.assert_not_awaited()
+
+
+def test_the_schema_forbids_a_mapping_without_a_quote():
+    with pytest.raises(ValidationFailure):
+        validate({"mappings": [{k: v for k, v in mapping().items() if k != "quote"}]},
+                 MAPPING_SCHEMA)
