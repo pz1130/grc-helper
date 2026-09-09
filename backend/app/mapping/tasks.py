@@ -78,6 +78,7 @@ async def run_mapping(
         "proposals": 0,
         "rejected": 0,
         "failed": 0,
+        "dropped_mappings": 0,
         "completed_batches": 0,
         "skipped_batches": 0,
         "attempted_batches": 0,
@@ -108,13 +109,15 @@ async def run_mapping(
         validator = MappingCitationValidator(session, item_ids=item_ids)
         summary["attempted_batches"] += 1
         try:
+            # 引用校验不进 run()：runner 只对 schema 失败做纠错重试，引用失败
+            # 是直接抛出的，所以移到这里逐条判不损失修复机会，却能把「一条不合格
+            # 整批作废」变成「只丢那一条」。schema 校验与其重试仍在 run() 内。
             result = await run(
                 session,
                 task_key=MAPPING_TASK_KEY,
                 system=MAPPING_SYSTEM,
                 prompt=prompt,
                 schema=MAPPING_SCHEMA,
-                citation_validator=validator,
             )
         except ValidationFailure as failure:
             logger.warning("Framework %s mapping rejected: %s", framework_id, failure.reason)
@@ -135,10 +138,26 @@ async def run_mapping(
         call = await session.get(LLMCall, result.llm_call_id)
         if call is None:
             raise RuntimeError("Mapping runner did not persist its LLMCall")
+
+        entries = result.payload["mappings"]
+        # 快路径：整批一次校验；只有出问题时才逐条找出是哪几条。
+        if entries and await validator.check(result.payload) is not None:
+            kept = []
+            for entry in entries:
+                reason = await validator.check({"mappings": [entry]})
+                if reason is None:
+                    kept.append(entry)
+                else:
+                    logger.warning(
+                        "Framework %s dropped one mapping: %s", framework_id, reason
+                    )
+                    summary["dropped_mappings"] += 1
+            entries = kept
+
         ids: list[int] = []
         try:
             async with session.begin_nested():
-                for entry in result.payload["mappings"]:
+                for entry in entries:
                     proposal = await review_service.create(
                         session,
                         kind=ProposalKind.MAPPING,

@@ -59,10 +59,8 @@ def harness(monkeypatch):
     payload = {"mappings": [mapping()]}
 
     async def runner(session, **kwargs):
+        # 引用校验已移出 run()，runner 只负责 schema。
         validate(payload, kwargs["schema"])
-        reason = await kwargs["citation_validator"].check(payload)
-        if reason:
-            raise ValidationFailure(reason)
         return ValidatedResult(payload, 0.9, 10)
 
     run = AsyncMock(side_effect=runner)
@@ -202,3 +200,51 @@ def test_the_schema_caps_how_many_mappings_one_response_may_carry():
     with pytest.raises(ValidationFailure):
         validate(too_many, MAPPING_SCHEMA)
     assert validate({"mappings": [mapping() for _ in range(25)]}, MAPPING_SCHEMA)
+
+
+async def test_one_bad_citation_drops_only_that_mapping(harness, monkeypatch):
+    """一条不合格不该让整批作废。
+
+    实测 CSF 探路：7 批里 2 批因为模型的零星手误（编造 control_id、改写引文）
+    整批被丢，而成功批次平均产 20 条映射——两次手误的代价是约 40 条本可用的映射。
+    """
+    good, bad = mapping(), mapping(framework_item_id=2, control_id=999)
+    monkeypatch.setattr(
+        tasks, "run",
+        AsyncMock(return_value=ValidatedResult({"mappings": [good, bad]}, 0.9, 10)))
+
+    async def check(self, payload):
+        # 整批校验只要有一条不合格就报错，逐条校验才分辨得出是哪条。
+        bad = [e for e in payload["mappings"] if e["control_id"] != 5]
+        return "控制点 999 在库中不存在" if bad else None
+
+    monkeypatch.setattr(tasks.MappingCitationValidator, "check", check)
+    summary = await tasks.run_mapping(harness.session, 3)
+
+    assert summary["proposals"] == 1          # 好的留下
+    assert summary["dropped_mappings"] == 1   # 坏的单独计数
+    assert summary["rejected"] == 0           # 批次没被判死
+    assert summary["completed_batches"] == 1
+
+
+async def test_a_batch_whose_mappings_are_all_bad_survives(harness, monkeypatch):
+    monkeypatch.setattr(
+        tasks, "run",
+        AsyncMock(return_value=ValidatedResult({"mappings": [mapping()]}, 0.9, 10)))
+    monkeypatch.setattr(
+        tasks.MappingCitationValidator, "check", AsyncMock(return_value="引文找不到"))
+    summary = await tasks.run_mapping(harness.session, 3)
+
+    assert summary["proposals"] == 0
+    assert summary["dropped_mappings"] == 1
+    assert summary["rejected"] == 0
+    harness.create.assert_not_awaited()
+
+
+async def test_abstention_records_no_drops(harness, monkeypatch):
+    monkeypatch.setattr(
+        tasks, "run",
+        AsyncMock(return_value=ValidatedResult(
+            {"mappings": [], "insufficient_evidence": True}, None, 10)))
+    summary = await tasks.run_mapping(harness.session, 3)
+    assert summary["proposals"] == 0 and summary["dropped_mappings"] == 0
