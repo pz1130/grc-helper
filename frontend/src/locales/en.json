@@ -148,6 +148,18 @@
     "control": "Control",
     "quote": "Covered framework text"
   },
+  "relations": {
+    "title": "Relation inference",
+    "infer": "Run relation inference",
+    "embed": "Backfill control embeddings",
+    "duplicates": "Duplicates",
+    "dependsOn": "Depends on",
+    "from": "Starting control",
+    "to": "Ending control",
+    "quote": "Supporting quote",
+    "queued": "Relation inference queued ({{id}}).",
+    "embedded": "Embedded {{count}} control vectors."
+  },
   "matrix": {
     "title": "Import an Excel control matrix",
     "flow": "1. Upload .xlsx → 2. Check and approve the column mapping → 3. Import rows as proposals → 4. Review the controls.",

@@ -100,11 +100,27 @@ async def present(
                         "statement": control.statement,
                     },
                 }
+    relation: dict[str, Any] | None = None
+    if proposal.kind == ProposalKind.RELATION:
+        start = proposal.payload.get("from_control_id")
+        end = proposal.payload.get("to_control_id")
+        if type(start) is int and type(end) is int:
+            left = await session.get(Control, start)
+            right = await session.get(Control, end)
+            if left is not None and right is not None:
+                relation = {
+                    "relation_type": proposal.payload.get("relation_type"),
+                    "from": {"id": left.id, "code": left.code, "title": left.title,
+                             "statement": left.statement},
+                    "to": {"id": right.id, "code": right.code, "title": right.title,
+                           "statement": right.statement},
+                }
     return ProposalOut.model_validate(proposal).model_copy(
         update={
             "bulk_acceptable": acceptable,
             "ocr_quality_flag": flag,
             "mapping_context": mapping,
+            "relation_context": relation,
             "citations": _enrich(proposal.citations, context or {}),
         }
     )

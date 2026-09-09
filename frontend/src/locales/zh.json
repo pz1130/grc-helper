@@ -148,6 +148,18 @@
     "control": "控制点",
     "quote": "被覆盖的条文"
   },
+  "relations": {
+    "title": "关系推断",
+    "infer": "运行关系推断",
+    "embed": "补算控制点向量",
+    "duplicates": "重复",
+    "dependsOn": "依赖",
+    "from": "起点控制点",
+    "to": "终点控制点",
+    "quote": "支撑引文",
+    "queued": "关系推断已入队（{{id}}）。",
+    "embedded": "已补算 {{count}} 条控制点向量。"
+  },
   "matrix": {
     "title": "导入 Excel 控制矩阵",
     "flow": "1. 上传 .xlsx → 2. 核对并批准列映射 → 3. 将数据行导入为提案 → 4. 逐条确认控制点。",
