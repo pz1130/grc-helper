@@ -16,6 +16,15 @@ CSF_KEY = "nist-csf-2.0"
 SP_KEY = "nist-800-53-r5"
 
 
+def test_olir_fixture_covers_the_active_core_across_all_functions():
+    fixture = json.loads(OLIR.read_text(encoding="utf-8"))
+    assert len(fixture["pairs"]) == 106
+    assert {pair["csf"].split(".", 1)[0] for pair in fixture["pairs"]} == {
+        "GV", "ID", "PR", "DE", "RS", "RC"
+    }
+    assert sum(len(pair["controls"]) for pair in fixture["pairs"]) >= 700
+
+
 @pytest.mark.skipif(
     os.environ.get("RUN_MAPPING_EVAL") != "1",
     reason="需显式开启真实模型标定，见 make mapping-eval",

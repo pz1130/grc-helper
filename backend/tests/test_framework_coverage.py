@@ -59,7 +59,7 @@ async def _corpus(db_session):
 
 @pytest.mark.asyncio
 async def test_supporting_alone_does_not_close_a_gap(db_session):
-    fw, _, _, supported_only, untouched = await _corpus(db_session)
+    fw, _, _, _supported_only, _untouched = await _corpus(db_session)
     rows = await gaps(db_session, fw.id)
     codes = {row.code for row in rows}
     assert codes == {"AC-2", "AC-3"}

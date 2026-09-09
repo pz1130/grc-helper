@@ -40,3 +40,27 @@ def test_csf_leaves_requirement_flag_to_the_default_rule():
     headers, rows = _load("nist-csf-2.0.csv")
     parsed, _ = parse_rows(headers, rows)
     assert all(row.attributes is None for row in parsed)
+
+
+def test_csf_seed_is_the_active_20_core_with_readable_titles():
+    headers, rows = _load("nist-csf-2.0.csv")
+    parsed, _ = parse_rows(headers, rows)
+    subcategories = [row for row in parsed if row.level == 3]
+    assert len(subcategories) == 106
+    legacy_categories = {
+        "ID.BE", "ID.GV", "ID.RM", "ID.SC", "PR.AC", "PR.IP", "PR.MA",
+        "PR.PT", "DE.DP", "RS.RP", "RS.IM", "RC.IM",
+    }
+    assert all(row.parent_code not in legacy_categories for row in subcategories)
+    assert all(row.title != row.code for row in subcategories)
+
+
+def test_800_53_seed_uses_structured_text_without_placeholders_or_spacing_noise():
+    headers, rows = _load("nist-800-53-r5.csv")
+    parsed, _ = parse_rows(headers, rows)
+    controls = [row for row in parsed if row.level > 1]
+    assert len(controls) == 1014
+    assert all("{{ insert:" not in row.description for row in controls)
+    assert all("D e v e l o p" not in row.description for row in controls)
+    ac1 = next(row for row in controls if row.code == "AC-1")
+    assert "Develop, document, and disseminate" in ac1.description
