@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.controls.models import Control, ControlSource, SourceRelation
 from app.errors import AppError, Conflict, NotFound
+from app.frameworks.models import FrameworkItem, Mapping, MappingStrength
 from app.iam.models import AuditLog, User
 from app.review.models import Proposal, ProposalKind, ProposalStatus
 
@@ -42,6 +43,59 @@ class MatrixControlPayload(ControlPayload):
     matrix_mapping_proposal_id: Annotated[int, Field(strict=True, gt=0)]
     source_sha256: Annotated[str, Field(strict=True, pattern=r"^[0-9a-f]{64}$")]
     row_number: Annotated[int, Field(strict=True, ge=1)]
+
+
+class MappingPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    framework_item_id: Annotated[int, Field(strict=True, gt=0)]
+    control_id: Annotated[int, Field(strict=True, gt=0)]
+    strength: MappingStrength
+    quote: TextValue
+    rationale: Annotated[str, Field(strict=True, min_length=1, max_length=2000)]
+    confidence: Annotated[float, Field(strict=True, ge=0, le=1, allow_inf_nan=False)] | None = None
+
+
+async def _materialize_mapping(
+    session: AsyncSession, proposal: Proposal, data: dict[str, Any], *, actor_id: int
+) -> None:
+    from app.mapping.citations import MappingCitationValidator
+
+    try:
+        validated = MappingPayload.model_validate(data)
+    except ValidationError as exc:
+        raise AppError(f"映射内容无效：{exc}") from exc
+
+    item = await session.get(FrameworkItem, validated.framework_item_id)
+    if item is None:
+        raise AppError("框架项不存在")
+    reason = await MappingCitationValidator(
+        session, item_ids={validated.framework_item_id}
+    ).check({"mappings": [data]})
+    if reason:
+        raise AppError(f"引用校验失败：{reason}")
+
+    await lock_control_writes(session)
+    existing = await session.scalar(
+        select(Mapping).where(
+            Mapping.control_id == validated.control_id,
+            Mapping.framework_item_id == validated.framework_item_id,
+        )
+    )
+    if existing is not None:
+        raise Conflict("该控制点与框架项之间已有确认过的映射")
+
+    session.add(Mapping(
+        control_id=validated.control_id,
+        framework_item_id=validated.framework_item_id,
+        strength=validated.strength,
+        rationale=validated.rationale,
+        quote=validated.quote,
+        confidence=proposal.confidence,
+        proposed_by_llm_call_id=proposal.llm_call_id,
+        confirmed_by=actor_id,
+        confirmed_at=datetime.now(UTC),
+    ))
+    await session.flush()
 
 
 async def lock_control_writes(session: AsyncSession) -> None:
@@ -111,6 +165,9 @@ async def materialize(
             raise AppError(str(exc)) from exc
         for key in ("source_sha256", "source_headers", "source_rows"):
             data[key] = proposal.payload[key]
+        return
+    if proposal.kind == ProposalKind.MAPPING:
+        await _materialize_mapping(session, proposal, data, actor_id=actor_id)
         return
     if proposal.kind != ProposalKind.CONTROL_EXTRACT:
         raise AppError(f"尚不支持确认 {proposal.kind.value} 提案")

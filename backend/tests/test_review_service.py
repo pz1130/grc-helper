@@ -192,18 +192,25 @@ async def test_accepting_the_same_control_twice_reuses_it(db_session):
 
 
 def test_only_materialize_writes_the_control_table():
-    """铁律 2：Control 只能由 review.materialize 写入。"""
+    """铁律 2：Control 与 Mapping 只能由 review.materialize 写入。"""
     from pathlib import Path
 
     root = Path("backend/app") if Path("backend/app").is_dir() else Path("app")
+    allowed = {
+        root / "review" / "materialize.py",
+        root / "controls" / "models.py",
+        root / "frameworks" / "models.py",
+    }
     offenders = []
-    for path in root.rglob("*.py"):
-        if path == root / "review" / "materialize.py" or path.name == "models.py":
+    files = list(root.rglob("*.py"))
+    assert len(files) > 50, "源码扫描没有扫到文件，测试会空转"
+    for path in files:
+        if path in allowed:
             continue
         source = path.read_text(encoding="utf-8")
-        if any(name + "(" in source for name in ("Control", "ControlSource", "ControlRelation")):
+        if any(name + "(" in source for name in ("Control", "ControlSource", "ControlRelation", "Mapping")):
             offenders.append(str(path))
-    assert not offenders, f"这些模块绕开了确认队列直接写 Control：{offenders}"
+    assert not offenders, f"这些模块绕开了确认队列直接写正式表：{offenders}"
 
 
 @pytest.mark.asyncio
