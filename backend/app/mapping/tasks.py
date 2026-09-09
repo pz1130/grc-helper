@@ -69,7 +69,7 @@ async def run_mapping(
         .order_by(FrameworkItem.order_index, FrameworkItem.id)
     ))
     batches = [
-        (render_items(batch), [item.id for item in batch.items])
+        (render_items(batch), batch.mappable_ids)
         for batch in build_batches(items)
     ]
     summary: dict[str, Any] = {
@@ -136,7 +136,7 @@ async def run_mapping(
                         payload=entry,
                         citations=[{
                             "framework_item_id": entry["framework_item_id"],
-                            "quote": entry["quote"],
+                            "quote": entry["framework_item_quote"],
                         }],
                         confidence=entry["confidence"],
                         llm_call_id=result.llm_call_id,

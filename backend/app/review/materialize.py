@@ -50,7 +50,7 @@ class MappingPayload(BaseModel):
     framework_item_id: Annotated[int, Field(strict=True, gt=0)]
     control_id: Annotated[int, Field(strict=True, gt=0)]
     strength: MappingStrength
-    quote: TextValue
+    framework_item_quote: TextValue
     rationale: Annotated[str, Field(strict=True, min_length=1, max_length=2000)]
     confidence: Annotated[float, Field(strict=True, ge=0, le=1, allow_inf_nan=False)] | None = None
 
@@ -89,7 +89,7 @@ async def _materialize_mapping(
         framework_item_id=validated.framework_item_id,
         strength=validated.strength,
         rationale=validated.rationale,
-        quote=validated.quote,
+        quote=validated.framework_item_quote,
         confidence=proposal.confidence,
         proposed_by_llm_call_id=proposal.llm_call_id,
         confirmed_by=actor_id,

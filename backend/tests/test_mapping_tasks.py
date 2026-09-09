@@ -19,7 +19,7 @@ ITEM_TEXT = "Identities and credentials are managed for authorized devices."
 def mapping(**overrides):
     return {
         "framework_item_id": 2, "control_id": 5, "strength": "partial",
-        "quote": "Identities and credentials are managed",
+        "framework_item_quote": "Identities and credentials are managed",
         "rationale": "covers identity management", "confidence": 0.85,
         **overrides,
     }
@@ -32,10 +32,13 @@ def harness(monkeypatch):
     controls = [SimpleNamespace(
         id=5, code="C-0005", title="Identity management",
         statement="All identities are managed centrally.")]
+    # 替身要带齐 FrameworkItem 的字段：分批靠 parent_id / attributes 判定要求项，
+    # PR 是容器（有子节点），只作上下文，不作映射目标。
     items = [
-        SimpleNamespace(id=1, code="PR", title="Protect", description="", level=1),
-        SimpleNamespace(id=2, code="PR.AA-01", title="Identities",
-                        description=ITEM_TEXT, level=2),
+        SimpleNamespace(id=1, code="PR", title="Protect", description="", level=1,
+                        parent_id=None, attributes=None),
+        SimpleNamespace(id=2, code="PR.AA-01", title="Identities", description=ITEM_TEXT,
+                        level=2, parent_id=1, attributes=None),
     ]
 
     session = MagicMock()
@@ -154,5 +157,5 @@ async def test_a_cached_checkpoint_skips_the_batch(harness):
 
 def test_the_schema_forbids_a_mapping_without_a_quote():
     with pytest.raises(ValidationFailure):
-        validate({"mappings": [{k: v for k, v in mapping().items() if k != "quote"}]},
+        validate({"mappings": [{k: v for k, v in mapping().items() if k != "framework_item_quote"}]},
                  MAPPING_SCHEMA)

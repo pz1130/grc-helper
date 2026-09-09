@@ -75,7 +75,7 @@ test("mapping proposals show side-by-side context and highlight the quote", asyn
   const proposal = {
     id: 21, kind: "mapping", payload: {
       framework_item_id: 2, control_id: 5, strength: "partial",
-      quote: "Identities are managed", rationale: "The control covers identity management", confidence: 0.9,
+      framework_item_quote: "Identities are managed", rationale: "The control covers identity management", confidence: 0.9,
     }, citations: [{ framework_item_id: 2, quote: "Identities are managed" }], confidence: 0.9,
     document_id: null, status: "pending", mapping_context: {
       framework_item: { id: 2, code: "PR.AA-01", title: "Identities", description: "Identities are managed for authorized users." },

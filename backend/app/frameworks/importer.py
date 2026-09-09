@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.errors import AppError
 from app.frameworks.models import Framework, FrameworkItem
-from app.frameworks.template import parse_rows
+from app.frameworks.template import Row, parse_rows
 from app.iam.audit import record
 from app.iam.models import User
 from app.matrix.template import Sheet, read_sheet
@@ -21,6 +21,28 @@ def read_template(content: bytes) -> tuple[list[str], list[list[str]]]:
     """复用 M4 的加固 XLSX 解析（拒 DTD/公式/超限）。"""
     sheet: Sheet = read_sheet(content)
     return sheet.headers, sheet.rows
+
+
+def _depth_first(rows: list[Row]) -> list[Row]:
+    """按树的阅读顺序重排并重写 order_index。
+
+    order_index 必须表示树序，而不是模板行号：NIST 的 800-53 导出把 20 个
+    Family 全排在最前、控制项排在后面，沿用行号会让「按族分批」彻底失效——
+    每个 Family 成为一个没有子项的批次，全部控制项挤进最后一个 Family 里。
+    同层兄弟保持模板中的先后。
+    """
+    children: dict[str | None, list[Row]] = {}
+    for row in rows:
+        children.setdefault(row.parent_code or None, []).append(row)
+
+    ordered: list[Row] = []
+    stack = list(reversed(children.get(None, [])))
+    while stack:
+        row = stack.pop()
+        row.order_index = len(ordered)
+        ordered.append(row)
+        stack.extend(reversed(children.get(row.code, [])))
+    return ordered
 
 
 async def import_framework(
@@ -55,6 +77,8 @@ async def import_framework(
     )
     session.add(framework)
     await session.flush()
+
+    parsed = _depth_first(parsed)
 
     # 两遍：先建全部节点拿到 id，再回填 parent_id。模板行序不保证父先于子。
     by_code: dict[str, FrameworkItem] = {}

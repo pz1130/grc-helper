@@ -55,7 +55,7 @@ function MappingPreview({
   const controlCode = typeof control.code === "string" ? control.code : `#${String(payload.control_id ?? "?")}`;
   const controlTitle = typeof control.title === "string" ? control.title : t("mapping.control");
   const controlStatement = typeof control.statement === "string" ? control.statement : "";
-  const quote = typeof payload.quote === "string" ? payload.quote : "";
+  const quote = typeof payload.framework_item_quote === "string" ? payload.framework_item_quote : "";
   const strength = typeof payload.strength === "string" ? payload.strength : "partial";
   return <div style={{ marginTop: 12 }}>
     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 16 }}>

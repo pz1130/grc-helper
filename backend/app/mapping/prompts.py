@@ -11,9 +11,11 @@ MAPPING_SYSTEM = (
     "strength: 'full' = the control alone fully satisfies the item; 'partial' = it satisfies "
     "only part, the item still needs other controls; 'supporting' = it does not satisfy the "
     "item but enables it. "
-    "Every mapping MUST quote VERBATIM the exact words from that framework item's body that "
-    "the control covers — never paraphrase, never quote the control instead. The quote is how "
-    "a reviewer checks whether 'partial' is honest. "
+    "Every mapping MUST set framework_item_quote to the exact words copied VERBATIM from that "
+    "framework item's body that the control covers — never paraphrase, never quote the "
+    "control instead. It is how a reviewer checks whether 'partial' is honest. "
+    "control_id and framework_item_id are the integers inside the square brackets; never "
+    "send a code such as C-0006 or AC-2. Emit exactly the listed properties, no others. "
     "Only reference control_id and framework_item_id values that appear in this batch. "
     "If no control satisfies any item in this batch, return mappings: [] and "
     "insufficient_evidence: true — that is a legitimate answer and marks a coverage gap."
@@ -30,14 +32,18 @@ MAPPING_SCHEMA: dict[str, Any] = {
                 "type": "object",
                 "additionalProperties": False,
                 "required": [
-                    "framework_item_id", "control_id", "strength", "quote",
+                    "framework_item_id", "control_id", "strength", "framework_item_quote",
                     "rationale", "confidence",
                 ],
                 "properties": {
                     "framework_item_id": {"type": "integer", "minimum": 1},
                     "control_id": {"type": "integer", "minimum": 1},
                     "strength": {"type": "string", "enum": ["full", "partial", "supporting"]},
-                    "quote": {"type": "string", "minLength": 1, "pattern": "\\S"},
+                    "framework_item_quote": {
+                        "type": "string", "minLength": 1, "pattern": "\\S",
+                        "description": "Verbatim words copied from this framework "
+                                       "item's body that the control covers.",
+                    },
                     "rationale": {"type": "string", "minLength": 10, "maxLength": 2000},
                     "confidence": {"type": "number", "minimum": 0, "maximum": 1},
                 },

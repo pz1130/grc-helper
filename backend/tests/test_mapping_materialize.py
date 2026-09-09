@@ -33,9 +33,9 @@ async def _proposal(db_session, item, control, *, quote="Identities and credenti
         kind=ProposalKind.MAPPING, status=ProposalStatus.PENDING,
         payload={
             "framework_item_id": item.id, "control_id": control.id, "strength": strength,
-            "quote": quote, "rationale": "covers identities", "confidence": 0.9,
+            "framework_item_quote": quote, "rationale": "covers identities", "confidence": 0.9,
         },
-        citations=[{"framework_item_id": item.id, "quote": quote}], confidence=0.9,
+        citations=[{"framework_item_id": item.id, "framework_item_quote": quote}], confidence=0.9,
     )
     db_session.add(proposal)
     await db_session.flush()
@@ -70,7 +70,7 @@ async def test_a_rejected_proposal_writes_no_mapping(db_session):
 async def test_modified_content_is_revalidated_against_the_framework_item(db_session):
     actor, item, control = await _setup(db_session)
     proposal = await _proposal(db_session, item, control)
-    bad = {**proposal.payload, "quote": "fabricated wording"}
+    bad = {**proposal.payload, "framework_item_quote": "fabricated wording"}
     with pytest.raises(AppError):
         await decide(db_session, proposal.id, actor=actor, decision=Decision.MODIFY, payload=bad)
     assert await db_session.scalar(select(Mapping)) is None

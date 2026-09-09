@@ -12,7 +12,7 @@ def payload(item_id=1, control_id=7, quote="Identities and credentials are manag
             strength="full"):
     return {"mappings": [{
         "framework_item_id": item_id, "control_id": control_id,
-        "strength": strength, "quote": quote, "rationale": "r", "confidence": 0.9,
+        "strength": strength, "framework_item_quote": quote, "rationale": "r", "confidence": 0.9,
     }]}
 
 
@@ -59,6 +59,6 @@ async def test_every_mapping_is_checked_not_just_the_first():
     data = payload()
     data["mappings"].append({
         "framework_item_id": 1, "control_id": 7, "strength": "full",
-        "quote": "fabricated", "rationale": "r", "confidence": 0.9,
+        "framework_item_quote": "fabricated", "rationale": "r", "confidence": 0.9,
     })
     assert await validator().check(data)

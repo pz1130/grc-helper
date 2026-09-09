@@ -46,7 +46,7 @@ class MappingCitationValidator:
                 return f"框架项 {item_id} 不属于本批次"
             if entry.get("strength") not in _STRENGTHS:
                 return f"无效的 strength: {entry.get('strength')!r}"
-            quote = entry.get("quote")
+            quote = entry.get("framework_item_quote")
             if not isinstance(quote, str) or not normalize(quote):
                 return f"框架项 {item_id} 的映射没有给出引文"
 
@@ -71,6 +71,6 @@ class MappingCitationValidator:
                 return f"框架项 {item_id} 在库中不存在"
             if control_id not in known_controls:
                 return f"控制点 {control_id} 在库中不存在"
-            if normalize(entry["quote"]) not in normalize(descriptions[item_id]):
+            if normalize(entry["framework_item_quote"]) not in normalize(descriptions[item_id]):
                 return f"引文在框架项 {item_id} 的正文中找不到"
         return None
