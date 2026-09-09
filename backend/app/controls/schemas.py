@@ -4,6 +4,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.controls.models import RelationType, SourceRelation
+from app.frameworks.models import MappingStrength
 
 
 class ControlOut(BaseModel):
@@ -35,9 +36,23 @@ class RelationOut(BaseModel):
     rationale: str
 
 
+class FrameworkMappingOut(BaseModel):
+    framework_id: int
+    framework_key: str
+    framework_name: str
+    framework_item_id: int
+    code: str
+    title: str
+    strength: MappingStrength
+    rationale: str
+    quote: str
+    confidence: float | None
+
+
 class ControlDetailOut(ControlOut):
     sources: list[SourceOut]
     relations: list[RelationOut]
+    mappings: list[FrameworkMappingOut]
 
 
 class ControlUpdateIn(BaseModel):

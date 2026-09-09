@@ -9,6 +9,7 @@ import type { Control } from "./Controls";
 interface Detail extends Control {
   sources: { clause_id: number; document_id: number; document_title: string; citation_label: string; heading_path: string; relation: string }[];
   relations: { from_control_id: number; to_control_id: number; relation_type: string; rationale: string }[];
+  mappings?: { framework_name: string; code: string; title: string; strength: string }[];
 }
 
 export function ControlDetail() {
@@ -58,6 +59,11 @@ function ControlContent({ id }: { id: string }) {
       <ul>{data.relations.map((r) => <li key={`${r.from_control_id}-${r.to_control_id}-${r.relation_type}`} style={{ marginBottom: 12 }}>
         <Link to={`/controls/${r.from_control_id}`}>#{r.from_control_id}</Link> → <Link to={`/controls/${r.to_control_id}`}>#{r.to_control_id}</Link> · {t(`controls.relationTypes.${r.relation_type}`, { defaultValue: r.relation_type })}
         <p style={{ margin: "4px 0", fontSize: 13, color: "#666", whiteSpace: "pre-wrap" }}>{r.rationale}</p>
+      </li>)}</ul>
+      <h3>{t("controls.frameworkMappings")}</h3>
+      {(data.mappings ?? []).length === 0 && <p>{t("controls.noFrameworkMappings")}</p>}
+      <ul>{(data.mappings ?? []).map((mapping) => <li key={`${mapping.framework_name}-${mapping.code}`}>
+        {mapping.framework_name} · <code>{mapping.code}</code> {mapping.title} · {t(`mapping.strength.${mapping.strength}`, { defaultValue: mapping.strength })}
       </li>)}</ul>
     </>}
   </section>;

@@ -1,6 +1,6 @@
 {
   "app": { "name": "GRC Helper", "logout": "退出", "language": "语言" },
-  "nav": { "overview": "总览", "documents": "文档库", "search": "检索", "settings": "设置", "review": "确认队列", "controls": "控制点库" },
+  "nav": { "overview": "总览", "documents": "文档库", "search": "检索", "settings": "设置", "review": "确认队列", "controls": "控制点库", "frameworks": "框架管理" },
   "login": {
     "title": "登录",
     "email": "邮箱",
@@ -103,6 +103,8 @@
     "queued": "抽取已入队（{{id}}），请在确认队列查看提案。",
     "limit": "最多显示 100 条控制点，请缩小搜索范围。",
     "noSources": "该控制点尚未关联支撑条款。",
+    "frameworkMappings": "框架映射",
+    "noFrameworkMappings": "该控制点尚未关联外部框架。",
     "relationTypes": {
       "defines": "定义",
       "elaborates": "细化",
@@ -112,6 +114,39 @@
       "conflicts_with": "冲突",
       "duplicates": "重复"
     }
+  },
+  "frameworks": {
+    "title": "框架管理",
+    "name": "框架名称",
+    "file": "框架文件",
+    "chooseFile": "请先选择框架文件。",
+    "import": "导入框架",
+    "importHint": "上传符合模板列定义的 XLSX 或 CSV 文件，先校验再导入。",
+    "key": "框架标识",
+    "nameZh": "中文名称",
+    "nameEn": "英文名称",
+    "version": "版本",
+    "source": "来源",
+    "items": "条目数",
+    "validate": "校验",
+    "report": "校验报告",
+    "confirmImport": "确认导入",
+    "imported": "已导入 {{key}}。",
+    "tree": "条目树",
+    "item": "框架项",
+    "coverage": "覆盖度",
+    "gaps": "差距清单",
+    "baseline": "基线",
+    "baselineAll": "全部",
+    "hasSupporting": "有支撑性映射但不足以消除差距",
+    "runMapping": "运行 AI 映射",
+    "mappingQueued": "映射任务已入队（{{id}}）。"
+  },
+  "mapping": {
+    "strength": { "label": "映射强度", "full": "完整满足", "partial": "部分满足", "supporting": "提供支撑" },
+    "frameworkItem": "框架项",
+    "control": "控制点",
+    "quote": "被覆盖的条文"
   },
   "matrix": {
     "title": "导入 Excel 控制矩阵",

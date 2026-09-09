@@ -24,6 +24,7 @@ class ProposalOut(BaseModel):
     created_at: datetime
     bulk_acceptable: bool = False
     ocr_quality_flag: bool = False
+    mapping_context: dict[str, Any] | None = None
 
 
 class DecideIn(BaseModel):

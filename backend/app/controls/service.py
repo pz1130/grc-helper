@@ -3,7 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clauses.models import Clause
 from app.controls.models import Control, ControlRelation, ControlSource
-from app.controls.schemas import RelationOut, SourceOut
+from app.controls.schemas import FrameworkMappingOut, RelationOut, SourceOut
+from app.frameworks.models import Framework, FrameworkItem, Mapping
 from app.ingest.models import Document
 
 
@@ -60,4 +61,29 @@ async def relations(session: AsyncSession, control_id: int) -> list[RelationOut]
             rationale=row.rationale,
         )
         for row in rows
+    ]
+
+
+async def mappings(session: AsyncSession, control_id: int) -> list[FrameworkMappingOut]:
+    rows = await session.execute(
+        select(Mapping, FrameworkItem, Framework)
+        .join(FrameworkItem, FrameworkItem.id == Mapping.framework_item_id)
+        .join(Framework, Framework.id == FrameworkItem.framework_id)
+        .where(Mapping.control_id == control_id)
+        .order_by(Framework.key, FrameworkItem.order_index, Mapping.id)
+    )
+    return [
+        FrameworkMappingOut(
+            framework_id=framework.id,
+            framework_key=framework.key,
+            framework_name=framework.name_zh,
+            framework_item_id=item.id,
+            code=item.code,
+            title=item.title,
+            strength=mapping.strength,
+            rationale=mapping.rationale,
+            quote=mapping.quote,
+            confidence=mapping.confidence,
+        )
+        for mapping, item, framework in rows
     ]

@@ -1,6 +1,6 @@
 {
   "app": { "name": "GRC Helper", "logout": "Sign out", "language": "Language" },
-  "nav": { "overview": "Overview", "documents": "Documents", "search": "Search", "settings": "Settings", "review": "Review", "controls": "Controls" },
+  "nav": { "overview": "Overview", "documents": "Documents", "search": "Search", "settings": "Settings", "review": "Review", "controls": "Controls", "frameworks": "Frameworks" },
   "login": {
     "title": "Sign in",
     "email": "Email",
@@ -103,6 +103,8 @@
     "queued": "Extraction queued ({{id}}). Check the review queue for proposals.",
     "limit": "Showing up to 100 controls. Narrow your search for more specific results.",
     "noSources": "No supporting clauses are linked to this control.",
+    "frameworkMappings": "Framework mappings",
+    "noFrameworkMappings": "No external framework mappings are linked to this control.",
     "relationTypes": {
       "defines": "Defines",
       "elaborates": "Elaborates",
@@ -112,6 +114,39 @@
       "conflicts_with": "Conflicts with",
       "duplicates": "Duplicates"
     }
+  },
+  "frameworks": {
+    "title": "Frameworks",
+    "name": "Framework",
+    "file": "Framework file",
+    "chooseFile": "Choose a framework file first.",
+    "import": "Import framework",
+    "importHint": "Upload an XLSX or CSV file using the canonical columns; validate it before importing.",
+    "key": "Framework key",
+    "nameZh": "Chinese name",
+    "nameEn": "English name",
+    "version": "Version",
+    "source": "Source",
+    "items": "Items",
+    "validate": "Validate",
+    "report": "Validation report",
+    "confirmImport": "Confirm import",
+    "imported": "Imported {{key}}.",
+    "tree": "Item tree",
+    "item": "Framework item",
+    "coverage": "Coverage",
+    "gaps": "Gap list",
+    "baseline": "Baseline",
+    "baselineAll": "All",
+    "hasSupporting": "Supporting mapping exists but does not close the gap",
+    "runMapping": "Run AI mapping",
+    "mappingQueued": "Mapping job queued ({{id}})."
+  },
+  "mapping": {
+    "strength": { "label": "Mapping strength", "full": "Fully satisfies", "partial": "Partially satisfies", "supporting": "Supporting" },
+    "frameworkItem": "Framework item",
+    "control": "Control",
+    "quote": "Covered framework text"
   },
   "matrix": {
     "title": "Import an Excel control matrix",

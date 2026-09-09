@@ -41,6 +41,7 @@ async def get_control(
         **ControlOut.model_validate(control).model_dump(),
         sources=await service.sources(session, control_id),
         relations=await service.relations(session, control_id),
+        mappings=await service.mappings(session, control_id),
     )
 
 

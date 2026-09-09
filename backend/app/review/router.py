@@ -5,6 +5,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
+from app.controls.models import Control
+from app.frameworks.models import FrameworkItem
 from app.iam.deps import require
 from app.iam.models import User
 from app.iam.permissions import Permission
@@ -18,10 +20,33 @@ router = APIRouter(prefix="/api/proposals", tags=["proposals"])
 
 async def present(session: AsyncSession, proposal: Proposal, limits: Thresholds) -> ProposalOut:
     acceptable, flag = await service.eligibility(session, proposal, limits)
+    context: dict[str, Any] | None = None
+    if proposal.kind == ProposalKind.MAPPING:
+        item_id = proposal.payload.get("framework_item_id")
+        control_id = proposal.payload.get("control_id")
+        if type(item_id) is int and type(control_id) is int:
+            item = await session.get(FrameworkItem, item_id)
+            control = await session.get(Control, control_id)
+            if item is not None and control is not None:
+                context = {
+                    "framework_item": {
+                        "id": item.id,
+                        "code": item.code,
+                        "title": item.title,
+                        "description": item.description,
+                    },
+                    "control": {
+                        "id": control.id,
+                        "code": control.code,
+                        "title": control.title,
+                        "statement": control.statement,
+                    },
+                }
     return ProposalOut.model_validate(proposal).model_copy(
         update={
             "bulk_acceptable": acceptable,
             "ocr_quality_flag": flag,
+            "mapping_context": context,
         }
     )
 

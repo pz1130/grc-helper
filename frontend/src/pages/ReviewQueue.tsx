@@ -17,6 +17,65 @@ export interface Proposal {
   // Optional until the API exposes eligibility to all READ users. Never guess thresholds.
   bulk_acceptable?: boolean;
   ocr_quality_flag?: boolean;
+  mapping_context?: {
+    framework_item: { id: number; code: string; title: string; description: string };
+    control: { id: number; code: string; title: string; statement: string };
+  } | null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function HighlightQuote({ text, quote }: { text: string; quote: string }) {
+  const position = quote ? text.indexOf(quote) : -1;
+  if (position < 0) return <>{text}</>;
+  return <>{text.slice(0, position)}<mark>{text.slice(position, position + quote.length)}</mark>{text.slice(position + quote.length)}</>;
+}
+
+function MappingPreview({
+  proposal, editing, draft, busy, onDraftChange, onStrengthChange,
+}: {
+  proposal: Proposal;
+  editing: boolean;
+  draft: string;
+  busy: boolean;
+  onDraftChange: (value: string) => void;
+  onStrengthChange: (value: string) => void;
+}) {
+  const { t } = useTranslation();
+  const payload = proposal.payload;
+  const item = proposal.mapping_context?.framework_item ?? asRecord(payload.framework_item);
+  const control = proposal.mapping_context?.control ?? asRecord(payload.control);
+  const itemCode = typeof item.code === "string" ? item.code : `#${String(payload.framework_item_id ?? "?")}`;
+  const itemTitle = typeof item.title === "string" ? item.title : t("mapping.frameworkItem");
+  const itemDescription = typeof item.description === "string" ? item.description : "";
+  const controlCode = typeof control.code === "string" ? control.code : `#${String(payload.control_id ?? "?")}`;
+  const controlTitle = typeof control.title === "string" ? control.title : t("mapping.control");
+  const controlStatement = typeof control.statement === "string" ? control.statement : "";
+  const quote = typeof payload.quote === "string" ? payload.quote : "";
+  const strength = typeof payload.strength === "string" ? payload.strength : "partial";
+  return <div style={{ marginTop: 12 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 16 }}>
+      <div>
+        <h3>{t("mapping.frameworkItem")} · <code>{itemCode}</code> {itemTitle}</h3>
+        <p style={{ whiteSpace: "pre-wrap" }}><HighlightQuote text={itemDescription} quote={quote} /></p>
+        <p><strong>{t("mapping.quote")}:</strong> <mark>{quote}</mark></p>
+      </div>
+      <aside style={{ background: "#f7f7f7", padding: 12 }}>
+        <h3>{t("mapping.control")} · <code>{controlCode}</code> {controlTitle}</h3>
+        <p style={{ whiteSpace: "pre-wrap" }}>{controlStatement}</p>
+      </aside>
+    </div>
+    <label>{t("mapping.strength.label")} <select aria-label={t("mapping.strength.label")} value={strength} disabled={busy} onChange={(event) => onStrengthChange(event.target.value)}>
+      <option value="full">{t("mapping.strength.full")}</option>
+      <option value="partial">{t("mapping.strength.partial")}</option>
+      <option value="supporting">{t("mapping.strength.supporting")}</option>
+    </select></label>
+    {editing && <label style={{ display: "block", marginTop: 8 }}>{t("review.payload")}<textarea aria-label={t("review.payload")} rows={8} style={{ width: "100%", boxSizing: "border-box" }} value={draft} disabled={busy} onChange={(event) => onDraftChange(event.target.value)} /></label>}
+  </div>;
 }
 
 export function ReviewQueue() {
@@ -105,7 +164,18 @@ export function ReviewQueue() {
       </div>
       {p.ocr_quality_flag && <p style={{ color: "#946000" }}>🔍 {t("review.ocrSuspect")}</p>}
       {canDecide && !p.ocr_quality_flag && p.bulk_acceptable !== true && <p style={{ color: "#666", fontSize: 13 }}>{t(p.bulk_acceptable === false ? "review.manualOnly" : "review.eligibilityUnknown")}</p>}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 16, marginTop: 12 }}>
+      {p.kind === "mapping" ? <MappingPreview
+        proposal={p}
+        editing={editing === p.id}
+        draft={draft}
+        busy={busy}
+        onDraftChange={setDraft}
+        onStrengthChange={(strength) => {
+          setEditing(p.id);
+          setDraft(JSON.stringify({ ...p.payload, strength }, null, 2));
+          setError("");
+        }}
+      /> : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 16, marginTop: 12 }}>
         <div>
           <h3>{String(p.payload.title ?? t("review.payload"))}</h3>
           {editing === p.id ? <label>{t("review.payload")}<textarea aria-label={t("review.payload")} rows={14} style={{ width: "100%", boxSizing: "border-box" }} value={draft} disabled={busy} onChange={(e) => setDraft(e.target.value)} /></label> : <>
@@ -121,7 +191,7 @@ export function ReviewQueue() {
             <blockquote style={{ margin: "8px 0 16px", whiteSpace: "pre-wrap" }}>{c.quote}</blockquote>
           </div>)}
         </aside>
-      </div>
+      </div>}
       {canDecide && p.status === "pending" && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
         {editing !== p.id && rejecting !== p.id && <>
           <button disabled={busy} onClick={() => decide.mutate({ id: p.id, decision: "accept" })}>{t("review.accept")}</button>

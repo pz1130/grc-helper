@@ -16,6 +16,8 @@ import { Search } from "./pages/Search";
 import { ReviewQueue } from "./pages/ReviewQueue";
 import { Controls } from "./pages/Controls";
 import { ControlDetail } from "./pages/ControlDetail";
+import { Frameworks } from "./pages/Frameworks";
+import { FrameworkDetail } from "./pages/FrameworkDetail";
 
 export function App() {
   const { user, loading } = useAuth();
@@ -32,6 +34,8 @@ export function App() {
         <Route path="/review" element={<ReviewQueue />} />
         <Route path="/controls" element={<Controls />} />
         <Route path="/controls/:id" element={<ControlDetail />} />
+        <Route path="/frameworks" element={<Frameworks />} />
+        <Route path="/frameworks/:id" element={<FrameworkDetail />} />
         <Route path="/documents/:id" element={<DocumentDetail />} />
         <Route path="/settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="providers" replace />} />
