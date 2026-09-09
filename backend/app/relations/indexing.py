@@ -1,0 +1,70 @@
+"""控制点向量化。
+
+本模块不写网络代码：脱敏、留痕、预算检查全由 M1 的 llm.embed() 完成。
+控制点很短，不分块——一条控制点一行，与 ClauseChunk 的分块逻辑无关。
+"""
+
+from typing import Any
+
+from sqlalchemy import func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.controls.models import Control
+from app.indexing.embedder import current_model
+from app.llm.runner import embed
+from app.relations.models import ControlEmbedding
+
+BATCH_SIZE = 64
+
+
+def render_control(control: Any) -> str:
+    return f"{control.code} — {control.title}\n{control.statement or ''}"
+
+
+async def embed_pending(session: AsyncSession, *, limit: int = 500) -> dict[str, Any]:
+    """给尚无向量、或向量出自旧模型的控制点补算。幂等，可重复调用。"""
+    model = await current_model(session)
+    stale = (
+        select(Control)
+        .outerjoin(ControlEmbedding, ControlEmbedding.control_id == Control.id)
+        .where(
+            or_(
+                ControlEmbedding.id.is_(None),
+                ControlEmbedding.embedding.is_(None),
+                ControlEmbedding.embedding_model.is_distinct_from(model),
+            )
+        )
+        .order_by(Control.id)
+    )
+    controls = list(await session.scalars(stale.limit(limit)))
+    if not controls:
+        return {"embedded": 0, "model": model, "pending": 0}
+
+    existing = {
+        row.control_id: row
+        for row in await session.scalars(
+            select(ControlEmbedding).where(
+                ControlEmbedding.control_id.in_([c.id for c in controls])
+            )
+        )
+    }
+
+    embedded = 0
+    for start in range(0, len(controls), BATCH_SIZE):
+        batch = controls[start : start + BATCH_SIZE]
+        vectors, _ = await embed(session, texts=[render_control(c) for c in batch])
+        for control, vector in zip(batch, vectors, strict=True):
+            # 换模型是重算，不是新增行——一条控制点始终只有一行向量。
+            row = existing.get(control.id)
+            if row is None:
+                row = ControlEmbedding(control_id=control.id)
+                session.add(row)
+            row.embedding = vector
+            row.embedding_model = model
+            embedded += 1
+        await session.flush()
+
+    pending = await session.scalar(
+        select(func.count()).select_from(stale.subquery())
+    )
+    return {"embedded": embedded, "model": model, "pending": int(pending or 0)}
