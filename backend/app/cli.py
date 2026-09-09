@@ -2,6 +2,7 @@
 
 用法（容器内）：
     python -m app.cli create-admin admin@example.com "Admin" 's3cret-pw'
+    python -m app.cli import-framework seeds/nist-csf-2.0.csv nist-csf-2.0 "NIST CSF 2.0" "NIST CSF 2.0" 2.0 nist.gov
 """
 
 import asyncio
@@ -52,12 +53,58 @@ async def create_admin(
         await db.commit()
 
 
+async def import_framework_cli(
+    path: str, key: str, name_zh: str, name_en: str, version: str, source: str
+) -> None:
+    """种子与人工导入走同一条代码路径，不存在第二个实现。"""
+    import csv
+    from pathlib import Path
+
+    from app.frameworks.importer import import_framework
+
+    text = Path(path).read_text(encoding="utf-8-sig")
+    reader = list(csv.reader(text.splitlines()))
+    if not reader:
+        raise SystemExit(f"{path} 是空文件")
+    headers, rows = reader[0], reader[1:]
+
+    async with session_factory() as session:
+        actor = await session.scalar(
+            select(User).where(User.role == Role.ADMIN).order_by(User.id).limit(1)
+        )
+        if actor is None:
+            raise SystemExit("库中没有 admin 用户；请先执行 create-admin")
+        framework = await import_framework(
+            session,
+            headers,
+            rows,
+            key=key,
+            name_zh=name_zh,
+            name_en=name_en,
+            version=version,
+            source=source,
+            actor=actor,
+        )
+        await session.commit()
+        print(f"已导入 {framework.key} v{framework.version}：{framework.item_count} 条")
+
+
 def main() -> None:
-    if len(sys.argv) != 5 or sys.argv[1] != "create-admin":
-        print("用法: python -m app.cli create-admin <email> <name> <password>", file=sys.stderr)
-        raise SystemExit(2)
-    asyncio.run(create_admin(sys.argv[2], sys.argv[3], sys.argv[4]))
-    print(f"管理员已就绪: {sys.argv[2]}")
+    usage = (
+        "用法:\n"
+        "  python -m app.cli create-admin <email> <name> <password>\n"
+        "  python -m app.cli import-framework <path> <key> <name_zh> <name_en> "
+        "<version> <source>"
+    )
+    match sys.argv[1:]:
+        case ["create-admin", email, name, password]:
+            asyncio.run(create_admin(email, name, password))
+            print(f"管理员已就绪: {email}")
+        case ["import-framework", path, key, name_zh, name_en, version, source]:
+            asyncio.run(import_framework_cli(path, key, name_zh, name_en, version, source))
+        case _:
+            print(usage, file=sys.stderr)
+            raise SystemExit(2)
 
 
 if __name__ == "__main__":
