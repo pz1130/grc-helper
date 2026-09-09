@@ -79,6 +79,17 @@ async def create(
         )
         if reason:
             raise AppError(f"引用校验失败：{reason}")
+    elif kind == ProposalKind.RELATION:
+        from app.relations.citations import RelationCitationValidator
+
+        ends = (payload.get("from_control_id"), payload.get("to_control_id"))
+        if any(type(value) is not int for value in ends):
+            raise AppError("关系提案缺少控制点编号")
+        reason = await RelationCitationValidator(session, control_ids=set(ends)).check(
+            {"relations": [payload]}
+        )
+        if reason:
+            raise AppError(f"引用校验失败：{reason}")
     proposal = Proposal(
         kind=kind,
         payload=deepcopy(payload),
