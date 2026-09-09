@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.clauses.models import Clause
 from app.controls.models import Control
 from app.db import get_session
-from app.frameworks.models import FrameworkItem
+from app.frameworks.models import FrameworkItem, MappingStrength
 from app.iam.deps import require
 from app.iam.models import User
 from app.iam.permissions import Permission
@@ -131,11 +131,18 @@ async def list_pending(
     *,
     kind: ProposalKind | None = None,
     document_id: int | None = Query(default=None, gt=0),
+    strength: Annotated[list[MappingStrength] | None, Query()] = None,
     limit: int = Query(default=50, ge=1, le=200),
     _: Annotated[User, Depends(require(Permission.READ))],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[ProposalOut]:
-    rows = await service.pending(session, kind=kind, document_id=document_id, limit=limit)
+    rows = await service.pending(
+        session,
+        kind=kind,
+        document_id=document_id,
+        strength=[value.value for value in strength] if strength else None,
+        limit=limit,
+    )
     limits = await load(session)
     context = await clause_context(session, rows)
     return [await present(session, row, limits, context) for row in rows]

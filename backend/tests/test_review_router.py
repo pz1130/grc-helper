@@ -205,3 +205,71 @@ async def test_a_citation_whose_clause_vanished_still_renders(client, db_session
     citation = next(p for p in body if p["id"] == proposal.id)["citations"][0]
     assert citation["quote"] == "gone"
     assert citation.get("document_title") is None
+
+
+async def _mapping_proposal(db_session, strength: str, confidence: float = 0.8) -> Proposal:
+    from uuid import uuid4
+
+    from app.frameworks.models import Framework, FrameworkItem
+
+    framework = await db_session.scalar(select(Framework).limit(1))
+    if framework is None:
+        framework = Framework(key=uuid4().hex[:12], name_zh="z", name_en="e",
+                              version="1", source="s", item_count=0)
+        db_session.add(framework)
+        await db_session.flush()
+    item = FrameworkItem(framework_id=framework.id, code=uuid4().hex[:8], title="t",
+                         description="Body text.", level=1, order_index=0)
+    control = Control(code=f"C-{uuid4().hex[:6]}", title="t", statement="s")
+    db_session.add_all([item, control])
+    await db_session.flush()
+    proposal = Proposal(
+        kind=ProposalKind.MAPPING,
+        payload={"framework_item_id": item.id, "control_id": control.id,
+                 "strength": strength, "framework_item_quote": "Body text.",
+                 "rationale": "r", "confidence": confidence},
+        citations=[], confidence=confidence,
+    )
+    db_session.add(proposal)
+    await db_session.flush()
+    return proposal
+
+
+@pytest.mark.asyncio
+async def test_mapping_proposals_can_be_filtered_by_strength(client, db_session):
+    """412 条映射提案里只有 full/partial 影响覆盖度；supporting 不消除差距。
+
+    没有这个过滤，「只过影响结论的那些」就无从下手。
+    """
+    await _seed(db_session, Role.GRC_LEAD, "lead@example.com")
+    full = await _mapping_proposal(db_session, "full")
+    partial = await _mapping_proposal(db_session, "partial")
+    await _mapping_proposal(db_session, "supporting")
+    headers = await _auth(client, "lead@example.com")
+
+    body = (await client.get(
+        "/api/proposals?kind=mapping&strength=full&strength=partial", headers=headers)).json()
+    assert {p["id"] for p in body} == {full.id, partial.id}
+
+    only_supporting = (await client.get(
+        "/api/proposals?kind=mapping&strength=supporting", headers=headers)).json()
+    assert {p["payload"]["strength"] for p in only_supporting} == {"supporting"}
+
+
+@pytest.mark.asyncio
+async def test_no_strength_filter_returns_every_strength(client, db_session):
+    await _seed(db_session, Role.GRC_LEAD, "lead@example.com")
+    for strength in ("full", "partial", "supporting"):
+        await _mapping_proposal(db_session, strength)
+    headers = await _auth(client, "lead@example.com")
+
+    body = (await client.get("/api/proposals?kind=mapping", headers=headers)).json()
+    assert {p["payload"]["strength"] for p in body} == {"full", "partial", "supporting"}
+
+
+@pytest.mark.asyncio
+async def test_an_unknown_strength_is_rejected(client, db_session):
+    await _seed(db_session, Role.GRC_LEAD, "lead@example.com")
+    headers = await _auth(client, "lead@example.com")
+    resp = await client.get("/api/proposals?strength=maybe", headers=headers)
+    assert resp.status_code == 422

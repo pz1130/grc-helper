@@ -142,6 +142,7 @@ async def pending(
     *,
     kind: ProposalKind | None = None,
     document_id: int | None = None,
+    strength: list[str] | None = None,
     limit: int = 50,
 ) -> list[Proposal]:
     if not 1 <= limit <= 200:
@@ -156,6 +157,10 @@ async def pending(
         stmt = stmt.where(Proposal.kind == kind)
     if document_id is not None:
         stmt = stmt.where(Proposal.document_id == document_id)
+    if strength:
+        # 映射提案里只有 full/partial 影响覆盖度，supporting 不消除差距——
+        # 审核 400 多条时，能只看影响结论的那些是刚需。
+        stmt = stmt.where(Proposal.payload["strength"].astext.in_(strength))
     return list(await session.scalars(stmt))
 
 

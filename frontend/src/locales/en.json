@@ -1,6 +1,18 @@
 {
-  "app": { "name": "GRC Helper", "logout": "Sign out", "language": "Language" },
-  "nav": { "overview": "Overview", "documents": "Documents", "search": "Search", "settings": "Settings", "review": "Review", "controls": "Controls", "frameworks": "Frameworks" },
+  "app": {
+    "name": "GRC Helper",
+    "logout": "Sign out",
+    "language": "Language"
+  },
+  "nav": {
+    "overview": "Overview",
+    "documents": "Documents",
+    "search": "Search",
+    "settings": "Settings",
+    "review": "Review",
+    "controls": "Controls",
+    "frameworks": "Frameworks"
+  },
   "login": {
     "title": "Sign in",
     "email": "Email",
@@ -85,7 +97,10 @@
       "control_extract": "Control extraction",
       "matrix_mapping": "Spreadsheet column mapping",
       "relation": "Control relationship"
-    }
+    },
+    "strength": "Strength",
+    "allStrengths": "All strengths",
+    "coverageAffecting": "Coverage-affecting only (full + partial)"
   },
   "controls": {
     "title": "Controls",
@@ -143,7 +158,12 @@
     "mappingQueued": "Mapping job queued ({{id}})."
   },
   "mapping": {
-    "strength": { "label": "Mapping strength", "full": "Fully satisfies", "partial": "Partially satisfies", "supporting": "Supporting" },
+    "strength": {
+      "label": "Mapping strength",
+      "full": "Fully satisfies",
+      "partial": "Partially satisfies",
+      "supporting": "Supporting"
+    },
     "frameworkItem": "Framework item",
     "control": "Control",
     "quote": "Covered framework text"

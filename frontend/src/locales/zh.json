@@ -1,6 +1,18 @@
 {
-  "app": { "name": "GRC Helper", "logout": "退出", "language": "语言" },
-  "nav": { "overview": "总览", "documents": "文档库", "search": "检索", "settings": "设置", "review": "确认队列", "controls": "控制点库", "frameworks": "框架管理" },
+  "app": {
+    "name": "GRC Helper",
+    "logout": "退出",
+    "language": "语言"
+  },
+  "nav": {
+    "overview": "总览",
+    "documents": "文档库",
+    "search": "检索",
+    "settings": "设置",
+    "review": "确认队列",
+    "controls": "控制点库",
+    "frameworks": "框架管理"
+  },
   "login": {
     "title": "登录",
     "email": "邮箱",
@@ -85,7 +97,10 @@
       "control_extract": "控制点抽取",
       "matrix_mapping": "Excel 列映射",
       "relation": "控制点关系"
-    }
+    },
+    "strength": "强度",
+    "allStrengths": "全部强度",
+    "coverageAffecting": "只看影响覆盖度的（full + partial）"
   },
   "controls": {
     "title": "控制点库",
@@ -143,7 +158,12 @@
     "mappingQueued": "映射任务已入队（{{id}}）。"
   },
   "mapping": {
-    "strength": { "label": "映射强度", "full": "完整满足", "partial": "部分满足", "supporting": "提供支撑" },
+    "strength": {
+      "label": "映射强度",
+      "full": "完整满足",
+      "partial": "部分满足",
+      "supporting": "提供支撑"
+    },
     "frameworkItem": "框架项",
     "control": "控制点",
     "quote": "被覆盖的条文"

@@ -163,6 +163,7 @@ export function ReviewQueue() {
   const [params, setParams] = useSearchParams();
   const kind = params.get("kind") ?? "";
   const documentId = params.get("document_id") ?? "";
+  const strength = params.getAll("strength");
   const [selected, setSelected] = useState<number[]>([]);
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
@@ -171,8 +172,12 @@ export function ReviewQueue() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const proposals = useQuery({
-    queryKey: ["proposals", kind, documentId],
-    queryFn: () => request<Proposal[]>(`/api/proposals?limit=200&${new URLSearchParams({ ...(kind ? { kind } : {}), ...(documentId ? { document_id: documentId } : {}) })}`),
+    queryKey: ["proposals", kind, documentId, strength.join(",")],
+    queryFn: () => {
+      const query = new URLSearchParams({ limit: "200", ...(kind ? { kind } : {}), ...(documentId ? { document_id: documentId } : {}) });
+      for (const value of strength) query.append("strength", value);
+      return request<Proposal[]>(`/api/proposals?${query}`);
+    },
     refetchInterval: 15000,
   });
   const stats = useQuery({ queryKey: ["proposal-stats"], queryFn: () => request<{ pending: number; by_kind: Record<string, number> }>("/api/proposals/stats"), refetchInterval: 15000 });
@@ -233,6 +238,18 @@ export function ReviewQueue() {
         <option value="">{t("review.allKinds")}</option>
         {[...new Set(["control_extract", "matrix_mapping", ...Object.keys(stats.data?.by_kind ?? {})])].map((k) => <option key={k} value={k}>{t(`review.kinds.${k}`, { defaultValue: k })}</option>)}
       </select></label>
+      {kind === "mapping" && <label>{t("review.strength")} <select value={strength.join(",")} disabled={busy} onChange={(e) => {
+        setSelected([]); setEditing(null); setRejecting(null);
+        const next = new URLSearchParams({ ...(kind ? { kind } : {}), ...(documentId ? { document_id: documentId } : {}) });
+        for (const value of e.target.value ? e.target.value.split(",") : []) next.append("strength", value);
+        setParams(next);
+      }}>
+        <option value="">{t("review.allStrengths")}</option>
+        <option value="full,partial">{t("review.coverageAffecting")}</option>
+        <option value="full">{t("mapping.strength.full")}</option>
+        <option value="partial">{t("mapping.strength.partial")}</option>
+        <option value="supporting">{t("mapping.strength.supporting")}</option>
+      </select></label>}
       <button disabled={busy || proposals.isFetching} onClick={() => void refresh()}>{t("common.refresh")}</button>
       {documentId && <button onClick={() => { setSelected([]); setParams(kind ? { kind } : {}); }}>{t("review.clearDocument")}</button>}
       {canDecide && <button disabled={busy || proposals.isFetching || !selectedIds.length} onClick={() => bulk.mutate(selectedIds)}>{t("review.bulkAccept")} ({selectedIds.length})</button>}
