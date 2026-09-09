@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from app.clauses.models import Clause
+from app.common.batching import group_by_top_level
 
 MAX_BATCH_CHARS = 12000
 
@@ -27,23 +28,23 @@ def build_batches(clauses: list[Clause], *, max_chars: int = MAX_BATCH_CHARS) ->
     """Preserve input order. A single oversized clause stays intact in its own batch."""
     if max_chars <= 0:
         raise ValueError("max_chars must be positive")
-    groups: list[Batch] = []
+    groups: list[list[Clause]] = []
+    sections: dict[int, str] = {}
     for clause in clauses:
         if clause.level <= 1 or not groups:
-            groups.append(Batch([], clause.heading or ""))
-        groups[-1].clauses.append(clause)
+            groups.append([])
+            sections[len(groups) - 1] = clause.heading or ""
+        groups[-1].append(clause)
     batches: list[Batch] = []
-    for group in groups:
-        current: list[Clause] = []
-        size = len(render(Batch([], group.section)))
-        header_size = size
-        for clause in group.clauses:
-            length = len(render(Batch([clause], group.section))) - header_size
-            if current and size + length > max_chars:
-                batches.append(Batch(current, group.section))
-                current, size = [], header_size
-            current.append(clause)
-            size += length
-        if current:
-            batches.append(Batch(current, group.section))
+    for position, group in enumerate(groups):
+        section = sections[position]
+        header_size = len(render(Batch([], section)))
+        for chunk in group_by_top_level(
+            group,
+            level_of=lambda _: 2,
+            render_size=lambda clause: len(render(Batch([clause], section))) - header_size,
+            max_chars=max_chars,
+            header_size=header_size,
+        ):
+            batches.append(Batch(chunk, section))
     return batches
