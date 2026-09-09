@@ -1,12 +1,9 @@
 """按顶层子树分组、按字符预算切分的通用算法。"""
 
 from collections.abc import Callable, Sequence
-from typing import TypeVar
-
-T = TypeVar("T")
 
 
-def group_by_top_level(
+def group_by_top_level[T](
     units: Sequence[T],
     *,
     level_of: Callable[[T], int],

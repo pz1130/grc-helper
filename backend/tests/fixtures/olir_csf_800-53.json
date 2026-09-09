@@ -1,0 +1,17 @@
+{
+  "source": "NIST OLIR CSF 2.0 to SP 800-53 Rev. 5 (selected official relationships)",
+  "pairs": [
+    {"csf": "GV.OC-01", "controls": ["PM-11"]},
+    {"csf": "GV.OC-02", "controls": ["PM-9", "PM-18", "PM-30", "SR-3", "SR-5", "SR-6", "SR-8"]},
+    {"csf": "GV.OC-03", "controls": ["AC-1", "AT-1", "AU-1", "CA-1", "CM-1", "CP-1", "IA-1", "IR-1", "MA-1", "MP-1", "PE-1", "PL-1", "PM-1", "PM-28", "PS-1", "PT-1", "RA-1", "SA-1", "SC-1", "SI-1", "SR-1"]},
+    {"csf": "GV.OC-04", "controls": ["CP-2.8", "PM-8", "PM-11", "PM-30.1", "RA-9"]},
+    {"csf": "GV.OC-05", "controls": ["PM-11", "PM-30", "RA-7", "SA-9", "SR-5"]},
+    {"csf": "GV.RM-01", "controls": ["PM-9", "RA-7", "SR-2"]},
+    {"csf": "GV.RM-02", "controls": ["PM-9"]},
+    {"csf": "GV.RM-03", "controls": ["PM-3", "PM-9", "PM-30", "RA-7", "SR-2"]},
+    {"csf": "GV.RM-04", "controls": ["PM-9", "PM-28", "PM-30", "SR-2"]},
+    {"csf": "GV.RM-05", "controls": ["PM-9", "PM-30"]},
+    {"csf": "GV.RM-06", "controls": ["PM-9", "PM-18", "PM-28", "PM-30", "RA-3"]},
+    {"csf": "GV.RM-07", "controls": ["PM-9", "PM-18", "PM-28", "PM-30", "RA-3"]}
+  ]
+}

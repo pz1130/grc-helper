@@ -42,7 +42,9 @@ def build_batches(clauses: list[Clause], *, max_chars: int = MAX_BATCH_CHARS) ->
         for chunk in group_by_top_level(
             group,
             level_of=lambda _: 2,
-            render_size=lambda clause: len(render(Batch([clause], section))) - header_size,
+            render_size=lambda clause, section=section, header_size=header_size: (
+                len(render(Batch([clause], section))) - header_size
+            ),
             max_chars=max_chars,
             header_size=header_size,
         ):
