@@ -18,6 +18,7 @@ from app.frameworks import models as frameworks_models
 from app.iam import models as iam_models
 from app.ingest import models as ingest_models
 from app.llm import models as llm_models
+from app.relations import models as relations_models
 from app.review import models as review_models
 from app.search import models as search_models
 
@@ -28,6 +29,7 @@ __all__ = [
     "iam_models",
     "ingest_models",
     "llm_models",
+    "relations_models",
     "review_models",
     "search_models",
 ]

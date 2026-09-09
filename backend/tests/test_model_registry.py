@@ -25,6 +25,7 @@ EXPECTED_TABLES = {
     "documents",
     "clauses",
     "clause_chunks",
+    "control_embeddings",
     "query_expansion_cache",
 }
 
