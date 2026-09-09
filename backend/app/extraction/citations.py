@@ -1,7 +1,5 @@
-"""Literal citation validation; only presentation-level variants are folded."""
+"""Literal citation validation against clause bodies."""
 
-import re
-import unicodedata
 from collections.abc import Collection
 from typing import Any
 
@@ -9,24 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clauses.models import Clause
+from app.llm.validation import normalize
 
-# PDF extraction leaves typographic artifacts the model silently canonicalises when
-# it copies a quote. Folding them keeps gate 4 literal — a fabricated or altered
-# word still fails the substring test — while it stops rejecting faithful quotes.
-_FOLD = str.maketrans({
-    "\u2018": "'", "\u2019": "'", "\u201a": "'", "\u201b": "'", "\u2032": "'",
-    "\u201c": '"', "\u201d": '"', "\u201e": '"', "\u201f": '"', "\u2033": '"',
-    "\u2010": "-", "\u2011": "-", "\u2012": "-", "\u2013": "-", "\u2014": "-",
-    "\u2015": "-", "\u2212": "-",
-    "\u2022": " ", "\u2023": " ", "\u25aa": " ", "\u25cf": " ", "\u00b7": " ",
-})
-# A compound broken at its own hyphen: keep the hyphen, drop the line break.
-_LINE_WRAP = re.compile(r"(?<=\w)-[ \t]*\r?\n[ \t]*(?=\w)")
-
-
-def normalize(text: str) -> str:
-    folded = unicodedata.normalize("NFKC", text).translate(_FOLD)
-    return " ".join(_LINE_WRAP.sub("-", folded).split())
+__all__ = ["ClauseCitationValidator", "normalize"]
 
 
 class ClauseCitationValidator:

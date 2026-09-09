@@ -99,9 +99,3 @@ async def test_typographic_artifacts_do_not_reject_a_verbatim_quote(quote):
 async def test_folding_does_not_let_fabricated_wording_through(quote):
     assert await artifact_validator().check(payload(quote=quote))
 
-
-def test_normalize_folds_presentation_but_preserves_wording():
-    assert normalize("  Two\n Approvers,\tplease. ") == "Two Approvers, please."
-    assert normalize("Acme’s “closed” – x") == "Acme's \"closed\" - x"
-    assert normalize("third-\nparty") == "third-party"
-    assert normalize("• a\n• b") == "a b"
