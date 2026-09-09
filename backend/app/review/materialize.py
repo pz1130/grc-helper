@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.controls.models import Control, ControlSource, SourceRelation
+from app.controls.models import Control, ControlRelation, ControlSource, RelationType, SourceRelation
 from app.errors import AppError, Conflict, NotFound
 from app.frameworks.models import FrameworkItem, Mapping, MappingStrength
 from app.iam.models import AuditLog, User
@@ -53,6 +53,72 @@ class MappingPayload(BaseModel):
     framework_item_quote: TextValue
     rationale: Annotated[str, Field(strict=True, min_length=1, max_length=2000)]
     confidence: Annotated[float, Field(strict=True, ge=0, le=1, allow_inf_nan=False)] | None = None
+
+
+# M6 只推断这两种：conflicts_with 属 M10 的冲突检测，implements/refines 语义
+# 相邻、模型容易混，人工抽查也难给出一致标准。
+_M6_RELATIONS = (RelationType.DUPLICATES, RelationType.DEPENDS_ON)
+
+
+class RelationPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    from_control_id: Annotated[int, Field(strict=True, gt=0)]
+    to_control_id: Annotated[int, Field(strict=True, gt=0)]
+    relation_type: RelationType
+    from_quote: TextValue
+    to_quote: TextValue
+    rationale: Annotated[str, Field(strict=True, min_length=1, max_length=2000)]
+    confidence: Annotated[float, Field(strict=True, ge=0, le=1, allow_inf_nan=False)] | None = None
+
+
+async def _materialize_relation(
+    session: AsyncSession, proposal: Proposal, data: dict[str, Any], *, actor_id: int
+) -> None:
+    from app.relations.citations import RelationCitationValidator
+
+    try:
+        validated = RelationPayload.model_validate(data)
+    except ValidationError as exc:
+        raise AppError(f"关系内容无效：{exc}") from exc
+    if validated.relation_type not in _M6_RELATIONS:
+        raise AppError(f"本里程碑不支持关系类型 {validated.relation_type.value}")
+    if validated.from_control_id == validated.to_control_id:
+        raise AppError("关系的两端不能是同一个控制点")
+
+    ends = {validated.from_control_id, validated.to_control_id}
+    reason = await RelationCitationValidator(session, control_ids=ends).check(
+        {"relations": [data]}
+    )
+    if reason:
+        raise AppError(f"引用校验失败：{reason}")
+
+    start, end = validated.from_control_id, validated.to_control_id
+    # duplicates 对称：不规范化就会存下 A→B 与 B→A 两条互为镜像的记录，
+    # (from, to, relation_type) 的唯一约束对它们无能为力。
+    if validated.relation_type is RelationType.DUPLICATES and start > end:
+        start, end = end, start
+
+    await lock_control_writes(session)
+    existing = await session.scalar(
+        select(ControlRelation).where(
+            ControlRelation.from_control_id == start,
+            ControlRelation.to_control_id == end,
+            ControlRelation.relation_type == validated.relation_type,
+        )
+    )
+    if existing is not None:
+        raise Conflict("这两个控制点之间已有同类型的确认关系")
+
+    session.add(ControlRelation(
+        from_control_id=start,
+        to_control_id=end,
+        relation_type=validated.relation_type,
+        rationale=validated.rationale,
+        confidence=proposal.confidence,
+        confirmed_by=actor_id,
+        confirmed_at=datetime.now(UTC),
+    ))
+    await session.flush()
 
 
 async def _materialize_mapping(
@@ -168,6 +234,9 @@ async def materialize(
         return
     if proposal.kind == ProposalKind.MAPPING:
         await _materialize_mapping(session, proposal, data, actor_id=actor_id)
+        return
+    if proposal.kind == ProposalKind.RELATION:
+        await _materialize_relation(session, proposal, data, actor_id=actor_id)
         return
     if proposal.kind != ProposalKind.CONTROL_EXTRACT:
         raise AppError(f"尚不支持确认 {proposal.kind.value} 提案")
