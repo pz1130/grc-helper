@@ -29,6 +29,19 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+type Citation = Proposal["citations"][number];
+
+/** 同一条款的多条引文归到一个来源块下——条款是引用原子，落库时也按 clause_id 去重。 */
+function groupByClause(citations: Citation[]): [number, Citation[]][] {
+  const groups = new Map<number, Citation[]>();
+  for (const citation of citations) {
+    const bucket = groups.get(citation.clause_id);
+    if (bucket) bucket.push(citation);
+    else groups.set(citation.clause_id, [citation]);
+  }
+  return [...groups.entries()];
+}
+
 function HighlightQuote({ text, quote }: { text: string; quote: string }) {
   const position = quote ? text.indexOf(quote) : -1;
   if (position < 0) return <>{text}</>;
@@ -186,11 +199,11 @@ export function ReviewQueue() {
         <aside style={{ background: "#f7f7f7", padding: 12 }}>
           <h3>{t("review.evidence")}</h3>
           {p.citations.length === 0 && <p>{t(p.kind === "matrix_mapping" ? "review.mappingEvidence" : "review.noEvidence")}</p>}
-          {p.citations.map((c, i) => <div key={`${c.clause_id}-${i}`}>
-            {c.document_title && <div style={{ fontWeight: 600 }}>{c.document_title}</div>}
-            {c.heading_path && <div style={{ fontSize: 12, color: "#666" }}>{c.heading_path}</div>}
-            {(c.document_id ?? p.document_id) != null ? <Link to={`/documents/${c.document_id ?? p.document_id}#clause-${c.clause_id}`}>{c.citation_label ?? `#${c.clause_id}`}</Link> : <code>#{c.clause_id}</code>}
-            <blockquote style={{ margin: "8px 0 16px", whiteSpace: "pre-wrap" }}>{c.quote}</blockquote>
+          {groupByClause(p.citations).map(([clauseId, group]) => <div key={clauseId} style={{ marginBottom: 16 }}>
+            {group[0].document_title && <div style={{ fontWeight: 600 }}>{group[0].document_title}</div>}
+            {group[0].heading_path && <div style={{ fontSize: 12, color: "#666" }}>{group[0].heading_path}</div>}
+            {(group[0].document_id ?? p.document_id) != null ? <Link to={`/documents/${group[0].document_id ?? p.document_id}#clause-${clauseId}`}>{group[0].citation_label ?? `#${clauseId}`}</Link> : <code>#{clauseId}</code>}
+            {group.map((c, i) => <blockquote key={i} style={{ margin: "8px 0 0", whiteSpace: "pre-wrap" }}>{c.quote}</blockquote>)}
           </div>)}
         </aside>
       </div>}
