@@ -23,8 +23,10 @@ from app.llm.providers.base import (
 # 120s 对映射任务不够：framework_mapping 有 26% 的调用超过 110s。超时会触发
 # _call_with_retry 的三次重试，每次再等一个完整超时，最后抛 ProviderError——
 # 实测一次这样的连锁让 51 分钟、20 个已完成批次全部作废。成功的调用按定义
-# 都在旧上限之内，所以真实的单次延迟上界尚未测到；先放宽再观测。
-_TIMEOUT = httpx.Timeout(300.0, connect=10.0)
+# 都在旧上限之内，所以真实的单次延迟上界尚未测到。放宽到 300s 后实测
+# CSF 批次落在 268–296s，仍紧贴上限，故再放宽到 600s。代价是真正卡住
+# 的请求要等更久，且 _call_with_retry 最多重试三次。
+_TIMEOUT = httpx.Timeout(600.0, connect=10.0)
 _MAX_DETAIL = 300
 
 
