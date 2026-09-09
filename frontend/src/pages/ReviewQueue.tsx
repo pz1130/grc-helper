@@ -96,7 +96,15 @@ function MappingPreview({
   </div>;
 }
 
-function RelationBody({ proposal }: { proposal: Proposal }) {
+function RelationBody({
+  proposal, editing, draft, busy, onDraftChange,
+}: {
+  proposal: Proposal;
+  editing: boolean;
+  draft: string;
+  busy: boolean;
+  onDraftChange: (value: string) => void;
+}) {
   const { t } = useTranslation();
   const context = proposal.relation_context;
   if (!context) return null;
@@ -123,6 +131,7 @@ function RelationBody({ proposal }: { proposal: Proposal }) {
           </p>
         </section>
       </div>
+      {editing && <label style={{ display: "block", marginTop: 8 }}>{t("review.payload")}<textarea aria-label={t("review.payload")} rows={8} style={{ width: "100%", boxSizing: "border-box" }} value={draft} disabled={busy} onChange={(event) => onDraftChange(event.target.value)} /></label>}
     </>
   );
 }
@@ -241,7 +250,13 @@ export function ReviewQueue() {
           setDraft(JSON.stringify({ ...p.payload, strength }, null, 2));
           setError("");
         }}
-      /> : p.kind === "relation" ? <RelationBody proposal={p} /> : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 16, marginTop: 12 }}>
+      /> : p.kind === "relation" ? <RelationBody
+        proposal={p}
+        editing={editing === p.id}
+        draft={draft}
+        busy={busy}
+        onDraftChange={setDraft}
+      /> : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 16, marginTop: 12 }}>
         <div>
           <h3>{String(p.payload.title ?? t("review.payload"))}</h3>
           {editing === p.id ? <label>{t("review.payload")}<textarea aria-label={t("review.payload")} rows={14} style={{ width: "100%", boxSizing: "border-box" }} value={draft} disabled={busy} onChange={(e) => setDraft(e.target.value)} /></label> : <>

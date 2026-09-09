@@ -88,3 +88,14 @@ test("relation proposals do not offer a bulk-accept checkbox", async ({ page }) 
   await expect(page.locator("#proposal-31")).toBeVisible();
   await expect(page.getByLabel("Select proposal 31")).toHaveCount(0);
 });
+
+test("relation cards show a payload textarea while editing", async ({ page }) => {
+  await mockSession(page);
+  await mockRelationQueue(page);
+  await page.goto("/review?kind=relation");
+  const card = page.locator("#proposal-31");
+  await card.getByRole("button", { name: "Edit and accept" }).click();
+  await expect(card.getByLabel("Proposed content (JSON)")).toBeVisible();
+  await expect(card.getByRole("heading", { name: "Starting control · C-0001 Approval" })).toBeVisible();
+  await expect(card.getByRole("heading", { name: "Ending control · C-0002 Implementation" })).toBeVisible();
+});

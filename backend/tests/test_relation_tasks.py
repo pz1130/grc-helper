@@ -12,6 +12,7 @@ from app.llm.runner import ValidatedResult
 from app.llm.validation import ValidationFailure
 from app.relations import tasks
 from app.relations.clustering import Cluster, Pair
+from app.worker import WorkerSettings
 
 
 def relation(**overrides):
@@ -146,3 +147,12 @@ async def test_an_empty_control_library_refuses_to_run(harness, monkeypatch):
     harness.session.scalars = AsyncMock(return_value=[])
     with pytest.raises(AppError):
         await tasks.run_inference(harness.session)
+
+
+def test_infer_relations_is_registered_with_a_two_hour_timeout():
+    """ARQ 读 Function.timeout_s；挂在 coroutine 上的 timeout 属性是无效的。"""
+    registered = next(
+        f for f in WorkerSettings.functions if getattr(f, "name", None) == "infer_relations"
+    )
+    assert registered.timeout_s == 7200
+    assert WorkerSettings.job_timeout == 900

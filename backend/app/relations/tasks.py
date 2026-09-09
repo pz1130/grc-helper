@@ -207,6 +207,3 @@ async def run_inference(
 async def infer_relations(ctx: dict[str, Any]) -> dict[str, Any]:
     async with session_factory() as session:
         return await run_inference(session, run_key=ctx.get("job_id"))
-
-
-infer_relations.timeout = 7200

@@ -9,6 +9,7 @@ from typing import Any, ClassVar
 
 from arq import create_pool
 from arq.connections import RedisSettings
+from arq.worker import func
 
 import app.models  # noqa: F401  — 注册全部模型，跨模块外键才解析得了
 from app.config import get_settings
@@ -41,7 +42,7 @@ async def enqueue(function: str, *args: Any) -> str:
 class WorkerSettings:
     functions: ClassVar[list[Any]] = [
         ping, parse_document, index_document, reindex_all, extract_controls, map_framework,
-        infer_relations,
+        func(infer_relations, timeout=7200),  # ARQ 读 Function.timeout_s
     ]
     redis_settings = _redis_settings()
     max_jobs = 4
