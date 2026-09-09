@@ -1,4 +1,4 @@
-.PHONY: up down logs test migrate revision fmt create-admin ping-worker e2e corpus retrieval extraction-eval seed-frameworks mapping-eval
+.PHONY: up down logs test migrate revision fmt create-admin ping-worker e2e corpus retrieval extraction-eval seed-frameworks mapping-eval relation-eval
 
 up:
 	docker compose up -d --build db redis api
@@ -64,3 +64,9 @@ mapping-eval:
 	  -e RUN_MAPPING_EVAL=1 \
 	  -e APP_DATABASE_URL=postgresql+asyncpg://grc:grc@db:5432/grc \
 	  api pytest tests/test_mapping_quality.py -v -s
+
+relation-eval:
+	docker compose run --rm --no-deps \
+	  -e RUN_RELATION_EVAL=1 \
+	  -e APP_DATABASE_URL=postgresql+asyncpg://grc:grc@db:5432/grc \
+	  api pytest tests/test_relation_quality.py -v -s
