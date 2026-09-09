@@ -18,6 +18,43 @@ _DOC_TYPE = re.compile(r"\bIT\s+(Policy|Standard|Procedure|Guideline)\b", re.IGN
 _DATE_FORMATS = ("%d/%m/%Y", "%Y-%m-%d", "%d %B %Y", "%B %d, %Y")
 
 
+_W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+_TEXT = f"{_W}t"
+_DELETED = f"{_W}del"
+
+
+def _element_text(element) -> str:
+    """收集段落/单元格里的 w:t，跳过 w:del 下的内容。
+
+    不能用 python-docx 的 Paragraph.text：它只拼接 w:p 的**直接** w:r 子节点，
+    嵌在 w:ins（修订插入）里的 run 会被静默丢弃。实测一份带修订痕迹的真实
+    文档丢了 96% 的插入片段（约 4700 字符），句子中间凭空少词。
+
+    下游没有任何闸门能察觉这件事：引文确实逐字存在于（已残缺的）条款正文里，
+    模型却会自行补上一个看似合理的主语，读起来像有据可依。
+
+    w:del 的正文放在 w:delText，本来就取不到；这里显式跳过是防个别写法把
+    w:t 塞进 w:del——修订删除的文字不该出现在正文中。
+    """
+    parts: list[str] = []
+
+    def walk(node) -> None:
+        for child in node:
+            if child.tag == _DELETED:
+                continue
+            if child.tag == _TEXT:
+                parts.append(child.text or "")
+            else:
+                walk(child)
+
+    walk(element)
+    return "".join(parts)
+
+
+def _paragraph_text(paragraph: Paragraph) -> str:
+    return _element_text(paragraph._element)
+
+
 def _heading_level(paragraph: Paragraph) -> int | None:
     match = _HEADING.match(paragraph.style.name or "")
     return int(match.group(1)) if match else None
@@ -35,7 +72,10 @@ def _parse_date(raw: str) -> date | None:
 def _table_text(table: Table) -> str:
     rows: list[str] = []
     for row in table.rows:
-        cells = [cell.text.strip() for cell in row.cells]
+        cells = [
+            "\n".join(_paragraph_text(p) for p in cell.paragraphs).strip()
+            for cell in row.cells
+        ]
         if any(cells):
             rows.append(" | ".join(cells))
     return "\n".join(rows)
@@ -64,7 +104,7 @@ class DocxParser:
                 roots.append(node)
 
         for paragraph in document.paragraphs:
-            text = paragraph.text.strip()
+            text = _paragraph_text(paragraph).strip()
             level = _heading_level(paragraph)
 
             if level is not None:

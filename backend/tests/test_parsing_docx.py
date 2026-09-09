@@ -119,3 +119,86 @@ def test_document_without_headings_warns_instead_of_silently_returning_nothing(t
     parsed = DocxParser().parse(path)
     assert parsed.clauses == [] or all(node.kind == "table" for node in parsed.clauses)
     assert any("标题" in warning for warning in parsed.warnings)
+
+
+def _tracked_paragraph(doc, before: str, inserted: str, after: str, deleted: str = ""):
+    """造一个含修订痕迹的段落：inserted 在 w:ins 里，deleted 在 w:del 里。"""
+    from docx.oxml.ns import qn
+
+    paragraph = doc.add_paragraph(before)
+    p = paragraph._element
+
+    ins = p.makeelement(qn("w:ins"), {qn("w:id"): "1", qn("w:author"): "a"})
+    run = ins.makeelement(qn("w:r"), {})
+    text = run.makeelement(qn("w:t"), {qn("xml:space"): "preserve"})
+    text.text = inserted
+    run.append(text)
+    ins.append(run)
+    p.append(ins)
+
+    if deleted:
+        dele = p.makeelement(qn("w:del"), {qn("w:id"): "2", qn("w:author"): "a"})
+        drun = dele.makeelement(qn("w:r"), {})
+        dtext = drun.makeelement(qn("w:delText"), {qn("xml:space"): "preserve"})
+        dtext.text = deleted
+        drun.append(dtext)
+        dele.append(drun)
+        p.append(dele)
+
+    tail = paragraph.add_run(after)
+    tail.text = after
+    return paragraph
+
+
+@pytest.fixture
+def tracked_changes_docx(tmp_path: Path) -> Path:
+    doc = DocxDocument()
+    doc.add_heading("Roles and Responsibilities", level=1)
+    _tracked_paragraph(
+        doc,
+        before="If the ",
+        inserted="Incident Manager",
+        after=" has contacted the requestor three times, the ticket may be closed.",
+        deleted="OBSOLETE WORDING",
+    )
+    table = doc.add_table(rows=1, cols=1)
+    cell_paragraph = table.cell(0, 0).paragraphs[0]
+    from docx.oxml.ns import qn
+
+    ins = cell_paragraph._element.makeelement(qn("w:ins"), {qn("w:id"): "3", qn("w:author"): "a"})
+    run = ins.makeelement(qn("w:r"), {})
+    text = run.makeelement(qn("w:t"), {qn("xml:space"): "preserve"})
+    text.text = "Chief Operating Officer"
+    run.append(text)
+    ins.append(run)
+    cell_paragraph._element.append(ins)
+
+    path = tmp_path / "tracked.docx"
+    doc.save(path)
+    return path
+
+
+def test_tracked_insertions_are_kept_and_deletions_dropped(tracked_changes_docx: Path):
+    """python-docx 的 Paragraph.text 只看 w:p 的直接 w:r 子节点。
+
+    嵌在 w:ins 里的 run 会被静默丢弃——实测一份带修订的真实文档丢了 96%
+    的插入片段，句子中间凭空少词。下游没有任何闸门能察觉：引文确实逐字
+    存在于（残缺的）条款正文里，模型却会自行补上一个看似合理的主语。
+    """
+    parsed = DocxParser().parse(tracked_changes_docx)
+    body = "\n".join(node.text for node in parsed.clauses) + "\n".join(
+        child.text for node in parsed.clauses for child in node.children
+    )
+
+    assert "Incident Manager" in body, "修订插入的文字被丢了"
+    assert "If the Incident Manager  has contacted" in body.replace("\n", " ") or \
+           "If the Incident Manager has contacted" in body.replace("  ", " ")
+    assert "OBSOLETE WORDING" not in body, "修订删除的文字不该出现"
+
+
+def test_tracked_insertions_inside_tables_are_kept(tracked_changes_docx: Path):
+    parsed = DocxParser().parse(tracked_changes_docx)
+    everything = str(parsed.clauses) + "".join(
+        node.text for node in parsed.clauses
+    ) + "".join(child.text for node in parsed.clauses for child in node.children)
+    assert "Chief Operating Officer" in everything
