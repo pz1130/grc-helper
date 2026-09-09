@@ -169,3 +169,39 @@ async def test_contributor_cannot_bulk_decide(client, db_session):
     headers = await _auth(client, "c@example.com")
     response = await client.post("/api/proposals/bulk-accept", json={"ids": [1]}, headers=headers)
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_citations_carry_the_source_document_name_and_clause_label(client, db_session):
+    """审核人必须看得出这条提案出自哪份规章的哪一条。
+
+    citations 存的是模型原始产出，只有 {clause_id, quote}；界面拿到裸数字
+    既判断不了来源，也无从判断引文是否被断章取义。
+    """
+    await _seed(db_session, Role.GRC_LEAD, "lead@example.com")
+    proposal = await _proposal(db_session)
+    headers = await _auth(client, "lead@example.com")
+
+    body = (await client.get("/api/proposals", headers=headers)).json()
+    citation = next(p for p in body if p["id"] == proposal.id)["citations"][0]
+
+    assert citation["document_title"] == "P"
+    assert citation["citation_label"] == "4.1"
+    assert citation["heading_path"] == "D › H"
+    assert citation["document_id"] == proposal.document_id
+    assert citation["quote"] == "Two approvers"          # 原始产出不被改写
+
+
+@pytest.mark.asyncio
+async def test_a_citation_whose_clause_vanished_still_renders(client, db_session):
+    """条款被删掉时不能让整页 500——补不上就只保留原始字段。"""
+    await _seed(db_session, Role.GRC_LEAD, "lead@example.com")
+    proposal = await _proposal(db_session)
+    proposal.citations = [{"clause_id": 999999, "quote": "gone"}]
+    await db_session.flush()
+    headers = await _auth(client, "lead@example.com")
+
+    body = (await client.get("/api/proposals", headers=headers)).json()
+    citation = next(p for p in body if p["id"] == proposal.id)["citations"][0]
+    assert citation["quote"] == "gone"
+    assert citation.get("document_title") is None

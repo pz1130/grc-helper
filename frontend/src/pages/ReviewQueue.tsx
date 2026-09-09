@@ -9,7 +9,7 @@ export interface Proposal {
   id: number;
   kind: string;
   payload: Record<string, unknown>;
-  citations: { clause_id: number; quote: string; document_id?: number; citation_label?: string }[];
+  citations: { clause_id: number; quote: string; document_id?: number; citation_label?: string; document_title?: string; heading_path?: string }[];
   confidence: number | null;
   document_id: number | null;
   status: string;
@@ -187,6 +187,8 @@ export function ReviewQueue() {
           <h3>{t("review.evidence")}</h3>
           {p.citations.length === 0 && <p>{t(p.kind === "matrix_mapping" ? "review.mappingEvidence" : "review.noEvidence")}</p>}
           {p.citations.map((c, i) => <div key={`${c.clause_id}-${i}`}>
+            {c.document_title && <div style={{ fontWeight: 600 }}>{c.document_title}</div>}
+            {c.heading_path && <div style={{ fontSize: 12, color: "#666" }}>{c.heading_path}</div>}
             {(c.document_id ?? p.document_id) != null ? <Link to={`/documents/${c.document_id ?? p.document_id}#clause-${c.clause_id}`}>{c.citation_label ?? `#${c.clause_id}`}</Link> : <code>#{c.clause_id}</code>}
             <blockquote style={{ margin: "8px 0 16px", whiteSpace: "pre-wrap" }}>{c.quote}</blockquote>
           </div>)}

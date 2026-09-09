@@ -4,12 +4,14 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.clauses.models import Clause
 from app.controls.models import Control
 from app.db import get_session
 from app.frameworks.models import FrameworkItem
 from app.iam.deps import require
 from app.iam.models import User
 from app.iam.permissions import Permission
+from app.ingest.models import Document
 from app.review import service
 from app.review.models import Proposal, ProposalKind, ProposalStatus
 from app.review.schemas import BulkAcceptIn, DecideIn, ProposalOut
@@ -18,9 +20,65 @@ from app.review.thresholds import Thresholds, load
 router = APIRouter(prefix="/api/proposals", tags=["proposals"])
 
 
-async def present(session: AsyncSession, proposal: Proposal, limits: Thresholds) -> ProposalOut:
+def _clause_ids(proposals: list[Proposal]) -> set[int]:
+    return {
+        citation["clause_id"]
+        for proposal in proposals
+        for citation in (proposal.citations or [])
+        if isinstance(citation, dict) and type(citation.get("clause_id")) is int
+    }
+
+
+async def clause_context(
+    session: AsyncSession, proposals: list[Proposal]
+) -> dict[int, dict[str, Any]]:
+    """整页一次查完条款来源，不按提案逐条查。
+
+    citations 存的是模型原始产出，只有 {clause_id, quote}；审核人拿到裸数字
+    既看不出出自哪份规章，也无从判断引文有没有被断章取义。
+    """
+    wanted = _clause_ids(proposals)
+    if not wanted:
+        return {}
+    rows = await session.execute(
+        select(Clause, Document)
+        .join(Document, Document.id == Clause.document_id)
+        .where(Clause.id.in_(wanted))
+    )
+    return {
+        clause.id: {
+            "document_id": document.id,
+            "document_title": document.title,
+            "citation_label": clause.citation_label,
+            "heading_path": clause.heading_path,
+        }
+        for clause, document in rows
+    }
+
+
+def _enrich(citations: Any, context: dict[int, dict[str, Any]]) -> Any:
+    """只做补全，绝不改写模型原始产出的字段。"""
+    if not isinstance(citations, list):
+        return citations
+    enriched = []
+    for citation in citations:
+        if not isinstance(citation, dict):
+            enriched.append(citation)
+            continue
+        # 条款可能已被删除；补不上就保留原样，不让整页 500。
+        extra = context.get(citation.get("clause_id"), {})
+        enriched.append({**extra, **citation})
+    return enriched
+
+
+async def present(
+    session: AsyncSession,
+    proposal: Proposal,
+    limits: Thresholds,
+    context: dict[int, dict[str, Any]] | None = None,
+) -> ProposalOut:
     acceptable, flag = await service.eligibility(session, proposal, limits)
-    context: dict[str, Any] | None = None
+    mapping: dict[str, Any] | None = None
     if proposal.kind == ProposalKind.MAPPING:
         item_id = proposal.payload.get("framework_item_id")
         control_id = proposal.payload.get("control_id")
@@ -28,7 +86,7 @@ async def present(session: AsyncSession, proposal: Proposal, limits: Thresholds)
             item = await session.get(FrameworkItem, item_id)
             control = await session.get(Control, control_id)
             if item is not None and control is not None:
-                context = {
+                mapping = {
                     "framework_item": {
                         "id": item.id,
                         "code": item.code,
@@ -46,7 +104,8 @@ async def present(session: AsyncSession, proposal: Proposal, limits: Thresholds)
         update={
             "bulk_acceptable": acceptable,
             "ocr_quality_flag": flag,
-            "mapping_context": context,
+            "mapping_context": mapping,
+            "citations": _enrich(proposal.citations, context or {}),
         }
     )
 
@@ -62,7 +121,8 @@ async def list_pending(
 ) -> list[ProposalOut]:
     rows = await service.pending(session, kind=kind, document_id=document_id, limit=limit)
     limits = await load(session)
-    return [await present(session, row, limits) for row in rows]
+    context = await clause_context(session, rows)
+    return [await present(session, row, limits, context) for row in rows]
 
 
 @router.get("/stats")
@@ -110,7 +170,10 @@ async def decide(
             payload=payload.payload,
             reason=payload.reason,
         )
-        output = await present(session, proposal, await load(session))
+        output = await present(
+            session, proposal, await load(session),
+            await clause_context(session, [proposal]),
+        )
         await session.commit()
     except Exception:
         await session.rollback()
