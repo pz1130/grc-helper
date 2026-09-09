@@ -12,6 +12,11 @@ from typing import Any, Protocol
 from jsonschema import Draft202012Validator
 
 _FENCED = re.compile(r"```(?:json)?\s*(.+?)\s*```", re.DOTALL)
+# 推理模型（如 minimax-m3）以 <think> 思维链开头。不剥掉的话，下面
+# 「第一个 { 到最后一个 }」的兜底会从推理文本里抠出模型思考时举的例子，
+# 校验于是报出误导性的字段缺失，掩盖了「预算耗尽在思考中途、JSON 根本
+# 没写出来」这个真正的问题。未闭合的 <think> 一路吃到结尾。
+_THINK = re.compile(r"<think>.*?(?:</think>|\Z)", re.DOTALL | re.IGNORECASE)
 
 
 class ValidationFailure(Exception):
@@ -40,6 +45,7 @@ def normalize(text: str) -> str:
 
 def extract_json(raw: str) -> dict[str, Any]:
     """容忍模型把 JSON 包在代码块里或前后带解释文字。"""
+    raw = _THINK.sub("", raw)
     candidates: list[str] = []
 
     fenced = _FENCED.search(raw)
