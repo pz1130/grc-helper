@@ -98,12 +98,20 @@ async def run_mapping(
         )
         key = fingerprint(framework_id, prompt, run_key)
         cached = await _checkpoint(session, key)
-        if cached is not None:
+        resumed = (
+            cached.redaction_hits[CHECKPOINT_KEY]["proposal_ids"]
+            if cached is not None
+            else None
+        )
+        # 检查点查完立刻提交：advisory 锁是事务级的，不提交就会被攥到批次结束，
+        # 也就跨越了整个 LLM 调用。实测一次挂起的调用把事务开了 100 分钟，
+        # pg_stat_activity 显示 idle in transaction / ClientRead，锁一并卡住。
+        # 代价：重复投递不再被串行化，两次投递可能都跑一遍模型；检查点仍能防止
+        # 跨轮重复做功，且提案创建本身是幂等落库的。
+        await session.commit()
+        if resumed is not None:
             summary["skipped_batches"] += 1
-            summary["resumed_proposal_ids"].extend(
-                cached.redaction_hits[CHECKPOINT_KEY]["proposal_ids"]
-            )
-            await session.commit()
+            summary["resumed_proposal_ids"].extend(resumed)
             continue
 
         validator = MappingCitationValidator(session, item_ids=item_ids)

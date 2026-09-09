@@ -75,13 +75,17 @@ async def run_extraction(
     for prompt, clause_ids in batches:
         key = fingerprint(document_id, prompt, run_key)
         cached = await _checkpoint(session, key)
+        resumed = cached.redaction_hits[CHECKPOINT_KEY]["proposal_ids"] if cached else None
+        # 检查点查完立刻提交：advisory 锁是事务级的，不提交就会被攥到批次结束，
+        # 也就跨越了整个 LLM 调用。M5 标定实测：一次挂起的调用把事务开了 100
+        # 分钟，pg_stat_activity 显示 idle in transaction / ClientRead。
+        # 代价：重复投递不再被串行化；检查点仍防止跨轮重复做功。
         if cached is not None:
-            summary["skipped_batches"] += 1
-            summary["resumed_proposal_ids"].extend(
-                cached.redaction_hits[CHECKPOINT_KEY]["proposal_ids"]
-            )
             summary["resumed_llm_call_ids"].append(cached.id)
-            await session.commit()  # release the transaction lock
+        await session.commit()
+        if resumed is not None:
+            summary["skipped_batches"] += 1
+            summary["resumed_proposal_ids"].extend(resumed)
             continue
         validator = ClauseCitationValidator(
             session, document_id=document_id, clause_ids=clause_ids,

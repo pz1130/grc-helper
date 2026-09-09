@@ -248,3 +248,33 @@ async def test_abstention_records_no_drops(harness, monkeypatch):
             {"mappings": [], "insufficient_evidence": True}, None, 10)))
     summary = await tasks.run_mapping(harness.session, 3)
     assert summary["proposals"] == 0 and summary["dropped_mappings"] == 0
+
+
+async def test_no_transaction_is_held_across_the_model_call(harness, monkeypatch):
+    """advisory 锁与事务不得跨越 LLM 调用。
+
+    实测：一次挂起的 HTTP 调用把事务开了 100 分钟，pg_stat_activity 显示
+    `idle in transaction / ClientRead`，advisory 锁一并攥住不放。检查点要
+    保护的是「查一下有没有做过」，那一步查完就该提交。
+    """
+    order: list[str] = []
+
+    original_commit = harness.session.commit
+
+    async def tracking_commit():
+        order.append("commit")
+        return await original_commit()
+
+    async def tracking_run(session, **kwargs):
+        order.append("llm")
+        return ValidatedResult({"mappings": [mapping()]}, 0.9, 10)
+
+    harness.session.commit = AsyncMock(side_effect=tracking_commit)
+    monkeypatch.setattr(tasks, "run", AsyncMock(side_effect=tracking_run))
+
+    await tasks.run_mapping(harness.session, 3)
+
+    assert "llm" in order, "模型没被调用，用例失去意义"
+    assert order.index("commit") < order.index("llm"), (
+        f"检查点之后、调用模型之前必须先提交释放锁；实际顺序 {order}"
+    )

@@ -63,7 +63,9 @@ async def test_proposals_via_review_and_atomic_checkpoint(harness):
     assert h.call.redaction_hits["dictionary"] == 2
     assert h.call.redaction_hits[tasks.CHECKPOINT_KEY]["proposal_ids"] == [21, 22]
     h.session.begin_nested.assert_called_once()
-    h.session.commit.assert_awaited_once()
+    # 每批两次提交：先释放检查点的 advisory 锁（锁不得跨越 LLM 调用），
+    # 再提交批次成果。
+    assert h.session.commit.await_count == 2
     h.session.add.assert_not_called()
     kwargs = h.create.await_args.kwargs
     assert kwargs["document_id"] == 7
@@ -107,7 +109,9 @@ async def test_rejected_batch_preserves_trace_without_checkpoint(harness):
     assert result["rejected"] == result["attempted_batches"] == 1
     assert result["completed_batches"] == 0
     assert tasks.CHECKPOINT_KEY not in h.call.redaction_hits
-    h.session.commit.assert_awaited_once()
+    # 每批两次提交：先释放检查点的 advisory 锁（锁不得跨越 LLM 调用），
+    # 再提交批次成果。
+    assert h.session.commit.await_count == 2
     h.create.assert_not_awaited()
 
 
@@ -116,7 +120,9 @@ async def test_provider_failure_preserves_trace_and_propagates(harness):
     h.run.side_effect = RuntimeError("provider unavailable")
     with pytest.raises(RuntimeError, match="provider unavailable"):
         await tasks.run_extraction(h.session, 7)
-    h.session.commit.assert_awaited_once()
+    # 每批两次提交：先释放检查点的 advisory 锁（锁不得跨越 LLM 调用），
+    # 再提交批次成果。
+    assert h.session.commit.await_count == 2
     h.create.assert_not_awaited()
 
 
@@ -129,7 +135,9 @@ async def test_partial_batch_failure_rolls_back_savepoint(harness):
     exit_args = h.session.begin_nested.return_value.__aexit__.await_args.args
     assert exit_args[0] is RuntimeError
     assert tasks.CHECKPOINT_KEY not in h.call.redaction_hits
-    h.session.commit.assert_awaited_once()
+    # 每批两次提交：先释放检查点的 advisory 锁（锁不得跨越 LLM 调用），
+    # 再提交批次成果。
+    assert h.session.commit.await_count == 2
 
 
 async def test_resume_after_later_batch_failure(harness):

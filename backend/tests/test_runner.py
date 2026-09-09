@@ -1,4 +1,5 @@
-from unittest.mock import AsyncMock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import select
@@ -320,3 +321,35 @@ async def test_failed_embedding_is_also_recorded(db_session):
     assert call is not None
     assert call.status == "error"
     assert "500" in call.error
+
+
+@pytest.mark.asyncio
+async def test_a_hung_provider_call_hits_the_total_deadline(monkeypatch):
+    """httpx 的读超时只管「多久没收到字节」，服务端零星吐字节就永远不触发。
+
+    实测：600s 读超时下，一次调用挂了 100 分钟仍未返回，整轮标定就此停摆，
+    而事务和 advisory 锁被一起攥住。总时限必须在调用外面加。
+    """
+    import asyncio
+
+    from app.llm import runner
+    from app.llm.providers.base import CompletionRequest, ProviderError
+
+    class Hanging:
+        async def complete(self, request):
+            await asyncio.sleep(3600)
+
+    monkeypatch.setattr(runner, "build_provider", lambda config: Hanging())
+    monkeypatch.setattr(runner, "REQUEST_DEADLINE_SECONDS", 0.05)
+    monkeypatch.setattr(runner, "_sleep", AsyncMock())
+    monkeypatch.setattr(runner.routing, "fallback_provider", AsyncMock(return_value=None))
+
+    config = SimpleNamespace(id=1, model="m")
+    with pytest.raises(ProviderError) as excinfo:
+        await runner._call_with_retry(
+            MagicMock(), config,
+            CompletionRequest(system="s", prompt="p", model="m",
+                              temperature=0.0, max_tokens=16),
+        )
+    assert "总时限" in str(excinfo.value)
+    assert excinfo.value.retryable is True

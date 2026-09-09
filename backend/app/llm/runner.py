@@ -34,6 +34,10 @@ from app.llm.validation import (
     validate,
 )
 
+# httpx 的读超时只管「多久没收到字节」——服务端零星吐字节或维持连接活着，
+# 它就永远不触发。实测一次调用挂了 100 分钟仍未返回，整轮标定停摆，而事务
+# 与 advisory 锁被一起攥住。总时限只能在调用外面加。
+REQUEST_DEADLINE_SECONDS = 600.0
 MAX_CORRECTION_RETRIES = 2
 MAX_PROVIDER_ATTEMPTS = 3
 EMBEDDING_TASK_KEY = "embedding"
@@ -72,7 +76,16 @@ async def _call_with_retry(
         )
         for attempt in range(MAX_PROVIDER_ATTEMPTS):
             try:
-                return await provider.complete(req), candidate
+                async with asyncio.timeout(REQUEST_DEADLINE_SECONDS):
+                    return await provider.complete(req), candidate
+            except TimeoutError as exc:
+                last = ProviderError(
+                    f"请求超过 {REQUEST_DEADLINE_SECONDS:.0f}s 总时限", retryable=True
+                )
+                last.__cause__ = exc
+                if attempt < MAX_PROVIDER_ATTEMPTS - 1:
+                    await _sleep(2**attempt)
+                continue
             except ProviderError as exc:
                 last = exc
                 if not exc.retryable:
