@@ -17,6 +17,7 @@ MAPPING_SYSTEM = (
     "control_id and framework_item_id are the integers inside the square brackets; never "
     "send a code such as C-0006 or AC-2. Emit exactly the listed properties, no others. "
     "Only reference control_id and framework_item_id values that appear in this batch. "
+    "Report at most 25 mappings; pick the strongest and omit the rest. "
     "If no control satisfies any item in this batch, return mappings: [] and "
     "insufficient_evidence: true — that is a legitimate answer and marks a coverage gap."
 )
@@ -28,6 +29,9 @@ MAPPING_SCHEMA: dict[str, Any] = {
     "properties": {
         "mappings": {
             "type": "array",
+            # 输出越长模型越容易丢字段、把 JSON 写断（实测 10K+ tokens 的响应
+            # 基本全挂）。通过的批次平均只产 2.5 条映射，25 只咬失控的那些。
+            "maxItems": 25,
             "items": {
                 "type": "object",
                 "additionalProperties": False,

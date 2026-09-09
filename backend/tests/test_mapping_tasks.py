@@ -159,3 +159,46 @@ def test_the_schema_forbids_a_mapping_without_a_quote():
     with pytest.raises(ValidationFailure):
         validate({"mappings": [{k: v for k, v in mapping().items() if k != "framework_item_quote"}]},
                  MAPPING_SCHEMA)
+
+
+async def test_a_provider_error_fails_the_batch_without_killing_the_run(harness, monkeypatch):
+    """一次网络超时不该清零整轮。
+
+    实测：51 分钟跑到 20/40 批时一个 ReadTimeout 让整个任务终止，
+    已完成的 11 批全部白费——按批检查点在标定路径上帮不上忙，因为
+    每次运行都用新的 run_key。
+    """
+    from app.llm.providers.base import ProviderError
+
+    calls = {"n": 0}
+
+    async def flaky(session, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise ProviderError("网络错误: ReadTimeout", retryable=True)
+        return ValidatedResult({"mappings": [mapping()]}, 0.9, 10)
+
+    monkeypatch.setattr(tasks, "run", AsyncMock(side_effect=flaky))
+    harness.items.append(SimpleNamespace(
+        id=3, code="DE", title="Detect", description="", level=1,
+        parent_id=None, attributes=None))
+    harness.items.append(SimpleNamespace(
+        id=4, code="DE.CM-01", title="Monitoring", description=ITEM_TEXT,
+        level=2, parent_id=3, attributes=None))
+    harness.session.scalars = AsyncMock(side_effect=[harness.controls, harness.items])
+
+    summary = await tasks.run_mapping(harness.session, 3)
+
+    assert summary["failed"] == 1          # провайдер 故障单独计数
+    assert summary["rejected"] == 0        # 不是质量问题，不该污染通过率
+    assert summary["completed_batches"] == 1
+    assert calls["n"] == 2                 # 第一批失败后继续跑了第二批
+
+
+def test_the_schema_caps_how_many_mappings_one_response_may_carry():
+    """输出越长模型越容易丢字段、把 JSON 写断——给它一个明确的收口。"""
+    assert MAPPING_SCHEMA["properties"]["mappings"]["maxItems"] == 25
+    too_many = {"mappings": [mapping() for _ in range(26)]}
+    with pytest.raises(ValidationFailure):
+        validate(too_many, MAPPING_SCHEMA)
+    assert validate({"mappings": [mapping() for _ in range(25)]}, MAPPING_SCHEMA)

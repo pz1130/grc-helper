@@ -7,7 +7,10 @@ from app.common.batching import group_by_top_level
 from app.errors import AppError
 from app.frameworks.coverage import is_requirement
 
-MAX_BATCH_CHARS = 12000
+# M4 抽取任务用 12000，但那时提示词里没有几万字符的控制点全集。136 个控制点之后，
+# 每批最多 57 个框架项 × 全量控制点的组合空间让模型输出失控（通过率跌到 55%）。
+# 减半后每批最多 29 个条目；代价是控制点上下文多重发一轮（批次 40 → 66）。
+MAX_BATCH_CHARS = 6000
 MAX_CONTROL_CONTEXT_CHARS = 60000
 
 

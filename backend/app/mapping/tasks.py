@@ -13,6 +13,7 @@ from app.db import session_factory
 from app.errors import AppError, NotFound
 from app.frameworks.models import Framework, FrameworkItem
 from app.llm.models import LLMCall
+from app.llm.providers.base import ProviderError
 from app.llm.runner import run
 from app.llm.validation import ValidationFailure
 from app.mapping.batching import build_batches, render_controls, render_items
@@ -76,6 +77,7 @@ async def run_mapping(
         "batches": len(batches),
         "proposals": 0,
         "rejected": 0,
+        "failed": 0,
         "completed_batches": 0,
         "skipped_batches": 0,
         "attempted_batches": 0,
@@ -117,6 +119,13 @@ async def run_mapping(
         except ValidationFailure as failure:
             logger.warning("Framework %s mapping rejected: %s", framework_id, failure.reason)
             summary["rejected"] += 1
+            await session.commit()
+            continue
+        except ProviderError as failure:
+            # 供应商故障不是质量信号，不计入 rejected，也不该让整轮清零：
+            # 实测一次 ReadTimeout 让 51 分钟、20 个已完成批次的工作全部作废。
+            logger.warning("Framework %s mapping batch failed: %s", framework_id, failure)
+            summary["failed"] += 1
             await session.commit()
             continue
         except Exception:
