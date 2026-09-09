@@ -8,6 +8,9 @@ import subprocess
 import sys
 
 EXPECTED_TABLES = {
+    "frameworks",
+    "framework_items",
+    "mappings",
     "proposals",
     "controls",
     "control_sources",
