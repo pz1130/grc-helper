@@ -61,52 +61,110 @@ async def test_overlap_not_smaller_than_cluster_size_falls_back(db_session):
     assert cfg.cluster_overlap < cfg.max_cluster_size
 
 
-async def _identical(db_session, codes: list[str], text: str, seeds: list[float]) -> None:
-    rows = [Control(code=c, title=c, statement=text) for c in codes]
-    db_session.add_all(rows)
+async def _controls(db_session, spec: list[tuple[str, str, float | None]]) -> None:
+    """spec: (code, statement, 向量 seed；None 表示不向量化)。"""
+    for code, statement, seed in spec:
+        control = Control(code=code, title=code, statement=statement)
+        db_session.add(control)
+        await db_session.flush()
+        if seed is not None:
+            db_session.add(ControlEmbedding(control_id=control.id, embedding=_vector(seed),
+                                            embedding_model="embo-01", embedding_version="v2"))
     await db_session.flush()
-    for control, seed in zip(rows, seeds, strict=True):
-        db_session.add(ControlEmbedding(control_id=control.id, embedding=_vector(seed),
-                                        embedding_model="embo-01", embedding_version="v2"))
-    await db_session.flush()
+
+
+BASE = ("Exceptions to the policy must be reasonably justified and handled "
+        "in accordance with the defined roles and responsibilities of the bank.")
+
+
+def _reworded(n: int) -> str:
+    """同一段要求的不同措辞：词集高度重合，但不是逐字相同。"""
+    return BASE.replace("must be", "shall be").replace("the bank", f"the bank unit {n}")
 
 
 @pytest.mark.asyncio
-async def test_calibration_uses_byte_identical_statements_as_free_ground_truth(db_session):
-    """复制粘贴产生的逐字相同控制点必然是重复——不需要人工标注的正样本。"""
-    await _identical(db_session, ["C-1", "C-2", "C-3"],
-                     "Exceptions to the policy must be justified and handled accordingly.",
-                     [0.02, 0.05, 0.09])
+async def test_calibration_finds_near_duplicates_by_word_overlap(db_session):
+    """免费正样本靠归一化词集的 Jaccard 找，不需要人工标注。"""
+    await _controls(db_session, [
+        (f"C-{n}", _reworded(n), 0.01 * n) for n in range(1, 8)
+    ])
     result = await calibrate(db_session)
 
-    assert len(result.pairs) == 3          # 三条相同 → 三对
+    assert len(result.pairs) >= MIN_GROUND_TRUTH_PAIRS
     assert result.recommended is not None
-    lowest = min(s for _, _, s in result.pairs)
-    assert result.recommended == pytest.approx(round(lowest - MARGIN, 3), abs=1e-6)
-    assert result.recommended < lowest, "阈值必须低于最低的已知正样本，否则它自己都会被漏掉"
+    assert all(not same for *_, same in result.pairs), "这批措辞各不相同"
+
+
+@pytest.mark.asyncio
+async def test_identical_statements_are_counted_but_do_not_set_the_floor(db_session):
+    """逐字相同的对 embedding 完全相同、相似度恒为 1.0。
+
+    只拿它们标定会得出高得离谱的阈值——真实语料上是 0.96，而该语料真实的近重复
+    低到 0.942，按 0.96 走就会漏掉。它们计入分布，但不能决定下界。
+    """
+    await _controls(db_session, [(f"S-{n}", BASE, 0.02) for n in range(1, 5)])
+    await _controls(db_session, [(f"R-{n}", _reworded(n), 0.3 + 0.05 * n) for n in range(1, 5)])
+    result = await calibrate(db_session)
+
+    identical = [p for p in result.pairs if p[3]]
+    assert identical and all(s == pytest.approx(1.0) for *_, s, _ in identical)
+    assert result.recommended is not None
+    assert result.recommended < 1.0 - MARGIN, "不能被恒为 1.0 的退化样本顶到天花板"
+
+
+def test_quantile_ignores_the_bottom_outliers():
+    """真实语料上有词汇高度重合却语义无关的对（余弦 0.42）。取 min 会被它拖死。"""
+    from app.relations.calibration import quantile
+
+    scores = sorted([0.42, 0.67] + [0.94 + 0.005 * n for n in range(18)])
+    assert min(scores) == 0.42
+    assert quantile(scores, 0.10) > 0.9, "10% 分位点应把两个离群点排除在外"
+    assert quantile(scores, 0.0) == 0.42, "0% 分位点就是最小值"
+
+
+OTHER = ("Privileged accounts require quarterly recertification by the "
+         "information security team using the approved review workflow tooling.")
+
+
+@pytest.mark.asyncio
+async def test_an_outlier_pair_does_not_drag_the_threshold_to_the_floor(db_session):
+    """离群的是**一对**，占比与真实语料相当（42 对里 2 对）。
+
+    早先版本让一个离群控制点和其余每一个都配对，45 对里 9 对是它——20% 的离群率，
+    分位点自然落进离群区。那是测试构造的问题，不是算法的。
+    """
+    # 主群：6 条措辞相近、向量也相近 → 15 对高相似度
+    await _controls(db_session, [(f"C-{n}", _reworded(n), 0.01 * n) for n in range(1, 7)])
+    # 离群对：彼此措辞相近（会被 Jaccard 抓成正样本），但向量方向差很远
+    await _controls(db_session, [
+        ("ODD-1", OTHER, 0.0),
+        ("ODD-2", OTHER.replace("quarterly", "annual"), 60.0),
+    ])
+    result = await calibrate(db_session)
+
+    scores = sorted(s for *_, s, _ in result.pairs)
+    assert scores[0] < 0.5, "构造的离群对应当在样本里"
+    assert result.recommended is not None and result.recommended > 0.8, \
+        "分位数应当把离群对排除在外"
+    assert result.as_dict()["ground_truth_below_threshold"], "被排除的正样本要如实列出"
 
 
 @pytest.mark.asyncio
 async def test_calibration_refuses_when_the_corpus_has_no_ground_truth(db_session):
     """标不出来就不写——沿用别人语料的阈值比没有阈值更糟，它看起来像个结论。"""
-    db_session.add_all([
-        Control(code="C-9", title="a", statement="A" * 60),
-        Control(code="C-8", title="b", statement="B" * 60),
+    await _controls(db_session, [
+        ("C-9", "A" * 60 + " alpha bravo charlie delta echo", 0.1),
+        ("C-8", "B" * 60 + " foxtrot golf hotel india juliet", 0.2),
     ])
-    await db_session.flush()
-
     result = await calibrate(db_session)
     assert result.recommended is None
     assert str(MIN_GROUND_TRUTH_PAIRS) in result.reason
 
 
 @pytest.mark.asyncio
-async def test_calibration_does_not_treat_unembedded_pairs_as_dissimilar(db_session):
-    """没向量化的对要跳过，不能当成相似度 0——那会把阈值拉到地板。"""
-    rows = [Control(code=f"C-{n}", title="t", statement="X" * 80) for n in range(3)]
-    db_session.add_all(rows)
-    await db_session.flush()
-
+async def test_unembedded_ground_truth_is_reported_as_actionable(db_session):
+    """有正样本但没向量化，是可操作的状态，不能和「语料里没有正样本」混为一谈。"""
+    await _controls(db_session, [(f"C-{n}", _reworded(n), None) for n in range(1, 8)])
     result = await calibrate(db_session)
     assert result.recommended is None
     assert "向量化" in result.reason
@@ -121,7 +179,7 @@ async def test_calibrate_endpoint_writes_the_threshold_and_audits(client, db_ses
     db_session.add(User(email="lead@example.com", name="L", role=Role.GRC_LEAD,
                         password_hash=hash_password("pw123456")))
     await db_session.flush()
-    await _identical(db_session, ["C-1", "C-2", "C-3"], "Y" * 80, [0.02, 0.05, 0.09])
+    await _controls(db_session, [(f"C-{n}", _reworded(n), 0.01 * n) for n in range(1, 8)])
     token = (await client.post("/api/auth/login",
                                json={"email": "lead@example.com", "password": "pw123456"})
              ).json()["access_token"]
