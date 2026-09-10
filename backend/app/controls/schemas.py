@@ -4,6 +4,8 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.controls.models import RelationType, SourceRelation
+from app.environment.schemas import ImplementationOut
+from app.evidence.schemas import EvidenceItemOut
 from app.frameworks.models import MappingStrength
 
 
@@ -53,6 +55,8 @@ class ControlDetailOut(ControlOut):
     sources: list[SourceOut]
     relations: list[RelationOut]
     mappings: list[FrameworkMappingOut]
+    implementations: list[ImplementationOut]
+    evidence: list[EvidenceItemOut]
 
 
 class ControlUpdateIn(BaseModel):

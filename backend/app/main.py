@@ -21,7 +21,9 @@ def create_app() -> FastAPI:
         return {"status": "ok", "version": settings.app_version}
 
     from app.controls.router import router as controls_router
+    from app.environment.router import router as environment_router
     from app.errors import install_error_handlers
+    from app.evidence.router import router as evidence_router
     from app.extraction.router import router as extraction_router
     from app.frameworks.router import router as frameworks_router
     from app.iam.router import audit_router, users_router
@@ -50,6 +52,8 @@ def create_app() -> FastAPI:
     application.include_router(frameworks_router)
     application.include_router(mapping_router)
     application.include_router(relations_router)
+    application.include_router(environment_router)
+    application.include_router(evidence_router)
 
     return application
 

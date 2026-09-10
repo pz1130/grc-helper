@@ -7,7 +7,9 @@ from app.controls import service
 from app.controls.models import Control
 from app.controls.schemas import ControlDetailOut, ControlOut, ControlUpdateIn
 from app.db import get_session
+from app.environment import service as environment_service
 from app.errors import NotFound
+from app.evidence import service as evidence_service
 from app.iam.deps import require
 from app.iam.models import User
 from app.iam.permissions import Permission
@@ -37,11 +39,15 @@ async def get_control(
     control = await session.get(Control, control_id)
     if control is None:
         raise NotFound("控制点不存在")
+    implementations = await environment_service.implementations_for_controls(session, [control_id])
+    evidence = await evidence_service.items_for_controls(session, [control_id])
     return ControlDetailOut(
         **ControlOut.model_validate(control).model_dump(),
         sources=await service.sources(session, control_id),
         relations=await service.relations(session, control_id),
         mappings=await service.mappings(session, control_id),
+        implementations=implementations.get(control_id, []),
+        evidence=evidence.get(control_id, []),
     )
 
 

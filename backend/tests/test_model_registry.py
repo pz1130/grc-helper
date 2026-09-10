@@ -27,6 +27,10 @@ EXPECTED_TABLES = {
     "clause_chunks",
     "control_embeddings",
     "query_expansion_cache",
+    "tech_assets",
+    "implementations",
+    "evidence_types",
+    "evidence_items",
 }
 
 

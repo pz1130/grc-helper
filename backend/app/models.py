@@ -14,6 +14,8 @@ alembic）都导入本模块，而不是各自去 import 自己碰巧需要的�
 
 from app.clauses import models as clauses_models
 from app.controls import models as controls_models
+from app.environment import models as environment_models
+from app.evidence import models as evidence_models
 from app.frameworks import models as frameworks_models
 from app.iam import models as iam_models
 from app.ingest import models as ingest_models
@@ -25,6 +27,8 @@ from app.search import models as search_models
 __all__ = [
     "clauses_models",
     "controls_models",
+    "environment_models",
+    "evidence_models",
     "frameworks_models",
     "iam_models",
     "ingest_models",
