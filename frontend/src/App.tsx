@@ -22,7 +22,34 @@ import { FrameworkDetail } from "./pages/FrameworkDetail";
 export function App() {
   const { user, loading } = useAuth();
 
-  if (loading) return <p style={{ padding: 24 }}>…</p>;
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100vh",
+          gap: 16,
+        }}
+      >
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            border: "3px solid rgba(255, 255, 255, 0.1)",
+            borderTopColor: "var(--accent-blue)",
+            borderRadius: "50%",
+            animation: "kn-pulse 1s infinite linear",
+          }}
+        />
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", letterSpacing: "0.05em" }}>
+          GRC HELPER
+        </p>
+      </div>
+    );
+  }
   if (!user) return <Login />;
 
   return (

@@ -2,7 +2,10 @@
   "app": {
     "name": "GRC Helper",
     "logout": "退出",
-    "language": "语言"
+    "language": "语言",
+    "theme": "外观",
+    "themeLight": "浅色",
+    "themeDark": "深色"
   },
   "nav": {
     "overview": "总览",
@@ -166,7 +169,9 @@
     },
     "frameworkItem": "框架项",
     "control": "控制点",
-    "quote": "被覆盖的条文"
+    "quote": "被覆盖的条文",
+    "alreadyCovered": "该框架项已被已确认的映射（{{controls}}）关闭，确认这条不会改变覆盖度。",
+    "supportingNoEffect": "这条又是 supporting，等于毫无影响——该项本来就不在差距清单上。"
   },
   "relations": {
     "infer": "运行关系推断",

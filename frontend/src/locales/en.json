@@ -2,7 +2,10 @@
   "app": {
     "name": "GRC Helper",
     "logout": "Sign out",
-    "language": "Language"
+    "language": "Language",
+    "theme": "Appearance",
+    "themeLight": "Light",
+    "themeDark": "Dark"
   },
   "nav": {
     "overview": "Overview",
@@ -166,7 +169,9 @@
     },
     "frameworkItem": "Framework item",
     "control": "Control",
-    "quote": "Covered framework text"
+    "quote": "Covered framework text",
+    "alreadyCovered": "This framework item is already closed by a confirmed mapping ({{controls}}), so confirming this one will not change coverage.",
+    "supportingNoEffect": "A supporting mapping here adds nothing at all — the item is not on the gap list."
   },
   "relations": {
     "infer": "Run relation inference",

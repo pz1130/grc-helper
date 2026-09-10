@@ -1,0 +1,871 @@
+/* ==========================================================================
+   Keynote Design System & Theme
+   Obsidian Stage · Frosted Glassmorphism · High-Impact Typography
+   ========================================================================== */
+
+:root, :root[data-theme="dark"] {
+  /* Color Palette - Stage Dark */
+  --stage-bg: #000000;
+  --stage-surface: #0a0a0c;
+  --stage-surface-elevated: #121216;
+  --stage-card: rgba(22, 22, 26, 0.72);
+  --stage-card-hover: rgba(32, 32, 38, 0.85);
+  --stage-card-active: rgba(40, 40, 48, 0.95);
+  --stage-card-subtle: rgba(255, 255, 255, 0.03);
+  
+  /* Borders & Specular Highlights */
+  --stage-border: rgba(255, 255, 255, 0.08);
+  --stage-border-hover: rgba(255, 255, 255, 0.16);
+  --stage-border-focus: rgba(41, 151, 255, 0.6);
+  --stage-border-subtle: rgba(255, 255, 255, 0.05);
+  --stage-specular: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  --stage-glow-blue: 0 0 24px rgba(41, 151, 255, 0.25);
+
+  /* Typography Colors */
+  --text-primary: #f5f5f7;
+  --text-secondary: #86868b;
+  --text-tertiary: #636366;
+  --text-quaternary: #48484a;
+
+  /* Keynote Presentation Accents */
+  --accent-blue: #2997ff;
+  --accent-blue-hover: #0077ed;
+  --accent-blue-glow: rgba(41, 151, 255, 0.35);
+  
+  --accent-emerald: #30d158;
+  --accent-emerald-bg: rgba(48, 209, 88, 0.12);
+  --accent-emerald-border: rgba(48, 209, 88, 0.28);
+
+  --accent-amber: #ff9f0a;
+  --accent-amber-bg: rgba(255, 159, 10, 0.12);
+  --accent-amber-border: rgba(255, 159, 10, 0.28);
+
+  --accent-ruby: #ff453a;
+  --accent-ruby-bg: rgba(255, 69, 58, 0.12);
+  --accent-ruby-border: rgba(255, 69, 58, 0.28);
+
+  --accent-purple: #bf5af2;
+  --accent-purple-bg: rgba(191, 90, 242, 0.12);
+  --accent-purple-border: rgba(191, 90, 242, 0.28);
+
+  --accent-cyan: #64d2ff;
+  --accent-cyan-bg: rgba(100, 210, 255, 0.12);
+  --accent-cyan-border: rgba(100, 210, 255, 0.28);
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.7);
+  --shadow-glass: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 16px 36px rgba(0, 0, 0, 0.6);
+  --shadow-hover: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 20px 45px rgba(0, 0, 0, 0.7);
+
+  /* Blur & Radius */
+  --blur-glass: blur(24px) saturate(180%);
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+  --radius-pill: 9999px;
+
+  /* Transitions */
+  --transition-smooth: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: all 0.15s ease-out;
+
+  /* Component specifics */
+  --sidebar-bg: rgba(14, 14, 18, 0.82);
+  --sidebar-nav-active-bg: rgba(255, 255, 255, 0.1);
+  --sidebar-nav-active-color: #ffffff;
+  --user-card-bg: rgba(255, 255, 255, 0.04);
+  --avatar-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.05));
+  --heading-gradient: linear-gradient(180deg, #ffffff 30%, #a1a1a6 100%);
+  --stat-number-gradient: linear-gradient(135deg, #ffffff 30%, #2997ff 100%);
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --input-focus-bg: rgba(255, 255, 255, 0.08);
+  --btn-secondary-bg: rgba(255, 255, 255, 0.08);
+  --btn-secondary-border: rgba(255, 255, 255, 0.12);
+  --btn-secondary-hover-bg: rgba(255, 255, 255, 0.14);
+  --btn-secondary-active-bg: rgba(255, 255, 255, 0.1);
+  --table-th-bg: rgba(255, 255, 255, 0.02);
+  --table-tr-hover: rgba(255, 255, 255, 0.03);
+  --table-border-subtle: rgba(255, 255, 255, 0.04);
+  --scrollbar-track: rgba(0, 0, 0, 0.2);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.18);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+  --spotlight-gradient: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(41, 151, 255, 0.12), rgba(191, 90, 242, 0.04) 45%, transparent 70%);
+  --select-option-bg: #18181c;
+  --code-bg: rgba(255, 255, 255, 0.08);
+  --code-color: #e0e0e4;
+  --code-border: rgba(255, 255, 255, 0.06);
+  --pre-bg: #0d0d10;
+  --pre-color: #d1d1d6;
+  --dropzone-bg: rgba(255, 255, 255, 0.02);
+  --dropzone-border: rgba(255, 255, 255, 0.15);
+  --dropzone-hover-bg: rgba(41, 151, 255, 0.04);
+  --segmented-bg: rgba(255, 255, 255, 0.05);
+  --segmented-item-active-bg: rgba(255, 255, 255, 0.14);
+  --segmented-item-active-color: #ffffff;
+  --segmented-item-active-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --card-glass-specular: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  --badge-default-bg: rgba(255, 255, 255, 0.06);
+  --progress-bg: rgba(255, 255, 255, 0.08);
+  --mark-bg: rgba(255, 214, 10, 0.28);
+  --mark-color: #ffd60a;
+  --mark-border: rgba(255, 214, 10, 0.35);
+  --alert-ruby-text: #ff8078;
+  --alert-blue-text: #9cd0ff;
+}
+
+:root[data-theme="light"] {
+  /* Color Palette - Studio Light */
+  --stage-bg: #f5f5f7;
+  --stage-surface: #ffffff;
+  --stage-surface-elevated: #fbfbfd;
+  --stage-card: rgba(255, 255, 255, 0.82);
+  --stage-card-hover: rgba(255, 255, 255, 0.96);
+  --stage-card-active: #ffffff;
+  --stage-card-subtle: rgba(0, 0, 0, 0.025);
+  
+  /* Borders & Specular Highlights */
+  --stage-border: rgba(0, 0, 0, 0.08);
+  --stage-border-hover: rgba(0, 0, 0, 0.16);
+  --stage-border-focus: rgba(0, 113, 227, 0.6);
+  --stage-border-subtle: rgba(0, 0, 0, 0.05);
+  --stage-specular: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --stage-glow-blue: 0 0 24px rgba(0, 113, 227, 0.18);
+
+  /* Typography Colors */
+  --text-primary: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --text-tertiary: #86868b;
+  --text-quaternary: #aeaeb2;
+
+  /* Keynote Presentation Accents */
+  --accent-blue: #0071e3;
+  --accent-blue-hover: #0077ed;
+  --accent-blue-glow: rgba(0, 113, 227, 0.25);
+  
+  --accent-emerald: #248a3d;
+  --accent-emerald-bg: rgba(52, 199, 89, 0.12);
+  --accent-emerald-border: rgba(52, 199, 89, 0.28);
+
+  --accent-amber: #b25000;
+  --accent-amber-bg: rgba(255, 149, 0, 0.12);
+  --accent-amber-border: rgba(255, 149, 0, 0.28);
+
+  --accent-ruby: #d70015;
+  --accent-ruby-bg: rgba(255, 59, 48, 0.1);
+  --accent-ruby-border: rgba(255, 59, 48, 0.25);
+
+  --accent-purple: #8944ab;
+  --accent-purple-bg: rgba(175, 82, 222, 0.12);
+  --accent-purple-border: rgba(175, 82, 222, 0.28);
+
+  --accent-cyan: #0071a4;
+  --accent-cyan-bg: rgba(50, 173, 230, 0.12);
+  --accent-cyan-border: rgba(50, 173, 230, 0.28);
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.08);
+  --shadow-glass: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 8px 24px rgba(0, 0, 0, 0.05);
+  --shadow-hover: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 14px 32px rgba(0, 0, 0, 0.08);
+
+  /* Blur & Radius */
+  --blur-glass: blur(24px) saturate(180%);
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+  --radius-pill: 9999px;
+
+  /* Transitions */
+  --transition-smooth: all 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: all 0.15s ease-out;
+
+  /* Component specifics */
+  --sidebar-bg: rgba(245, 245, 247, 0.88);
+  --sidebar-nav-active-bg: rgba(0, 0, 0, 0.07);
+  --sidebar-nav-active-color: #1d1d1f;
+  --user-card-bg: rgba(0, 0, 0, 0.03);
+  --avatar-bg: linear-gradient(135deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.04));
+  --heading-gradient: linear-gradient(180deg, #1d1d1f 30%, #515154 100%);
+  --stat-number-gradient: linear-gradient(135deg, #1d1d1f 30%, #0071e3 100%);
+  --input-bg: rgba(255, 255, 255, 0.9);
+  --input-focus-bg: #ffffff;
+  --btn-secondary-bg: rgba(0, 0, 0, 0.05);
+  --btn-secondary-border: rgba(0, 0, 0, 0.1);
+  --btn-secondary-hover-bg: rgba(0, 0, 0, 0.08);
+  --btn-secondary-active-bg: rgba(0, 0, 0, 0.06);
+  --table-th-bg: rgba(0, 0, 0, 0.02);
+  --table-tr-hover: rgba(0, 0, 0, 0.025);
+  --table-border-subtle: rgba(0, 0, 0, 0.05);
+  --scrollbar-track: rgba(0, 0, 0, 0.04);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.35);
+  --spotlight-gradient: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 113, 227, 0.07), rgba(191, 90, 242, 0.02) 45%, transparent 70%);
+  --select-option-bg: #ffffff;
+  --code-bg: rgba(0, 0, 0, 0.05);
+  --code-color: #24292f;
+  --code-border: rgba(0, 0, 0, 0.06);
+  --pre-bg: #f6f8fa;
+  --pre-color: #24292f;
+  --dropzone-bg: rgba(255, 255, 255, 0.75);
+  --dropzone-border: rgba(0, 0, 0, 0.12);
+  --dropzone-hover-bg: rgba(0, 113, 227, 0.04);
+  --segmented-bg: rgba(0, 0, 0, 0.05);
+  --segmented-item-active-bg: #ffffff;
+  --segmented-item-active-color: #1d1d1f;
+  --segmented-item-active-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --card-glass-specular: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+  --badge-default-bg: rgba(0, 0, 0, 0.05);
+  --progress-bg: rgba(0, 0, 0, 0.07);
+  --mark-bg: rgba(255, 214, 10, 0.35);
+  --mark-color: #946800;
+  --mark-border: rgba(255, 214, 10, 0.5);
+  --alert-ruby-text: #b80010;
+  --alert-blue-text: #005bb5;
+}
+
+/* ==========================================================================
+   Global Reset & Base Styles
+   ========================================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--stage-bg);
+  color: var(--text-primary);
+  font-family: BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  min-height: 100vh;
+  letter-spacing: -0.01em;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* Ambient Stage Spotlight Background */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 600px;
+  background: var(--spotlight-gradient);
+  pointer-events: none;
+  z-index: 0;
+  transition: background 0.3s ease;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* ==========================================================================
+   Typography
+   ========================================================================== */
+
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 0;
+  color: var(--text-primary);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  background: var(--heading-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+h2 {
+  font-size: 1.625rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  margin-bottom: 1.25rem;
+}
+
+h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.85rem;
+}
+
+p {
+  margin-top: 0;
+  color: var(--text-secondary);
+}
+
+a {
+  color: var(--accent-blue);
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+a:hover {
+  color: var(--accent-blue-hover);
+  text-decoration: none;
+}
+
+code {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  background: var(--code-bg);
+  color: var(--code-color);
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 0.875em;
+  border: 1px solid var(--code-border);
+}
+
+pre {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  background: var(--pre-bg);
+  border: 1px solid var(--stage-border);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  color: var(--pre-color);
+  overflow-x: auto;
+  font-size: 0.875rem;
+}
+
+mark {
+  background: var(--mark-bg);
+  color: var(--mark-color);
+  padding: 1px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--mark-border);
+}
+
+hr {
+  border: none;
+  height: 1px;
+  background: var(--stage-border);
+  margin: 1.25rem 0;
+}
+
+/* ==========================================================================
+   Keynote Glass Cards & Bento Architecture
+   ========================================================================== */
+
+.kn-card {
+  background: var(--stage-card);
+  backdrop-filter: var(--blur-glass);
+  -webkit-backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--stage-border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-glass);
+  transition: var(--transition-smooth);
+  position: relative;
+  overflow: hidden;
+}
+
+.kn-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--card-glass-specular);
+  pointer-events: none;
+}
+
+.kn-card-interactive:hover {
+  border-color: var(--stage-border-hover);
+  background: var(--stage-card-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+.kn-bento-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+.kn-stat-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.5rem;
+}
+
+.kn-stat-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.kn-stat-number {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  color: var(--text-primary);
+  line-height: 1.1;
+  margin-bottom: 0.35rem;
+}
+
+.kn-stat-number.kn-gradient {
+  background: var(--stat-number-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.kn-stat-sub {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   Pill Buttons & Interactive Controls
+   ========================================================================== */
+
+button, .kn-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--btn-secondary-border);
+  background: var(--btn-secondary-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+button:hover, .kn-btn:hover {
+  background: var(--btn-secondary-hover-bg);
+  border-color: var(--stage-border-hover);
+  transform: translateY(-1px);
+}
+
+button:active, .kn-btn:active {
+  transform: translateY(0);
+  background: var(--btn-secondary-active-bg);
+}
+
+button:disabled, .kn-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Primary Button */
+button[type="submit"], .kn-btn-primary {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue-hover);
+  color: #ffffff;
+  box-shadow: 0 4px 14px var(--accent-blue-glow);
+  font-weight: 600;
+}
+
+button[type="submit"]:hover, .kn-btn-primary:hover {
+  background: var(--accent-blue-hover);
+  box-shadow: 0 6px 20px var(--accent-blue-glow);
+  border-color: var(--accent-blue-hover);
+}
+
+/* Secondary Button */
+.kn-btn-secondary {
+  background: var(--btn-secondary-bg);
+  border: 1px solid var(--btn-secondary-border);
+  color: var(--text-primary);
+}
+
+/* Danger Button */
+.kn-btn-danger {
+  background: var(--accent-ruby-bg);
+  border: 1px solid var(--accent-ruby-border);
+  color: var(--accent-ruby);
+}
+.kn-btn-danger:hover {
+  background: rgba(255, 69, 58, 0.22);
+  border-color: var(--accent-ruby);
+}
+
+/* Small Button */
+.kn-btn-sm {
+  padding: 5px 12px;
+  font-size: 0.8125rem;
+}
+
+/* ==========================================================================
+   Inputs, Textarea & Select
+   ========================================================================== */
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 1px solid var(--stage-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  outline: none;
+  transition: var(--transition-smooth);
+}
+
+input:focus, select:focus, textarea:focus {
+  background: var(--input-focus-bg);
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px var(--accent-blue-glow);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+input:disabled, select:disabled, textarea:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Styled Select */
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2386868b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+  padding-right: 34px;
+}
+
+select option {
+  background: var(--select-option-bg);
+  color: var(--text-primary);
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* ==========================================================================
+   Badges & Pills
+   ========================================================================== */
+
+.kn-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--stage-border);
+  background: var(--badge-default-bg);
+  color: var(--text-secondary);
+}
+
+.kn-badge-emerald, .kn-badge-success {
+  background: var(--accent-emerald-bg);
+  border-color: var(--accent-emerald-border);
+  color: var(--accent-emerald);
+}
+
+.kn-badge-amber, .kn-badge-warning {
+  background: var(--accent-amber-bg);
+  border-color: var(--accent-amber-border);
+  color: var(--accent-amber);
+}
+
+.kn-badge-ruby, .kn-badge-danger {
+  background: var(--accent-ruby-bg);
+  border-color: var(--accent-ruby-border);
+  color: var(--accent-ruby);
+}
+
+.kn-badge-blue {
+  background: rgba(41, 151, 255, 0.12);
+  border-color: rgba(41, 151, 255, 0.28);
+  color: var(--accent-blue);
+}
+
+.kn-badge-purple {
+  background: var(--accent-purple-bg);
+  border-color: var(--accent-purple-border);
+  color: var(--accent-purple);
+}
+
+.kn-badge-cyan {
+  background: var(--accent-cyan-bg);
+  border-color: var(--accent-cyan-border);
+  color: var(--accent-cyan);
+}
+
+/* Status Indicator Dot */
+.kn-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.kn-dot-emerald { background: var(--accent-emerald); box-shadow: 0 0 8px var(--accent-emerald); }
+.kn-dot-amber { background: var(--accent-amber); box-shadow: 0 0 8px var(--accent-amber); }
+.kn-dot-ruby { background: var(--accent-ruby); box-shadow: 0 0 8px var(--accent-ruby); }
+.kn-dot-blue { background: var(--accent-blue); box-shadow: 0 0 8px var(--accent-blue); }
+
+/* Pulse Animation for in-flight tasks */
+@keyframes kn-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.92); }
+}
+.kn-pulse {
+  animation: kn-pulse 1.8s infinite ease-in-out;
+}
+
+/* ==========================================================================
+   Keynote Data Table
+   ========================================================================== */
+
+.kn-table-container {
+  background: var(--stage-card);
+  backdrop-filter: var(--blur-glass);
+  -webkit-backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--stage-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-glass);
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+th {
+  background: var(--table-th-bg);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--stage-border);
+}
+
+td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--table-border-subtle);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr {
+  transition: var(--transition-fast);
+}
+
+tbody tr:hover {
+  background: var(--table-tr-hover);
+}
+
+/* ==========================================================================
+   Segmented Controls & Navigation Tabs
+   ========================================================================== */
+
+.kn-segmented {
+  display: inline-flex;
+  align-items: center;
+  background: var(--segmented-bg);
+  border: 1px solid var(--stage-border);
+  border-radius: var(--radius-pill);
+  padding: 4px;
+  gap: 4px;
+}
+
+.kn-segmented-item {
+  padding: 6px 16px;
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: var(--transition-fast);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+}
+
+.kn-segmented-item:hover {
+  color: var(--text-primary);
+}
+
+.kn-segmented-item.active, .kn-segmented-item-active {
+  background: var(--segmented-item-active-bg);
+  color: var(--segmented-item-active-color);
+  font-weight: 600;
+  box-shadow: var(--segmented-item-active-shadow);
+}
+
+/* ==========================================================================
+   Alerts, Notices & Toasts
+   ========================================================================== */
+
+[role="alert"] {
+  background: var(--accent-ruby-bg) !important;
+  border: 1px solid var(--accent-ruby-border) !important;
+  color: var(--alert-ruby-text) !important;
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  font-size: 0.875rem;
+  margin: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+[role="status"] {
+  background: rgba(41, 151, 255, 0.1) !important;
+  border: 1px solid rgba(41, 151, 255, 0.25) !important;
+  color: var(--alert-blue-text) !important;
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  font-size: 0.875rem;
+  margin: 10px 0;
+}
+
+/* ==========================================================================
+   Keynote Dropzone
+   ========================================================================== */
+
+.kn-dropzone {
+  border: 2px dashed var(--dropzone-border);
+  border-radius: var(--radius-md);
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  background: var(--dropzone-bg);
+  backdrop-filter: var(--blur-glass);
+  -webkit-backdrop-filter: var(--blur-glass);
+  transition: var(--transition-smooth);
+  margin-bottom: 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.kn-dropzone:hover {
+  border-color: var(--accent-blue);
+  background: var(--dropzone-hover-bg);
+  box-shadow: 0 0 30px rgba(41, 151, 255, 0.12);
+}
+
+.kn-dropzone-icon {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 12px;
+  color: var(--accent-blue);
+  opacity: 0.9;
+}
+
+.kn-dropzone-title {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.kn-dropzone-subtitle {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   Details & Summary
+   ========================================================================== */
+
+details {
+  background: var(--stage-card);
+  backdrop-filter: var(--blur-glass);
+  -webkit-backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--stage-border);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition-smooth);
+}
+
+details summary {
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  font-size: 0.9375rem;
+  letter-spacing: -0.01em;
+}
+
+details summary::-webkit-details-marker {
+  color: var(--accent-blue);
+}
+
+details[open] {
+  border-color: var(--stage-border-hover);
+  box-shadow: var(--shadow-md);
+}
+
+/* ==========================================================================
+   Progress Bar
+   ========================================================================== */
+
+.kn-progress-bar {
+  height: 6px;
+  background: var(--progress-bg);
+  border-radius: 9999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.kn-progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #2997ff, #64d2ff);
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
