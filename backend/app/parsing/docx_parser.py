@@ -9,6 +9,7 @@ from docx.table import Table
 from docx.text.paragraph import Paragraph
 
 from app.parsing.contract import ClauseNode, DocumentMeta, ParsedDocument, ParseError
+from app.parsing.docx_numbering import HeadingNumbering
 
 _HEADING = re.compile(r"^Heading (\d+)$")
 _META = re.compile(
@@ -89,6 +90,10 @@ class DocxParser:
             raise ParseError(f"无法打开 docx 文件：{type(exc).__name__}") from exc
 
         warnings: list[str] = []
+        # Word 的标题编号不在文字里，是渲染时按 numbering.xml 画上去的。
+        # 不还原的话 citation_label 只能退化成标题路径，而审计引用要的是 3.4.2。
+        numbering = HeadingNumbering(document)
+        numbered = 0
         roots: list[ClauseNode] = []
         stack: list[ClauseNode] = []
         meta_fields: dict[str, str] = {}
@@ -108,10 +113,14 @@ class DocxParser:
             level = _heading_level(paragraph)
 
             if level is not None:
+                # 计数器必须按文档顺序推进，空标题也要走一遍，否则后面全错位。
+                number = numbering.number_for(paragraph)
                 if not text:
                     empty_headings += 1
                     continue
-                node = ClauseNode(heading=text, text="", level=level)
+                if number:
+                    numbered += 1
+                node = ClauseNode(heading=text, text="", level=level, number=number)
                 attach(node, level)
                 stack.append(node)
                 continue
@@ -137,6 +146,9 @@ class DocxParser:
             warnings.append(f"已跳过 {empty_headings} 个空标题")
         if not any(node.kind == "section" for node in roots):
             warnings.append("未找到任何标题样式，该文档可能不是标准 house style")
+        if not numbered and any(node.kind == "section" for node in roots):
+            # 说出来而不是静默退化：条款号会变成标题路径，审计引用会不好用。
+            warnings.append("未能还原任何标题编号，条款号将退化为标题路径")
 
         meta = DocumentMeta(
             title=None,
