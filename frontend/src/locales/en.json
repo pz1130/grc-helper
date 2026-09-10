@@ -105,7 +105,11 @@
     "allStrengths": "All strengths",
     "coverageAffecting": "Coverage-affecting only (full + partial)",
     "rationale": "Model's reasoning",
-    "source": "Source in your documents"
+    "source": "Source in your documents",
+    "claimMapping": "Left: the external framework requirement · Right: your internal control. The claim: this control {{strength}} that requirement.",
+    "claimRelation": "Both sides are your internal controls. The claim: they are related as “{{relation}}”.",
+    "claimExtract": "Left: the control being proposed (written by the model) · Right: the wording in your own document it was drawn from. Check the left against the right.",
+    "claimGeneric": "Left: the proposed content · Right: the evidence it cites."
   },
   "controls": {
     "title": "Controls",

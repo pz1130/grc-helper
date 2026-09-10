@@ -128,3 +128,10 @@ test("a relation proposal shows the reasoning and each control's source", async 
   await expect(card.getByText("Acme Change Management Procedure v2.0")).toBeVisible();
   await expect(card.getByRole("link", { name: "4.2" })).toHaveAttribute("href", "/documents/3#clause-11");
 });
+
+test("a relation card says both sides are internal controls", async ({ page }) => {
+  await mockSession(page);
+  await mockRelationQueue(page);
+  await page.goto("/review?kind=relation");
+  await expect(page.locator("#proposal-31")).toContainText("Both sides are your internal controls");
+});

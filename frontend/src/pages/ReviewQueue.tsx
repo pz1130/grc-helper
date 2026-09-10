@@ -48,6 +48,18 @@ export interface Proposal {
   } | null;
 }
 
+/** 一句话说明这张卡在主张什么、两栏各是什么。
+
+    三种提案共用同一个左右布局，含义却完全不同：抽取卡右栏是「原文依据」，
+    映射卡右栏是「你的控制点」。不写出来，读卡的人只能靠猜。 */
+function CardClaim({ text }: { text: string }) {
+  return (
+    <p style={{ margin: "12px 0 0", fontSize: "0.8125rem", lineHeight: 1.6, color: "var(--text-tertiary)" }}>
+      {text}
+    </p>
+  );
+}
+
 /** 控制点的出处。控制点是抽取产物，判断它满不满足某条要求之前，先得能回到原文核对。 */
 function ControlSources({ sources }: { sources?: ControlSource[] }) {
   const { t } = useTranslation();
@@ -167,6 +179,9 @@ function MappingPreview({
 
   return (
     <div style={{ marginTop: 16 }}>
+      <CardClaim text={t("review.claimMapping", {
+        strength: t(`mapping.strength.${strength}`, { defaultValue: strength }),
+      })} />
       {covered && (
         <p
           role="note"
@@ -282,6 +297,7 @@ function RelationBody({
     return (
       <div style={{ marginTop: 14 }}>
         <p><strong style={{ color: "var(--accent-blue)" }}>{label}</strong></p>
+        <CardClaim text={t("review.claimRelation", { relation: label })} />
         <p role="note" style={{ color: "var(--accent-amber)" }}>{t("relations.contextMissing")}</p>
         <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: 13 }}>
           {JSON.stringify(proposal.payload, null, 2)}
@@ -294,6 +310,7 @@ function RelationBody({
   return (
     <div style={{ marginTop: 14 }}>
       <p><strong style={{ color: "var(--accent-blue)" }}>{label}</strong></p>
+      <CardClaim text={t("review.claimRelation", { relation: label })} />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <section className="kn-card" style={{ background: "var(--stage-card-subtle)" }}>
           <h3 style={{ fontSize: "1rem" }}>
@@ -608,6 +625,8 @@ export function ReviewQueue() {
                   onDraftChange={setDraft}
                 />
               ) : (
+                <>
+                <CardClaim text={t(p.kind === "control_extract" ? "review.claimExtract" : "review.claimGeneric")} />
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: 16, marginTop: 16 }}>
                   {/* Left Payload Pane */}
                   <div className="kn-card" style={{ background: "var(--stage-card-subtle)", margin: 0 }}>
@@ -687,6 +706,7 @@ export function ReviewQueue() {
                     ))}
                   </aside>
                 </div>
+                </>
               )}
 
               {/* Action Buttons Bar */}

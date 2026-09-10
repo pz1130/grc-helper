@@ -213,3 +213,33 @@ test("changing the mapping strength sticks in the dropdown", async ({ page }) =>
   // 改动要真的进到待提交的内容里，否则「修改后接受」保存的还是原值
   await expect(card.getByLabel("Proposed content (JSON)")).toContainText('"strength": "supporting"');
 });
+
+test("each card kind says what it is claiming and what each column is", async ({ page }) => {
+  await mockSession(page);
+  // 三种提案共用同一个左右布局但含义不同：抽取卡右栏是「原文依据」，
+  // 映射卡右栏是「你的控制点」。卡上不写出来，读卡的人只能靠猜。
+  const mapping = {
+    id: 26, kind: "mapping", payload: {
+      framework_item_id: 2, control_id: 5, strength: "partial",
+      framework_item_quote: "Identities are managed", rationale: "r", confidence: 0.8,
+    }, citations: [], confidence: 0.8, document_id: null, status: "pending",
+    mapping_context: {
+      framework_item: { id: 2, code: "PR.AA-01", title: "Identities", description: "Identities are managed for authorized users." },
+      control: { id: 5, code: "C-0005", title: "Identity management", statement: "All identities are managed centrally." },
+    },
+  };
+  const extract = {
+    id: 27, kind: "control_extract",
+    payload: { title: "Log retention", statement: "Logs must be retained.", citations: [] },
+    citations: [{ clause_id: 91, quote: "Logs are retained.", document_id: 4, citation_label: "3.1", document_title: "Acme Procedure" }],
+    confidence: 0.6, document_id: 4, status: "pending",
+  };
+  await page.route("**/api/proposals/stats", (route) => route.fulfill({ json: { pending: 2, by_kind: { mapping: 1, control_extract: 1 } } }));
+  await page.route("**/api/proposals?**", (route) => route.fulfill({ json: [mapping, extract] }));
+  await page.goto("/review");
+
+  await expect(page.locator("#proposal-26")).toContainText("Left: the external framework requirement");
+  await expect(page.locator("#proposal-26")).toContainText("Right: your internal control");
+  await expect(page.locator("#proposal-27")).toContainText("the control being proposed");
+  await expect(page.locator("#proposal-27")).toContainText("your own document");
+});
