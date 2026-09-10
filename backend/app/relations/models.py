@@ -35,6 +35,9 @@ class ControlEmbedding(Base):
     # 先建行再异步向量化，所以可为空——与 ClauseChunk 同一形态。
     embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM), nullable=True)
     embedding_model: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # 渲染方式的版本。没有它，改 render_control 之后 embed_pending 看模型名没变，
+    # 会把一库出自旧渲染的向量当成最新的，一条都不重算。
+    embedding_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

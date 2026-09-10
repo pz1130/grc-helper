@@ -26,7 +26,11 @@ from app.parsing.flatten import PATH_SEPARATOR
 from app.relations.models import ControlEmbedding
 
 TOP_K_NEIGHBOURS = 8
-MIN_SIMILARITY = 0.75
+# 首轮实测后调整（设计 §4 就是这么写的：起步值，有数据再定）。
+# statement-only 渲染下，设计点名的那组已知重复最低一对是 0.942，全量 9180 对
+# 的 p90=0.884、p99=0.958。0.90 留出了余量又砍掉了绝大部分噪声；0.75 是在旧
+# 渲染下拍的，那时它对应 1900+ 对候选、约 180 批。
+MIN_SIMILARITY = 0.90
 MAX_CLUSTER_SIZE = 20
 CLUSTER_OVERLAP = 3
 PAIRS_PER_BATCH = 25

@@ -23,12 +23,20 @@ async def _controls(db_session, how_many: int) -> list[Control]:
     return rows
 
 
-def test_render_control_carries_code_title_and_statement():
+def test_render_control_embeds_the_statement_alone():
+    """code 与 title 一起喂会淹掉信号——实测见 render_control 的 docstring。"""
     from types import SimpleNamespace
 
     text = render_control(SimpleNamespace(
         code="C-0009", title="Dual approval", statement="Two approvers required."))
-    assert "C-0009" in text and "Dual approval" in text and "Two approvers required." in text
+    assert text == "Two approvers required."
+
+
+def test_render_control_falls_back_to_the_title_when_there_is_no_statement():
+    from types import SimpleNamespace
+
+    text = render_control(SimpleNamespace(code="C-0009", title="Dual approval", statement=""))
+    assert text == "Dual approval"
 
 
 @pytest.mark.asyncio
@@ -124,3 +132,28 @@ async def test_the_default_limit_is_two_round_trips(db_session):
 
     assert result["embedded"] == DEFAULT_LIMIT
     assert result["pending"] == 3, "响应要告诉前端还剩多少"
+
+
+@pytest.mark.asyncio
+async def test_changing_the_render_version_reembeds_even_on_the_same_model(db_session):
+    """改 render_control 就是改了向量的含义。
+
+    只按 embedding_model 判 stale 时，换渲染方式后模型名没变，一库出自旧渲染的
+    向量会被当成最新的，一条都不重算——静默地把新旧两种向量混在一起比余弦。
+    """
+    from app.relations import indexing
+
+    await _controls(db_session, 2)
+    with patch("app.relations.indexing.embed", new=AsyncMock(return_value=_vectors(2))), \
+         patch("app.relations.indexing.current_model", new=AsyncMock(return_value="embo-01")):
+        await embed_pending(db_session)
+        assert (await embed_pending(db_session))["embedded"] == 0
+
+        monkeyed = "v-next"
+        with patch.object(indexing, "EMBEDDING_VERSION", monkeyed):
+            again = await embed_pending(db_session)
+
+    assert again["embedded"] == 2, "渲染版本变了就该重算"
+    rows = list(await db_session.scalars(select(ControlEmbedding)))
+    assert len(rows) == 2, "重算不是新增行"
+    assert {r.embedding_version for r in rows} == {"v-next"}
