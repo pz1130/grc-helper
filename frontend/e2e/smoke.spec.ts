@@ -19,7 +19,9 @@ test("管理员能登录并看到总览", async ({ page }) => {
 
 test("语言可切换到英文", async ({ page }) => {
   await signIn(page);
-  await page.getByLabel("语言").selectOption("en");
+  // 语言切换在改造后是「可见的分段按钮 + 隐藏的原生 select」，两者同名，
+  // getByLabel 会命中两个。按 combobox 角色取那个 select——它正是为可驱动性留的。
+  await page.getByRole("combobox", { name: "语言" }).selectOption("en");
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
 });
 

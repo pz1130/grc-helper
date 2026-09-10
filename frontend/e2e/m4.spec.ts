@@ -100,7 +100,8 @@ test("single accept reports a failure and supports retry without hiding the prop
   });
   await page.goto("/review");
   await page.getByRole("button", { name: "Accept", exact: true }).click();
-  await expect(page.getByRole("alert")).toHaveText("Please retry the decision");
+  // 改造后告警带 ⚠️ 前缀；这里要断言的是「错误如实呈现」，不是「一个字符不差」。
+  await expect(page.getByRole("alert")).toContainText("Please retry the decision");
   await expect(page.locator("#proposal-1")).toBeVisible();
   await page.getByRole("button", { name: "Accept", exact: true }).click();
   await expect(page.locator("#proposal-1")).toHaveCount(0);
