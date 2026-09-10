@@ -155,3 +155,33 @@ test("an open item shows no already-covered note", async ({ page }) => {
   await expect(page.getByText("All identities are managed centrally.")).toBeVisible();
   await expect(page.getByText(/already closed by a confirmed mapping/)).toHaveCount(0);
 });
+
+test("a mapping proposal shows the model's reasoning and where the control came from", async ({ page }) => {
+  await mockSession(page);
+  // 审核者判的就是这个主张成不成立：理由藏起来等于盲判；控制点是抽取产物，
+  // 看不到出处就无法发现它本身没如实反映原文（见 OQ-5）。
+  const proposal = {
+    id: 24, kind: "mapping", payload: {
+      framework_item_id: 2, control_id: 5, strength: "partial",
+      framework_item_quote: "Identities are managed",
+      rationale: "The control covers central identity management but does not address recertification.",
+      confidence: 0.55,
+    }, citations: [], confidence: 0.55, document_id: null, status: "pending",
+    mapping_context: {
+      framework_item: { id: 2, code: "PR.AA-01", title: "Identities", description: "Identities are managed for authorized users." },
+      control: {
+        id: 5, code: "C-0005", title: "Identity management", statement: "All identities are managed centrally.",
+        sources: [{ clause_id: 91, citation_label: "3.1", heading_path: "Access Control › Objectives", document_id: 4, document_title: "Acme Access Management Procedure v1.2" }],
+      },
+    },
+  };
+  await page.route("**/api/proposals/stats", (route) => route.fulfill({ json: { pending: 1, by_kind: { mapping: 1 } } }));
+  await page.route("**/api/proposals?**", (route) => route.fulfill({ json: [proposal] }));
+  await page.goto("/review?kind=mapping");
+  const card = page.locator("#proposal-24");
+
+  await expect(card.getByText(/does not address recertification/)).toBeVisible();
+  await expect(card.getByText("Acme Access Management Procedure v1.2")).toBeVisible();
+  await expect(card.getByText("Access Control › Objectives")).toBeVisible();
+  await expect(card.getByRole("link", { name: "3.1" })).toHaveAttribute("href", "/documents/4#clause-91");
+});

@@ -35,8 +35,8 @@ const relationProposal = {
   bulk_acceptable: false,
   relation_context: {
     relation_type: "depends_on",
-    from: { id: 1, code: "C-0001", title: "Approval", statement: "Changes are Approved by the CAB before release." },
-    to: { id: 2, code: "C-0002", title: "Implementation", statement: "Follow the plan after CAB approval." },
+    from: { id: 1, code: "C-0001", title: "Approval", statement: "Changes are Approved by the CAB before release.", sources: [{ clause_id: 11, citation_label: "4.2", heading_path: "Change Management › Approval", document_id: 3, document_title: "Acme Change Management Procedure v2.0" }] },
+    to: { id: 2, code: "C-0002", title: "Implementation", statement: "Follow the plan after CAB approval.", sources: [] },
   },
 };
 
@@ -117,4 +117,14 @@ test("a relation whose control was deleted still shows its payload and stays edi
   await expect(card.getByText(/"from_quote": "Approved by the CAB"/)).toBeVisible();
   await card.getByRole("button", { name: "Edit and accept" }).click();
   await expect(card.getByLabel("Proposed content (JSON)")).toBeVisible();
+});
+
+test("a relation proposal shows the reasoning and each control's source", async ({ page }) => {
+  await mockSession(page);
+  await mockRelationQueue(page);
+  await page.goto("/review?kind=relation");
+  const card = page.locator("#proposal-31");
+  await expect(card.getByText("ordering")).toBeVisible();
+  await expect(card.getByText("Acme Change Management Procedure v2.0")).toBeVisible();
+  await expect(card.getByRole("link", { name: "4.2" })).toHaveAttribute("href", "/documents/3#clause-11");
 });

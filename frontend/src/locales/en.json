@@ -103,7 +103,9 @@
     },
     "strength": "Strength",
     "allStrengths": "All strengths",
-    "coverageAffecting": "Coverage-affecting only (full + partial)"
+    "coverageAffecting": "Coverage-affecting only (full + partial)",
+    "rationale": "Model's reasoning",
+    "source": "Source in your documents"
   },
   "controls": {
     "title": "Controls",

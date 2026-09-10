@@ -5,6 +5,22 @@ import { Link, useSearchParams } from "react-router-dom";
 import { request } from "../api";
 import { useAuth } from "../auth";
 
+export interface ControlSource {
+  clause_id: number;
+  citation_label: string | null;
+  heading_path: string | null;
+  document_id: number;
+  document_title: string;
+}
+
+export interface ControlView {
+  id: number;
+  code: string;
+  title: string;
+  statement: string;
+  sources?: ControlSource[];
+}
+
 export interface Proposal {
   id: number;
   kind: string;
@@ -19,7 +35,7 @@ export interface Proposal {
   ocr_quality_flag?: boolean;
   mapping_context?: {
     framework_item: { id: number; code: string; title: string; description: string };
-    control: { id: number; code: string; title: string; statement: string };
+    control: ControlView;
     item_coverage?: {
       closed: boolean;
       confirmed: { control_code: string; strength: string }[];
@@ -27,9 +43,56 @@ export interface Proposal {
   } | null;
   relation_context?: {
     relation_type?: string;
-    from: { id: number; code: string; title: string; statement: string };
-    to: { id: number; code: string; title: string; statement: string };
+    from: ControlView;
+    to: ControlView;
   } | null;
+}
+
+/** 控制点的出处。控制点是抽取产物，判断它满不满足某条要求之前，先得能回到原文核对。 */
+function ControlSources({ sources }: { sources?: ControlSource[] }) {
+  const { t } = useTranslation();
+  if (!sources?.length) return null;
+  return (
+    <div style={{ marginTop: 12, fontSize: "0.8125rem", color: "var(--text-tertiary)" }}>
+      <strong style={{ color: "var(--text-secondary)" }}>{t("review.source")}</strong>
+      {sources.map((source) => (
+        <div key={source.clause_id} style={{ marginTop: 4 }}>
+          <span>{source.document_title}</span>
+          {" · "}
+          <Link to={`/documents/${source.document_id}#clause-${source.clause_id}`}>
+            {source.citation_label ?? `#${source.clause_id}`}
+          </Link>
+          {source.heading_path && (
+            <div style={{ fontSize: "0.75rem", opacity: 0.8 }}>{source.heading_path}</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** 模型给出的理由。审核者判的就是这个主张成不成立，藏起来等于让人盲判。 */
+function Rationale({ payload }: { payload: Record<string, unknown> }) {
+  const { t } = useTranslation();
+  const text = typeof payload.rationale === "string" ? payload.rationale.trim() : "";
+  if (!text) return null;
+  return (
+    <div
+      style={{
+        marginTop: 16,
+        padding: "10px 14px",
+        fontSize: "0.875rem",
+        lineHeight: 1.6,
+        color: "var(--text-secondary)",
+        background: "var(--stage-card-subtle)",
+        borderLeft: "3px solid var(--accent-blue)",
+        borderRadius: "var(--radius-xs)",
+      }}
+    >
+      <strong style={{ color: "var(--text-primary)" }}>{t("review.rationale")}</strong>
+      <div style={{ marginTop: 4 }}>{text}</div>
+    </div>
+  );
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -128,8 +191,11 @@ function MappingPreview({
           <p style={{ whiteSpace: "pre-wrap", fontSize: "0.875rem", lineHeight: 1.6, color: "var(--text-secondary)" }}>
             {controlStatement}
           </p>
+          <ControlSources sources={proposal.mapping_context?.control.sources} />
         </aside>
       </div>
+
+      <Rationale payload={payload} />
 
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <label style={{ flexDirection: "row", alignItems: "center" }}>
@@ -222,6 +288,7 @@ function RelationBody({
           <p style={{ whiteSpace: "pre-wrap", fontSize: "0.875rem", lineHeight: 1.6, color: "var(--text-secondary)" }}>
             <HighlightQuote text={context.from.statement} quote={fromQuote} />
           </p>
+          <ControlSources sources={context.from.sources} />
         </section>
         <section className="kn-card" style={{ background: "var(--stage-card-subtle)" }}>
           <h3 style={{ fontSize: "1rem" }}>
@@ -230,8 +297,10 @@ function RelationBody({
           <p style={{ whiteSpace: "pre-wrap", fontSize: "0.875rem", lineHeight: 1.6, color: "var(--text-secondary)" }}>
             <HighlightQuote text={context.to.statement} quote={toQuote} />
           </p>
+          <ControlSources sources={context.to.sources} />
         </section>
       </div>
+      <Rationale payload={payload} />
       {editor}
     </div>
   );

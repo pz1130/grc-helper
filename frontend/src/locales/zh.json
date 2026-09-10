@@ -103,7 +103,9 @@
     },
     "strength": "强度",
     "allStrengths": "全部强度",
-    "coverageAffecting": "只看影响覆盖度的（full + partial）"
+    "coverageAffecting": "只看影响覆盖度的（full + partial）",
+    "rationale": "模型给出的理由",
+    "source": "出自内部文档"
   },
   "controls": {
     "title": "控制点库",

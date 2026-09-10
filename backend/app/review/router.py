@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clauses.models import Clause
-from app.controls.models import Control
+from app.controls.models import Control, ControlSource
 from app.db import get_session
 from app.frameworks.coverage import CLOSING
 from app.frameworks.models import FrameworkItem, Mapping, MappingStrength
@@ -73,6 +73,9 @@ class PageContext:
     # 框架项 → 已确认映射 [(控制点编号, 强度)]。审 supporting 时最要紧的一条
     # 上下文：目标项若已被 full/partial 关掉，这条确认了也不会改变任何结论。
     item_mappings: dict[int, list[tuple[str, str]]] = field(default_factory=dict)
+    # 控制点 → 它出自哪几条内部条款。控制点是抽取产物，审核者要能回到原文：
+    # OQ-5 记着有 28 条已接受的控制点建立在残缺文本上，看不到出处就发现不了。
+    control_sources: dict[int, list[dict[str, Any]]] = field(default_factory=dict)
 
 
 def _int(value: Any) -> int | None:
@@ -121,12 +124,38 @@ async def page_context(session: AsyncSession, proposals: list[Proposal]) -> Page
                 (code, strength.value if hasattr(strength, "value") else str(strength))
             )
 
+    control_sources: dict[int, list[dict[str, Any]]] = {}
+    if control_ids:
+        rows = await session.execute(
+            select(
+                ControlSource.control_id,
+                Clause.id,
+                Clause.citation_label,
+                Clause.heading_path,
+                Document.id,
+                Document.title,
+            )
+            .join(Clause, Clause.id == ControlSource.clause_id)
+            .join(Document, Document.id == Clause.document_id)
+            .where(ControlSource.control_id.in_(control_ids))
+            .order_by(ControlSource.control_id, Clause.order_index)
+        )
+        for control_id, clause_id, label, path, document_id, title in rows:
+            control_sources.setdefault(control_id, []).append({
+                "clause_id": clause_id,
+                "citation_label": label,
+                "heading_path": path,
+                "document_id": document_id,
+                "document_title": title,
+            })
+
     return PageContext(
         clauses=await clause_context(session, proposals),
         items=items,
         controls=controls,
         ocr_flagged=await service.ocr_flags(session, proposals),
         item_mappings=item_mappings,
+        control_sources=control_sources,
     )
 
 
@@ -145,12 +174,16 @@ def _enrich(citations: Any, context: dict[int, dict[str, Any]]) -> Any:
     return enriched
 
 
-def _control_view(control: Control) -> dict[str, Any]:
+def _control_view(control: Control, context: PageContext) -> dict[str, Any]:
     return {
         "id": control.id,
         "code": control.code,
         "title": control.title,
         "statement": control.statement,
+        # 控制点是抽取产物，不是原文。审核者要能一眼看到它出自哪份制度、哪一条，
+        # 并点回去核对——判断「这条控制点是否满足某个框架要求」的前提，是先确认
+        # 这条控制点本身如实反映了原文。
+        "sources": context.control_sources.get(control.id, []),
     }
 
 
@@ -174,7 +207,7 @@ def present(proposal: Proposal, limits: Thresholds, context: PageContext) -> Pro
                     "title": item.title,
                     "description": item.description,
                 },
-                "control": _control_view(control),
+                "control": _control_view(control, context),
                 "item_coverage": {
                     # 已被 full/partial 关掉：再加一条不会改变覆盖度，
                     # 而 supporting 连差距清单上的标记都不会新增。
@@ -193,8 +226,8 @@ def present(proposal: Proposal, limits: Thresholds, context: PageContext) -> Pro
         if left is not None and right is not None:
             relation = {
                 "relation_type": payload.get("relation_type"),
-                "from": _control_view(left),
-                "to": _control_view(right),
+                "from": _control_view(left, context),
+                "to": _control_view(right, context),
             }
 
     return ProposalOut.model_validate(proposal).model_copy(

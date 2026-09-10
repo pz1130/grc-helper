@@ -174,3 +174,63 @@ async def test_only_full_and_partial_count_as_covered(db_session, client):
     coverage = body[0]["mapping_context"]["item_coverage"]
     assert coverage["closed"] is False, "supporting 不消差距，不能算已覆盖"
     assert coverage["confirmed"] == [{"control_code": "C-SUP", "strength": "supporting"}]
+
+
+async def _sourced_control(db_session, code: str) -> Control:
+    """一条有出处的控制点：文档 → 条款 → ControlSource → 控制点。"""
+    from app.clauses.models import Clause
+    from app.controls.models import ControlSource, SourceRelation
+    from app.ingest.models import DocStatus, DocType, Document
+
+    document = Document(title="Acme IT 监控与日志管理程序 v1.2", doc_type=DocType.PROCEDURE,
+                        file_hash=code.ljust(64, "0"), file_path=f"/{code}.pdf",
+                        original_filename=f"{code}.pdf", status=DocStatus.ACTIVE)
+    db_session.add(document)
+    await db_session.flush()
+    clause = Clause(document_id=document.id, number="3.1", heading="Objectives",
+                    heading_path="Service Monitoring › Objectives", citation_label="3.1",
+                    text="body", order_index=1, level=2)
+    control = Control(code=code, title="Log retention", statement="Logs must be retained.")
+    db_session.add_all([clause, control])
+    await db_session.flush()
+    db_session.add(ControlSource(control_id=control.id, clause_id=clause.id,
+                                 relation=SourceRelation.DEFINES))
+    await db_session.flush()
+    return control
+
+
+@pytest.mark.asyncio
+async def test_a_mapping_proposal_carries_the_controls_source_documents(client, db_session):
+    """控制点是抽取产物，不是原文。
+
+    判断「这条控制点满不满足某个框架要求」的前提，是先确认它如实反映了原文——
+    OQ-5 记着有 28 条已接受的控制点建立在残缺文本上，卡片上看不到出处就发现不了。
+    """
+    headers = await _auth(client, db_session)
+    items = await _framework(db_session, 1, "src")
+    control = await _sourced_control(db_session, "C-SRC")
+    db_session.add(Proposal(
+        kind=ProposalKind.MAPPING, status=ProposalStatus.PENDING, confidence=0.7,
+        payload={"control_id": control.id, "framework_item_id": items[0].id,
+                 "strength": "partial", "framework_item_quote": "Requirement text 0.",
+                 "rationale": "because", "confidence": 0.7},
+        citations=[],
+    ))
+    await db_session.flush()
+
+    body = (await client.get("/api/proposals?kind=mapping&limit=200", headers=headers)).json()
+    sources = body[0]["mapping_context"]["control"]["sources"]
+
+    assert len(sources) == 1
+    assert sources[0]["document_title"] == "Acme IT 监控与日志管理程序 v1.2"
+    assert sources[0]["citation_label"] == "3.1"
+    assert sources[0]["heading_path"] == "Service Monitoring › Objectives"
+    assert sources[0]["document_id"] and sources[0]["clause_id"]
+
+
+@pytest.mark.asyncio
+async def test_a_control_with_no_recorded_source_reports_an_empty_list(client, db_session):
+    headers = await _auth(client, db_session)
+    await _mapping_proposals(db_session, 1, tag="nosrc")
+    body = (await client.get("/api/proposals?kind=mapping&limit=200", headers=headers)).json()
+    assert body[0]["mapping_context"]["control"]["sources"] == []
