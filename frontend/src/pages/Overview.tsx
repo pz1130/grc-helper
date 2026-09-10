@@ -9,11 +9,19 @@ interface Usage {
   by_task: { task_key: string; cost: number; calls: number }[];
 }
 
+interface EvidenceStats {
+  expired: number;
+}
+
 export function Overview() {
   const { t } = useTranslation();
   const { data } = useQuery({
     queryKey: ["usage"],
     queryFn: () => request<Usage>("/api/settings/usage"),
+  });
+  const evidenceStats = useQuery({
+    queryKey: ["evidence-stats"],
+    queryFn: () => request<EvidenceStats>("/api/evidence/stats"),
   });
 
   const cost = data?.month_to_date_cost ?? 0;
@@ -67,6 +75,19 @@ export function Overview() {
               </div>
             </div>
           )}
+        </div>
+
+        <div className="kn-card kn-stat-card">
+          <div>
+            <span className="kn-stat-label">{t("overview.expiredEvidence")}</span>
+            <div className="kn-stat-number" style={{ color: evidenceStats.data?.expired ? "var(--accent-ruby)" : undefined }}>
+              {evidenceStats.data?.expired ?? "—"}
+            </div>
+            <div className="kn-stat-sub">{t("overview.expiredEvidenceHint")}</div>
+          </div>
+          <span className={`kn-badge ${evidenceStats.data?.expired ? "kn-badge-ruby" : "kn-badge-emerald"}`}>
+            {evidenceStats.data?.expired ? t("overview.needsAttention") : t("overview.upToDate")}
+          </span>
         </div>
 
         {/* Total Calls Card */}

@@ -10,6 +10,8 @@ interface Detail extends Control {
   sources: { clause_id: number; document_id: number; document_title: string; citation_label: string; heading_path: string; relation: string }[];
   relations: { from_control_id: number; to_control_id: number; relation_type: string; rationale: string }[];
   mappings?: { framework_name: string; code: string; title: string; strength: string }[];
+  implementations?: { id: number; control_id: number; tech_asset_id: number | null; description: string; how_enforced: string; status: string; na_justification: string | null; owner_user_id: number | null; last_verified_at: string | null }[];
+  evidence?: { id: number; evidence_type_id: number; control_id: number; tech_asset_id: number | null; title: string; owner_user_id: number | null; location_hint: string; last_collected_at: string | null; valid_until: string | null; file_path: string | null; status: string; intent_status?: string; display_status?: string; evidence_type_name?: string | null; tech_asset_name?: string | null }[];
 }
 
 export function ControlDetail() {
@@ -213,6 +215,38 @@ function ControlContent({ id }: { id: string }) {
                       {r.rationale}
                     </p>
                   )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Environment Implementation Section */}
+          <div className="kn-card" style={{ marginBottom: 20 }}>
+            <h3 style={{ fontSize: "1.0625rem" }}>{t("controls.implementations")}</h3>
+            {(data.implementations ?? []).length === 0 && <p style={{ color: "var(--text-tertiary)" }}>{t("controls.noImplementations")}</p>}
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {(data.implementations ?? []).map((implementation) => (
+                <li key={implementation.id} style={{ padding: "10px 14px", background: "var(--stage-card-subtle)", borderRadius: "var(--radius-sm)", marginBottom: 8 }}>
+                  <span className="kn-badge kn-badge-blue">{t(`techAssets.implementationStatuses.${implementation.status}`, { defaultValue: implementation.status })}</span>{" "}
+                  <span className="kn-badge">{implementation.how_enforced}</span>
+                  {implementation.description && <p style={{ margin: "6px 0 0", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>{implementation.description}</p>}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Evidence Section */}
+          <div className="kn-card" style={{ marginBottom: 20 }}>
+            <h3 style={{ fontSize: "1.0625rem" }}>{t("controls.evidence")}</h3>
+            {(data.evidence ?? []).length === 0 && <p style={{ color: "var(--text-tertiary)" }}>{t("controls.noEvidence")}</p>}
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {(data.evidence ?? []).map((item) => (
+                <li key={item.id} style={{ padding: "10px 14px", background: "var(--stage-card-subtle)", borderRadius: "var(--radius-sm)", marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}>
+                  <strong>{item.title}</strong>
+                  <span className={`kn-badge ${item.display_status === "expired" || item.status === "expired" ? "kn-badge-ruby" : item.display_status === "valid" || item.status === "valid" ? "kn-badge-emerald" : "kn-badge-amber"}`}>
+                    {t(`evidence.statuses.${item.display_status ?? item.status}`, { defaultValue: item.display_status ?? item.status })}
+                  </span>
+                  {item.valid_until && <span style={{ color: "var(--text-secondary)", fontSize: "0.8125rem" }}>{new Date(item.valid_until).toLocaleDateString()}</span>}
                 </li>
               ))}
             </ul>

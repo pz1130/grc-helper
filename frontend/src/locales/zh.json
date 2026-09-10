@@ -14,7 +14,9 @@
     "settings": "设置",
     "review": "确认队列",
     "controls": "控制点库",
-    "frameworks": "框架管理"
+    "frameworks": "框架管理",
+    "techAssets": "技术栈台账",
+    "evidence": "证据库"
   },
   "login": {
     "title": "登录",
@@ -27,7 +29,11 @@
     "title": "总览",
     "monthCost": "本月 AI 花费",
     "budget": "预算",
-    "calls": "调用次数"
+    "calls": "调用次数",
+    "expiredEvidence": "过期证据",
+    "expiredEvidenceHint": "已超过有效期的证据登记",
+    "needsAttention": "需要关注",
+    "upToDate": "当前有效"
   },
   "documents": {
     "title": "文档库",
@@ -142,6 +148,10 @@
     "noSources": "该控制点尚未关联支撑条款。",
     "frameworkMappings": "框架映射",
     "noFrameworkMappings": "该控制点尚未关联外部框架。",
+    "implementations": "落地实现",
+    "noImplementations": "该控制点尚未登记落地实现。",
+    "evidence": "证据",
+    "noEvidence": "该控制点尚未登记证据。",
     "relationTypes": {
       "defines": "定义",
       "elaborates": "细化",
@@ -151,6 +161,57 @@
       "conflicts_with": "冲突",
       "duplicates": "重复"
     }
+  },
+  "techAssets": {
+    "title": "技术栈台账",
+    "subtitle": "支撑控制点实际执行的工具、责任人与环境",
+    "add": "新增技术资产",
+    "edit": "编辑技术资产",
+    "formRequired": "请先填写技术资产信息。",
+    "name": "名称",
+    "category": "类别",
+    "vendor": "厂商",
+    "environment": "环境",
+    "status": "状态",
+    "owner": "责任人用户 ID",
+    "scope": "范围说明",
+    "controls": "控制点",
+    "showControls": "查看支撑控制点",
+    "hideControls": "收起支撑控制点",
+    "supportedControls": "该资产支撑的控制点",
+    "noControls": "暂无适用的控制点关联。",
+    "categories": {
+      "cloud": "云平台", "pam": "特权访问管理", "siem": "SIEM", "edr": "EDR", "iam": "身份管理", "dlp": "DLP", "backup": "备份", "network": "网络", "database": "数据库", "ticketing": "工单", "other": "其他"
+    },
+    "environments": { "prod": "生产", "dr": "灾备", "dev": "开发", "all": "全部环境" },
+    "statuses": { "active": "在用", "planned": "计划中", "retiring": "退役中" },
+    "implementationStatuses": { "implemented": "已实施", "partial": "部分实施", "planned": "计划中", "not_applicable": "不适用" }
+  },
+  "evidence": {
+    "title": "证据库",
+    "subtitle": "登记证据存放位置，并实时查看是否仍在有效期内",
+    "add": "新增证据",
+    "edit": "编辑证据",
+    "formRequired": "请先填写证据信息。",
+    "type": "证据类型",
+    "control": "控制点",
+    "asset": "技术资产",
+    "noAsset": "流程 / 无工具",
+    "titleField": "标题",
+    "owner": "责任人用户 ID",
+    "ownerPlaceholder": "全部责任人",
+    "location": "存放位置提示",
+    "filePath": "文件路径（可选）",
+    "lastCollected": "最近收集时间",
+    "validUntil": "有效期至",
+    "status": "展示状态",
+    "allStatuses": "全部状态",
+    "chooseType": "请选择证据类型",
+    "chooseControl": "请选择控制点",
+    "clearFilters": "清除筛选",
+    "dueAfter": "有效期起始",
+    "dueBefore": "到期时间止",
+    "statuses": { "planned": "计划收集", "collected": "已收集", "missing": "缺失", "valid": "有效", "expired": "已过期" }
   },
   "frameworks": {
     "title": "框架管理",

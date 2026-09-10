@@ -14,7 +14,9 @@
     "settings": "Settings",
     "review": "Review",
     "controls": "Controls",
-    "frameworks": "Frameworks"
+    "frameworks": "Frameworks",
+    "techAssets": "Tech assets",
+    "evidence": "Evidence"
   },
   "login": {
     "title": "Sign in",
@@ -27,7 +29,11 @@
     "title": "Overview",
     "monthCost": "Month-to-date AI cost",
     "budget": "Budget",
-    "calls": "Calls"
+    "calls": "Calls",
+    "expiredEvidence": "Expired evidence",
+    "expiredEvidenceHint": "Evidence past its valid-until date",
+    "needsAttention": "Needs attention",
+    "upToDate": "Up to date"
   },
   "documents": {
     "title": "Documents",
@@ -142,6 +148,10 @@
     "noSources": "No supporting clauses are linked to this control.",
     "frameworkMappings": "Framework mappings",
     "noFrameworkMappings": "No external framework mappings are linked to this control.",
+    "implementations": "Implementation",
+    "noImplementations": "No implementation is registered for this control.",
+    "evidence": "Evidence",
+    "noEvidence": "No evidence is registered for this control.",
     "relationTypes": {
       "defines": "Defines",
       "elaborates": "Elaborates",
@@ -151,6 +161,57 @@
       "conflicts_with": "Conflicts with",
       "duplicates": "Duplicates"
     }
+  },
+  "techAssets": {
+    "title": "Tech asset registry",
+    "subtitle": "The tools, owners, and environments that support control execution",
+    "add": "Add tech asset",
+    "edit": "Edit tech asset",
+    "formRequired": "Complete the asset form first.",
+    "name": "Name",
+    "category": "Category",
+    "vendor": "Vendor",
+    "environment": "Environment",
+    "status": "Status",
+    "owner": "Owner user ID",
+    "scope": "Scope note",
+    "controls": "Controls",
+    "showControls": "Show controls",
+    "hideControls": "Hide controls",
+    "supportedControls": "Controls supported by this asset",
+    "noControls": "No applicable controls are linked to this asset.",
+    "categories": {
+      "cloud": "Cloud", "pam": "PAM", "siem": "SIEM", "edr": "EDR", "iam": "IAM", "dlp": "DLP", "backup": "Backup", "network": "Network", "database": "Database", "ticketing": "Ticketing", "other": "Other"
+    },
+    "environments": { "prod": "Production", "dr": "Disaster recovery", "dev": "Development", "all": "All environments" },
+    "statuses": { "active": "Active", "planned": "Planned", "retiring": "Retiring" },
+    "implementationStatuses": { "implemented": "Implemented", "partial": "Partial", "planned": "Planned", "not_applicable": "Not applicable" }
+  },
+  "evidence": {
+    "title": "Evidence library",
+    "subtitle": "A register of where evidence is kept and whether it is still fresh",
+    "add": "Add evidence",
+    "edit": "Edit evidence",
+    "formRequired": "Complete the evidence form first.",
+    "type": "Evidence type",
+    "control": "Control",
+    "asset": "Tech asset",
+    "noAsset": "Process / no tool",
+    "titleField": "Title",
+    "owner": "Owner user ID",
+    "ownerPlaceholder": "Any owner",
+    "location": "Location hint",
+    "filePath": "File path (optional)",
+    "lastCollected": "Last collected",
+    "validUntil": "Valid until",
+    "status": "Display status",
+    "allStatuses": "All statuses",
+    "chooseType": "Choose an evidence type",
+    "chooseControl": "Choose a control",
+    "clearFilters": "Clear filters",
+    "dueAfter": "Valid after",
+    "dueBefore": "Due before",
+    "statuses": { "planned": "Planned", "collected": "Collected", "missing": "Missing", "valid": "Valid", "expired": "Expired" }
   },
   "frameworks": {
     "title": "Frameworks",
