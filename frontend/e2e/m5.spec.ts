@@ -113,3 +113,45 @@ test("control details list confirmed framework mappings", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Framework mappings" })).toBeVisible();
   await expect(page.getByText("CSF · PR.AA-01 Identities · Partially satisfies")).toBeVisible();
 });
+
+test("a supporting proposal on an already-covered item says it changes nothing", async ({ page }) => {
+  await mockSession(page);
+  // 412 条待审映射里 119 条是 supporting，其中 54 条指向的框架项已被 full/partial
+  // 覆盖——那些项不在差距清单上，确认它们产生零信息。卡片上要看得见。
+  const proposal = {
+    id: 22, kind: "mapping", payload: {
+      framework_item_id: 2, control_id: 5, strength: "supporting",
+      framework_item_quote: "Identities are managed", rationale: "It enables but does not satisfy", confidence: 0.55,
+    }, citations: [], confidence: 0.55, document_id: null, status: "pending",
+    mapping_context: {
+      framework_item: { id: 2, code: "PR.AA-01", title: "Identities", description: "Identities are managed for authorized users." },
+      control: { id: 5, code: "C-0005", title: "Identity management", statement: "All identities are managed centrally." },
+      item_coverage: { closed: true, confirmed: [{ control_code: "C-0042", strength: "partial" }] },
+    },
+  };
+  await page.route("**/api/proposals/stats", (route) => route.fulfill({ json: { pending: 1, by_kind: { mapping: 1 } } }));
+  await page.route("**/api/proposals?**", (route) => route.fulfill({ json: [proposal] }));
+  await page.goto("/review?kind=mapping");
+  await expect(page.getByText(/already closed by a confirmed mapping \(C-0042/)).toBeVisible();
+  await expect(page.getByText(/adds nothing at all/)).toBeVisible();
+});
+
+test("an open item shows no already-covered note", async ({ page }) => {
+  await mockSession(page);
+  const proposal = {
+    id: 23, kind: "mapping", payload: {
+      framework_item_id: 2, control_id: 5, strength: "partial",
+      framework_item_quote: "Identities are managed", rationale: "covers it", confidence: 0.8,
+    }, citations: [], confidence: 0.8, document_id: null, status: "pending",
+    mapping_context: {
+      framework_item: { id: 2, code: "PR.AA-01", title: "Identities", description: "Identities are managed for authorized users." },
+      control: { id: 5, code: "C-0005", title: "Identity management", statement: "All identities are managed centrally." },
+      item_coverage: { closed: false, confirmed: [] },
+    },
+  };
+  await page.route("**/api/proposals/stats", (route) => route.fulfill({ json: { pending: 1, by_kind: { mapping: 1 } } }));
+  await page.route("**/api/proposals?**", (route) => route.fulfill({ json: [proposal] }));
+  await page.goto("/review?kind=mapping");
+  await expect(page.getByText("All identities are managed centrally.")).toBeVisible();
+  await expect(page.getByText(/already closed by a confirmed mapping/)).toHaveCount(0);
+});

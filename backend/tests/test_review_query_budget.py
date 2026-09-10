@@ -13,11 +13,11 @@ session，所以框架项与控制点在身份映射里，旧代码的 `session.
 from typing import Self
 
 import pytest
-from sqlalchemy import event
+from sqlalchemy import event, select
 from sqlalchemy.engine import Engine
 
 from app.controls.models import Control
-from app.frameworks.models import Framework, FrameworkItem
+from app.frameworks.models import Framework, FrameworkItem, Mapping, MappingStrength
 from app.iam.models import User
 from app.iam.permissions import Role
 from app.iam.security import hash_password
@@ -122,3 +122,55 @@ async def test_the_listing_still_carries_full_mapping_context(client, db_session
         assert context["control"]["statement"]
         assert row["bulk_acceptable"] is False      # 映射提案永远不可批量接受
         assert row["ocr_quality_flag"] is False
+
+
+@pytest.mark.asyncio
+async def test_a_proposal_says_whether_its_item_is_already_covered(client, db_session):
+    """审 supporting 时最要紧的上下文：目标项是不是已经被关掉了。
+
+    412 条待审映射里 119 条是 supporting，其中 54 条指向的框架项已被 full/partial
+    覆盖——那些项根本不在差距清单上，has_supporting 永远不会被读到，确认它们
+    产生零信息。卡片上看得见这件事，就不必靠审阅顺序去躲。
+    """
+    headers = await _auth(client, db_session)
+    await _mapping_proposals(db_session, 2, tag="cov")
+    items = list(await db_session.scalars(select(FrameworkItem).order_by(FrameworkItem.id)))
+    covering = Control(code="C-COVER", title="Covering", statement="Covers it.")
+    db_session.add(covering)
+    await db_session.flush()
+    db_session.add(Mapping(
+        control_id=covering.id, framework_item_id=items[0].id,
+        strength=MappingStrength.PARTIAL, rationale="r", quote="q",
+    ))
+    await db_session.flush()
+
+    body = (await client.get("/api/proposals?kind=mapping&limit=200", headers=headers)).json()
+    by_item = {row["mapping_context"]["framework_item"]["id"]: row for row in body}
+
+    closed = by_item[items[0].id]["mapping_context"]["item_coverage"]
+    assert closed["closed"] is True
+    assert closed["confirmed"] == [{"control_code": "C-COVER", "strength": "partial"}]
+
+    open_item = by_item[items[1].id]["mapping_context"]["item_coverage"]
+    assert open_item["closed"] is False and open_item["confirmed"] == []
+
+
+@pytest.mark.asyncio
+async def test_only_full_and_partial_count_as_covered(db_session, client):
+    """supporting 不消差距，所以已确认的 supporting 也不能把 closed 置真。"""
+    headers = await _auth(client, db_session)
+    await _mapping_proposals(db_session, 1, tag="sup")
+    item = await db_session.scalar(select(FrameworkItem))
+    other = Control(code="C-SUP", title="Supporting", statement="Enables it.")
+    db_session.add(other)
+    await db_session.flush()
+    db_session.add(Mapping(
+        control_id=other.id, framework_item_id=item.id,
+        strength=MappingStrength.SUPPORTING, rationale="r", quote="q",
+    ))
+    await db_session.flush()
+
+    body = (await client.get("/api/proposals?kind=mapping&limit=200", headers=headers)).json()
+    coverage = body[0]["mapping_context"]["item_coverage"]
+    assert coverage["closed"] is False, "supporting 不消差距，不能算已覆盖"
+    assert coverage["confirmed"] == [{"control_code": "C-SUP", "strength": "supporting"}]

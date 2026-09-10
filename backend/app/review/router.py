@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.clauses.models import Clause
 from app.controls.models import Control
 from app.db import get_session
-from app.frameworks.models import FrameworkItem, MappingStrength
+from app.frameworks.coverage import CLOSING
+from app.frameworks.models import FrameworkItem, Mapping, MappingStrength
 from app.iam.deps import require
 from app.iam.models import User
 from app.iam.permissions import Permission
@@ -69,6 +70,9 @@ class PageContext:
     items: dict[int, FrameworkItem] = field(default_factory=dict)
     controls: dict[int, Control] = field(default_factory=dict)
     ocr_flagged: frozenset[int] = frozenset()
+    # 框架项 → 已确认映射 [(控制点编号, 强度)]。审 supporting 时最要紧的一条
+    # 上下文：目标项若已被 full/partial 关掉，这条确认了也不会改变任何结论。
+    item_mappings: dict[int, list[tuple[str, str]]] = field(default_factory=dict)
 
 
 def _int(value: Any) -> int | None:
@@ -104,11 +108,25 @@ async def page_context(session: AsyncSession, proposals: list[Proposal]) -> Page
             if control_ids else []
         )
     }
+    item_mappings: dict[int, list[tuple[str, str]]] = {}
+    if item_ids:
+        rows = await session.execute(
+            select(Mapping.framework_item_id, Control.code, Mapping.strength)
+            .join(Control, Control.id == Mapping.control_id)
+            .where(Mapping.framework_item_id.in_(item_ids))
+            .order_by(Control.code)
+        )
+        for item_id, code, strength in rows:
+            item_mappings.setdefault(item_id, []).append(
+                (code, strength.value if hasattr(strength, "value") else str(strength))
+            )
+
     return PageContext(
         clauses=await clause_context(session, proposals),
         items=items,
         controls=controls,
         ocr_flagged=await service.ocr_flags(session, proposals),
+        item_mappings=item_mappings,
     )
 
 
@@ -147,6 +165,8 @@ def present(proposal: Proposal, limits: Thresholds, context: PageContext) -> Pro
         item = context.items.get(_int(payload.get("framework_item_id")))
         control = context.controls.get(_int(payload.get("control_id")))
         if item is not None and control is not None:
+            confirmed = context.item_mappings.get(item.id, [])
+            closing = {strength.value for strength in CLOSING}
             mapping = {
                 "framework_item": {
                     "id": item.id,
@@ -155,6 +175,15 @@ def present(proposal: Proposal, limits: Thresholds, context: PageContext) -> Pro
                     "description": item.description,
                 },
                 "control": _control_view(control),
+                "item_coverage": {
+                    # 已被 full/partial 关掉：再加一条不会改变覆盖度，
+                    # 而 supporting 连差距清单上的标记都不会新增。
+                    "closed": any(strength in closing for _, strength in confirmed),
+                    "confirmed": [
+                        {"control_code": code, "strength": strength}
+                        for code, strength in confirmed
+                    ],
+                },
             }
 
     relation: dict[str, Any] | None = None
