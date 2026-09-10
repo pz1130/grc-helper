@@ -99,3 +99,22 @@ test("relation cards show a payload textarea while editing", async ({ page }) =>
   await expect(card.getByRole("heading", { name: "Starting control · C-0001 Approval" })).toBeVisible();
   await expect(card.getByRole("heading", { name: "Ending control · C-0002 Implementation" })).toBeVisible();
 });
+
+test("a relation whose control was deleted still shows its payload and stays editable", async ({ page }) => {
+  await mockSession(page);
+  await page.route("**/api/proposals**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/proposals/stats") {
+      return route.fulfill({ json: { pending: 1, by_kind: { relation: 1 } } });
+    }
+    // 一端控制点被删：后端给不出 relation_context，卡片不能因此变成空白。
+    return route.fulfill({ json: [{ ...relationProposal, relation_context: null }] });
+  });
+  await page.goto("/review?kind=relation");
+  const card = page.locator("#proposal-31");
+  await expect(card.getByText("Depends on", { exact: true })).toBeVisible();
+  await expect(card.getByText(/no longer exists/)).toBeVisible();
+  await expect(card.getByText(/"from_quote": "Approved by the CAB"/)).toBeVisible();
+  await card.getByRole("button", { name: "Edit and accept" }).click();
+  await expect(card.getByLabel("Proposed content (JSON)")).toBeVisible();
+});

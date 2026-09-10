@@ -76,3 +76,51 @@ async def test_an_empty_library_reports_nothing_to_do(db_session):
     with patch("app.relations.indexing.current_model", new=AsyncMock(return_value="embo-01")):
         result = await embed_pending(db_session)
     assert result["embedded"] == 0 and result["pending"] == 0
+
+
+@pytest.mark.asyncio
+async def test_failure_leaves_earlier_batches_committed(db_session, monkeypatch):
+    """逐批落盘，与 indexing/embedder.py 同一条理由。
+
+    这个函数是在 HTTP 请求里跑的：不逐批提交，第 N 批的 ProviderError 会把前
+    N-1 批的向量、连同 embed() 在 finally 里写的 LLMCall 合规留痕一起回滚。
+    """
+    from app.llm.providers.base import ProviderError
+    from app.relations import indexing
+
+    monkeypatch.setattr(indexing, "BATCH_SIZE", 2)
+    await _controls(db_session, 5)
+    calls = {"n": 0}
+
+    async def flaky(session, *, texts):
+        calls["n"] += 1
+        if calls["n"] > 1:
+            raise ProviderError("上游返回 500", retryable=True)
+        return _vectors(len(texts))
+
+    with patch("app.relations.indexing.embed", new=AsyncMock(side_effect=flaky)), \
+         patch("app.relations.indexing.current_model", new=AsyncMock(return_value="embo-01")), \
+         pytest.raises(ProviderError):
+        await embed_pending(db_session)
+
+    done = list(await db_session.scalars(
+        select(ControlEmbedding).where(ControlEmbedding.embedding.is_not(None))
+    ))
+    assert len(done) == 2, "第一批已落盘，不该跟着回滚"
+
+
+@pytest.mark.asyncio
+async def test_the_default_limit_is_two_round_trips(db_session):
+    """默认值是给 HTTP 请求用的，不是给后台任务用的：剩下的靠再点一次。"""
+    from app.relations.indexing import BATCH_SIZE, DEFAULT_LIMIT
+
+    assert DEFAULT_LIMIT == BATCH_SIZE * 2
+
+    await _controls(db_session, DEFAULT_LIMIT + 3)
+    with patch("app.relations.indexing.embed",
+               new=AsyncMock(side_effect=lambda s, *, texts: _vectors(len(texts)))), \
+         patch("app.relations.indexing.current_model", new=AsyncMock(return_value="embo-01")):
+        result = await embed_pending(db_session)
+
+    assert result["embedded"] == DEFAULT_LIMIT
+    assert result["pending"] == 3, "响应要告诉前端还剩多少"

@@ -39,10 +39,22 @@ async def enqueue(function: str, *args: Any) -> str:
         await pool.close()
 
 
+# ARQ 读的是 Function.timeout_s——裸 coroutine 只吃得到下面的 job_timeout。
+# 逐批调 provider 的任务全都远超 15 分钟（M5 记录过一次映射跑了 51 分钟），
+# 裸注册等于每 15 分钟被杀一次，max_tries 用完就永远跑不完。它们都带检查点，
+# 所以真被杀了能续，但别让「能续」替「跑得完」背书。
+LONG_JOB_TIMEOUT = 7200
+
+
 class WorkerSettings:
     functions: ClassVar[list[Any]] = [
-        ping, parse_document, index_document, reindex_all, extract_controls, map_framework,
-        func(infer_relations, timeout=7200),  # ARQ 读 Function.timeout_s
+        ping,
+        parse_document,
+        index_document,
+        func(reindex_all, timeout=LONG_JOB_TIMEOUT),
+        func(extract_controls, timeout=LONG_JOB_TIMEOUT),
+        func(map_framework, timeout=LONG_JOB_TIMEOUT),
+        func(infer_relations, timeout=LONG_JOB_TIMEOUT),
     ]
     redis_settings = _redis_settings()
     max_jobs = 4

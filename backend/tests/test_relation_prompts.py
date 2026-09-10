@@ -25,10 +25,20 @@ def relation(**overrides):
     }
 
 
-def test_pairs_per_batch_lives_with_the_prompts():
-    from app.relations.prompts import PAIRS_PER_BATCH
+def test_the_batch_size_and_the_answer_cap_are_separate_quantities():
+    """两个都是 25，但一个是「一批并排几对」，一个是「一次回答封顶几条」。
+
+    批次大小属于候选生成，和 TOP_K / MAX_CLUSTER_SIZE 放在一起；回答上限属于
+    提示词，必须和 schema 的 maxItems 是同一个数，否则两处会各自漂移。
+    """
+    from app.relations.clustering import PAIRS_PER_BATCH
+    from app.relations.prompts import MAX_RELATIONS
 
     assert PAIRS_PER_BATCH == 25
+    assert MAX_RELATIONS == 25
+    assert RELATION_SCHEMA["properties"]["relations"]["maxItems"] == MAX_RELATIONS
+    for system in (DUPLICATE_SYSTEM, DEPENDS_SYSTEM):
+        assert f"at most {MAX_RELATIONS} relations" in system
 
 
 def test_neither_prompt_asks_the_model_to_choose_a_relation_type():

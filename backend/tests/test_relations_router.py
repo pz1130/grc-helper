@@ -1,5 +1,4 @@
 import pytest
-from sqlalchemy import select
 
 from app.controls.models import Control
 from app.iam.models import User

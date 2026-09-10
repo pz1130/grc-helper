@@ -68,3 +68,51 @@ async def test_abstention_cannot_accompany_relations():
 async def test_every_relation_is_checked_not_just_the_first():
     payload = {"relations": [relation(), relation(from_quote="fabricated")]}
     assert await validator().check(payload)
+
+
+def _pair_validator(allowed_pairs=None, control_ids=frozenset({1, 2, 3, 4})):
+    """四个控制点、两对候选：(1,2) 与 (3,4)。"""
+    session = SimpleNamespace(scalars=AsyncMock(return_value=[
+        SimpleNamespace(id=1, statement=FROM_TEXT),
+        SimpleNamespace(id=2, statement=TO_TEXT),
+        SimpleNamespace(id=3, statement=FROM_TEXT),
+        SimpleNamespace(id=4, statement=TO_TEXT),
+    ]))
+    return RelationCitationValidator(
+        session, control_ids=control_ids, allowed_pairs=allowed_pairs
+    )
+
+
+async def test_a_relation_across_two_different_candidate_pairs_is_rejected():
+    """闸 3 只查「两端都在本批次」时，25 对并排等于 50 个控制点随便连。
+
+    第 1 对的左边与第 2 对的右边从来不是相似度候选，也从未并排出现过；
+    只按批次成员判是查不出来的。
+    """
+    check = _pair_validator(allowed_pairs=[(1, 2), (3, 4)])
+    crossed = relation(from_control_id=1, to_control_id=4)
+    reason = await check.check({"relations": [crossed]})
+    assert reason is not None and "不是本批次并排给出的一对" in reason
+
+
+async def test_a_genuine_candidate_pair_still_passes():
+    check = _pair_validator(allowed_pairs=[(1, 2), (3, 4)])
+    assert await check.check({"relations": [relation()]}) is None
+
+
+async def test_the_pair_check_is_symmetric():
+    """候选对是无向的：给的是 (1, 2)，模型答 2→1 也算同一对。"""
+    check = _pair_validator(allowed_pairs=[(1, 2)])
+    mirrored = relation(
+        from_control_id=2, to_control_id=1,
+        from_quote="follow the approved implementation plan",
+        to_quote="approved by the CAB",
+    )
+    assert await check.check({"relations": [mirrored]}) is None
+
+
+async def test_without_candidate_pairs_batch_membership_is_all_that_is_checked():
+    """depends_on 是整簇一起判的，簇内任意两条都是合法组合，没有对可核。"""
+    check = _pair_validator(allowed_pairs=None)
+    crossed = relation(from_control_id=1, to_control_id=4)
+    assert await check.check({"relations": [crossed]}) is None

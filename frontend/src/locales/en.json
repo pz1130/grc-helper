@@ -149,16 +149,15 @@
     "quote": "Covered framework text"
   },
   "relations": {
-    "title": "Relation inference",
     "infer": "Run relation inference",
     "embed": "Backfill control embeddings",
     "duplicates": "Duplicates",
     "dependsOn": "Depends on",
     "from": "Starting control",
     "to": "Ending control",
-    "quote": "Supporting quote",
     "queued": "Relation inference queued ({{id}}).",
-    "embedded": "Embedded {{count}} control vectors."
+    "embedded": "Embedded {{count}} control vectors; {{pending}} still pending.",
+    "contextMissing": "One of the two controls no longer exists, so this relation cannot be shown side by side. The raw proposal is below."
   },
   "matrix": {
     "title": "Import an Excel control matrix",

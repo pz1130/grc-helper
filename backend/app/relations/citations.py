@@ -25,10 +25,19 @@ class RelationCitationValidator:
         *,
         control_ids: Collection[int],
         item_key: str = "relations",
+        allowed_pairs: Collection[Collection[int]] | None = None,
     ) -> None:
         self._session = session
         self._control_ids = frozenset(control_ids)
         self._item_key = item_key
+        # duplicates 通道一批并排 25 对、最多 50 个控制点。只查「两端都在本批次」
+        # 挡不住模型把第 1 对的左边和第 7 对的右边连起来——那两个控制点从来不是
+        # 相似度候选，也从未并排出现过。给了候选对就逐对查。
+        self._allowed_pairs = (
+            frozenset(frozenset(pair) for pair in allowed_pairs)
+            if allowed_pairs is not None
+            else None
+        )
 
     async def check(self, payload: dict[str, Any]) -> str | None:
         items = payload.get(self._item_key)
@@ -53,6 +62,12 @@ class RelationCitationValidator:
                     return f"控制点 {control_id} 一侧没有给出引文"
             if entry["from_control_id"] == entry["to_control_id"]:
                 return "关系的两端不能是同一个控制点"
+            ends = frozenset((entry["from_control_id"], entry["to_control_id"]))
+            if self._allowed_pairs is not None and ends not in self._allowed_pairs:
+                return (
+                    f"控制点 {entry['from_control_id']} 与 {entry['to_control_id']} "
+                    "不是本批次并排给出的一对"
+                )
             confidence = entry.get("confidence")
             if (
                 type(confidence) not in (int, float)

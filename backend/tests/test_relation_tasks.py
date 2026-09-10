@@ -12,7 +12,7 @@ from app.llm.runner import ValidatedResult
 from app.llm.validation import ValidationFailure
 from app.relations import tasks
 from app.relations.clustering import Cluster, Pair
-from app.worker import WorkerSettings
+from app.worker import LONG_JOB_TIMEOUT, WorkerSettings
 
 
 def relation(**overrides):
@@ -149,10 +149,68 @@ async def test_an_empty_control_library_refuses_to_run(harness, monkeypatch):
         await tasks.run_inference(harness.session)
 
 
-def test_infer_relations_is_registered_with_a_two_hour_timeout():
-    """ARQ 读 Function.timeout_s；挂在 coroutine 上的 timeout 属性是无效的。"""
+async def test_the_same_pair_in_two_overlapping_batches_is_proposed_once(harness, monkeypatch):
+    """章节簇是带重叠切分的，重叠区里的每一对会在两个批次各判一次。
+
+    不去重就是两条一模一样的待确认提案：审核者确认了第一条，第二条只会在
+    materialize 里撞 Conflict，只能手工拒绝。
+    """
+    monkeypatch.setattr(tasks, "duplicate_pairs", AsyncMock(return_value=[]))
+    monkeypatch.setattr(tasks, "section_clusters", AsyncMock(return_value=[
+        Cluster([1, 2], "doc1:Change #1"),
+        Cluster([2, 1], "doc1:Change #2"),      # 顺序不同，渲染与指纹都不同
+    ]))
+    summary = await tasks.run_inference(harness.session)
+
+    assert summary["batches"] == 2
+    assert summary["proposals"] == 1
+    assert summary["duplicate_relations"] == 1
+
+
+async def test_a_mirrored_duplicate_is_not_proposed_twice(harness, monkeypatch):
+    """duplicates 对称：1→2 与 2→1 是同一条，落库前才规范化就太晚了。"""
+    monkeypatch.setattr(tasks, "section_clusters", AsyncMock(return_value=[]))
+    monkeypatch.setattr(tasks, "run", AsyncMock(return_value=ValidatedResult(
+        {"relations": [relation(), relation(from_control_id=2, to_control_id=1)]}, 0.9, 10)))
+    summary = await tasks.run_inference(harness.session)
+
+    assert summary["proposals"] == 1
+    assert summary["duplicate_relations"] == 1
+
+
+async def test_opposite_directions_of_depends_on_are_both_kept(harness, monkeypatch):
+    """depends_on 有向：1→2 与 2→1 是两条不同的主张，不能当重复吃掉。"""
+    monkeypatch.setattr(tasks, "duplicate_pairs", AsyncMock(return_value=[]))
+    monkeypatch.setattr(tasks, "run", AsyncMock(return_value=ValidatedResult(
+        {"relations": [relation(), relation(from_control_id=2, to_control_id=1)]}, 0.9, 10)))
+    summary = await tasks.run_inference(harness.session)
+
+    assert summary["proposals"] == 2
+    assert summary["duplicate_relations"] == 0
+
+
+async def test_the_duplicates_channel_passes_its_candidate_pairs_to_gate_three(harness):
+    """一批 25 对、50 个控制点，闸 3 必须知道哪两个是并排给出的。"""
+    batches = await tasks._build_batches(harness.session)
+    duplicates = [b for b in batches if b.relation_type == "duplicates"]
+    depends = [b for b in batches if b.relation_type == "depends_on"]
+
+    assert duplicates and duplicates[0].allowed_pairs == (frozenset({1, 2}),)
+    assert depends and depends[0].allowed_pairs is None, "整簇一起判，没有对可核"
+
+
+
+@pytest.mark.parametrize(
+    "name", ["infer_relations", "map_framework", "extract_controls", "reindex_all"]
+)
+def test_every_batched_provider_task_declares_its_own_timeout(name):
+    """ARQ 读 Function.timeout_s；挂在 coroutine 上的 timeout 属性是无效的。
+
+    裸注册只吃得到 job_timeout=900，而这些任务逐批调 provider，M5 记录过一次
+    映射跑了 51 分钟——15 分钟被杀、max_tries 用完就永远跑不完。
+    """
     registered = next(
-        f for f in WorkerSettings.functions if getattr(f, "name", None) == "infer_relations"
+        f for f in WorkerSettings.functions if getattr(f, "name", None) == name
     )
-    assert registered.timeout_s == 7200
-    assert WorkerSettings.job_timeout == 900
+    assert registered.timeout_s == LONG_JOB_TIMEOUT
+    assert LONG_JOB_TIMEOUT > WorkerSettings.job_timeout == 900

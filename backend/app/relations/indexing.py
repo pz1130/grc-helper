@@ -15,13 +15,18 @@ from app.llm.runner import embed
 from app.relations.models import ControlEmbedding
 
 BATCH_SIZE = 64
+# 这个函数是在 HTTP 请求里同步跑的，不是后台任务。默认只做两批往返，剩下的
+# 靠再点一次——响应里的 pending 就是给前端显示「还剩多少」用的。
+DEFAULT_LIMIT = BATCH_SIZE * 2
 
 
 def render_control(control: Any) -> str:
     return f"{control.code} — {control.title}\n{control.statement or ''}"
 
 
-async def embed_pending(session: AsyncSession, *, limit: int = 500) -> dict[str, Any]:
+async def embed_pending(
+    session: AsyncSession, *, limit: int = DEFAULT_LIMIT
+) -> dict[str, Any]:
     """给尚无向量、或向量出自旧模型的控制点补算。幂等，可重复调用。"""
     model = await current_model(session)
     stale = (
@@ -63,6 +68,9 @@ async def embed_pending(session: AsyncSession, *, limit: int = 500) -> dict[str,
             row.embedding_model = model
             embedded += 1
         await session.flush()
+        # 逐批落盘，与 indexing/embedder.py 同一条理由：上游中途失败时，已完成
+        # 的批次不丢，embed() 在 finally 里写的 LLMCall 合规留痕也不跟着回滚。
+        await session.commit()
 
     pending = await session.scalar(
         select(func.count()).select_from(stale.subquery())

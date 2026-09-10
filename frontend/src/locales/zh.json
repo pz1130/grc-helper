@@ -149,16 +149,15 @@
     "quote": "被覆盖的条文"
   },
   "relations": {
-    "title": "关系推断",
     "infer": "运行关系推断",
     "embed": "补算控制点向量",
     "duplicates": "重复",
     "dependsOn": "依赖",
     "from": "起点控制点",
     "to": "终点控制点",
-    "quote": "支撑引文",
     "queued": "关系推断已入队（{{id}}）。",
-    "embedded": "已补算 {{count}} 条控制点向量。"
+    "embedded": "已补算 {{count}} 条控制点向量，还剩 {{pending}} 条。",
+    "contextMissing": "两端控制点之一已不存在，无法并排显示。下面是提案原文。"
   },
   "matrix": {
     "title": "导入 Excel 控制矩阵",

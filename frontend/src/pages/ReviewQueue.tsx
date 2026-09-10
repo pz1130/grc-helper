@@ -107,13 +107,28 @@ function RelationBody({
 }) {
   const { t } = useTranslation();
   const context = proposal.relation_context;
-  if (!context) return null;
   const payload = proposal.payload as Record<string, unknown>;
   const fromQuote = typeof payload.from_quote === "string" ? payload.from_quote : "";
   const toQuote = typeof payload.to_quote === "string" ? payload.to_quote : "";
-  const label = context.relation_type === "duplicates"
+  const relationType = context?.relation_type
+    ?? (typeof payload.relation_type === "string" ? payload.relation_type : "");
+  const label = relationType === "duplicates"
     ? t("relations.duplicates")
     : t("relations.dependsOn");
+  const editor = editing && <label style={{ display: "block", marginTop: 8 }}>{t("review.payload")}<textarea aria-label={t("review.payload")} rows={8} style={{ width: "100%", boxSizing: "border-box" }} value={draft} disabled={busy} onChange={(event) => onDraftChange(event.target.value)} /></label>;
+  // 一端控制点被删时后端给出的 relation_context 是 null，而这一支替换掉了整个
+  // 卡片主体。不兜底就只剩标题和三个按钮：审核者会对着看不见内容的提案按接受，
+  // 点「修改」也没有可编辑的东西——编辑框本身就在这个组件里。
+  if (!context) {
+    return (
+      <>
+        <p><strong>{label}</strong></p>
+        <p role="note" style={{ color: "#946000" }}>{t("relations.contextMissing")}</p>
+        <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: 13 }}>{JSON.stringify(proposal.payload, null, 2)}</pre>
+        {editor}
+      </>
+    );
+  }
   return (
     <>
       <p><strong>{label}</strong></p>
@@ -131,7 +146,7 @@ function RelationBody({
           </p>
         </section>
       </div>
-      {editing && <label style={{ display: "block", marginTop: 8 }}>{t("review.payload")}<textarea aria-label={t("review.payload")} rows={8} style={{ width: "100%", boxSizing: "border-box" }} value={draft} disabled={busy} onChange={(event) => onDraftChange(event.target.value)} /></label>}
+      {editor}
     </>
   );
 }
@@ -139,6 +154,9 @@ function RelationBody({
 export function ReviewQueue() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  // review:decide 与 control:write 目前落在同一组角色上（见 iam/permissions.py），
+  // 但它们是两个权限：裁定提案和触发推断是两件事，后端也是分开判的。
+  // 两个表达式相同是巧合，别合并成一个——哪天权限表改了，这里要能各自跟着改。
   const canDecide = user?.role === "admin" || user?.role === "grc_lead";
   const canWrite = user?.role === "admin" || user?.role === "grc_lead";
   const client = useQueryClient();
@@ -188,10 +206,10 @@ export function ReviewQueue() {
     onSuccess: (result) => setNotice(t("relations.queued", { id: result.job_id })),
   });
   const embedVectors = useMutation({
-    mutationFn: () => request<{ embedded: number }>("/api/relations/embed", { method: "POST" }),
+    mutationFn: () => request<{ embedded: number; pending: number }>("/api/relations/embed", { method: "POST" }),
     onMutate: () => { setError(""); setNotice(""); },
     onError: (e: Error) => setError(e.message),
-    onSuccess: (result) => setNotice(t("relations.embedded", { count: result.embedded })),
+    onSuccess: (result) => setNotice(t("relations.embedded", { count: result.embedded, pending: result.pending })),
   });
   const busy = decide.isPending || bulk.isPending || infer.isPending || embedVectors.isPending;
   function modify(id: number) {

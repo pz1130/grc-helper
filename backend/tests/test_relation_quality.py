@@ -55,8 +55,20 @@ async def test_relation_inference_produces_reviewable_output(capsys: Any) -> Non
                     Proposal.kind == ProposalKind.RELATION,
                 )
             ))
-            attempted = summary["attempted_batches"]
-            pass_rate = (attempted - summary["rejected"]) / attempted if attempted else 0.0
+            # 两个完全不同的量，别再混成一个。
+            # · 批次校验通过率（= M5 的 batch_validation_pass_rate）：模型有没有
+            #   吐出 schema 合法的 JSON。供应商故障不是质量信号，剔出分母。
+            # · 闸 4 通过率：吐出来的关系里，两端引文都逐字对得上的比例。闸 4 的
+            #   失败在 run_inference 里是逐条丢弃的，永远不会计进 rejected——
+            #   拿批次率冒充闸 4 率，等于这个门按它自己写的理由永远失败不了。
+            judged_batches = summary["attempted_batches"] - summary["failed"]
+            batch_pass_rate = (
+                (judged_batches - summary["rejected"]) / judged_batches
+                if judged_batches else 0.0
+            )
+            kept = summary["proposals"]
+            judged_relations = kept + summary["dropped_relations"]
+            gate4_pass_rate = kept / judged_relations if judged_relations else 0.0
 
             by_type: dict[str, list[dict[str, Any]]] = {}
             for proposal in proposals:
@@ -81,7 +93,10 @@ async def test_relation_inference_produces_reviewable_output(capsys: Any) -> Non
                 "rejected": summary["rejected"],
                 "failed": summary["failed"],
                 "dropped_relations": summary["dropped_relations"],
-                "citation_pass_rate": pass_rate,
+                "duplicate_relations": summary["duplicate_relations"],
+                "batch_validation_pass_rate": batch_pass_rate,
+                "gate4_citation_pass_rate": gate4_pass_rate,
+                "judged_relations": judged_relations,
                 "relations": {k: len(v) for k, v in by_type.items()},
                 "samples": by_type,
                 "precision": None,
@@ -94,14 +109,21 @@ async def test_relation_inference_produces_reviewable_output(capsys: Any) -> Non
             with capsys.disabled():
                 print(f"model={provider.model} controls={len(controls)} "
                       f"batches={summary['batches']}")
-                print(f"闸 4 通过率 = {pass_rate:.2f}  "
-                      f"（rejected {summary['rejected']} / failed {summary['failed']} / "
-                      f"逐条丢弃 {summary['dropped_relations']}）")
+                print(f"批次校验通过率 = {batch_pass_rate:.2f}  "
+                      f"（rejected {summary['rejected']} / failed {summary['failed']}）")
+                print(f"闸 4 通过率 = {gate4_pass_rate:.2f}  "
+                      f"（保留 {kept} / 逐条丢弃 {summary['dropped_relations']} / "
+                      f"本轮重复跳过 {summary['duplicate_relations']}）")
                 for relation_type, rows in by_type.items():
                     print(f"{relation_type}: {len(rows)} 条")
                 print("precision: pending human review（不由脚本推断）")
 
-            assert pass_rate >= TARGET_CITATION_PASS_RATE, (
-                f"闸 4 通过率 {pass_rate:.2f} < {TARGET_CITATION_PASS_RATE}")
+            # 一条关系都没产出时闸 4 无从谈起。这不是引文问题，但也不该被当成
+            # 通过悄悄放行——整轮空手而归本身就是要看的结果。
+            assert judged_relations > 0, (
+                f"整轮没有产出任何关系（{summary['batches']} 批，rejected "
+                f"{summary['rejected']}，failed {summary['failed']}），闸 4 无从评估")
+            assert gate4_pass_rate >= TARGET_CITATION_PASS_RATE, (
+                f"闸 4 通过率 {gate4_pass_rate:.2f} < {TARGET_CITATION_PASS_RATE}")
     finally:
         await engine.dispose()

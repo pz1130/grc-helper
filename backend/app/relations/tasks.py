@@ -8,6 +8,7 @@
 import hashlib
 import json
 import logging
+from dataclasses import dataclass, field
 from typing import Any
 
 from sqlalchemy import select, text
@@ -21,13 +22,13 @@ from app.llm.providers.base import ProviderError
 from app.llm.runner import run
 from app.llm.validation import ValidationFailure
 from app.relations.citations import RelationCitationValidator
-from app.relations.clustering import duplicate_pairs, section_clusters
+from app.relations.clustering import batch_pairs, duplicate_pairs, section_clusters
 from app.relations.prompts import (
     DEPENDS_SYSTEM,
     DUPLICATE_SYSTEM,
-    PAIRS_PER_BATCH,
     RELATION_SCHEMA,
     RELATION_TASK_KEY,
+    control_chars,
     render_cluster,
     render_pairs,
 )
@@ -36,6 +37,25 @@ from app.review.models import ProposalKind
 
 logger = logging.getLogger(__name__)
 CHECKPOINT_KEY = "_relation_inference"
+
+
+@dataclass(frozen=True)
+class Batch:
+    system: str
+    prompt: str
+    control_ids: list[int]
+    relation_type: str
+    # 仅 duplicates 通道有：这一批实际并排给出的候选对，供闸 3 逐对核。
+    # depends_on 是整簇一起判的，簇内任意两条都是合法组合，没有对可核。
+    allowed_pairs: tuple[frozenset[int], ...] | None = field(default=None)
+
+
+def relation_key(entry: dict[str, Any], relation_type: str) -> tuple[int, int, str]:
+    """一条关系的身份。duplicates 对称，与 materialize 用同一条规范化规则。"""
+    start, end = entry["from_control_id"], entry["to_control_id"]
+    if relation_type == RelationType.DUPLICATES.value:
+        start, end = min(start, end), max(start, end)
+    return start, end, relation_type
 
 
 def fingerprint(system: str, prompt: str, run_key: str | None) -> str:
@@ -62,29 +82,34 @@ async def _checkpoint(session: AsyncSession, key: str) -> LLMCall | None:
     )
 
 
-async def _build_batches(session: AsyncSession) -> list[tuple[str, str, list[int], str]]:
-    """产出 (system, prompt, control_ids, relation_type) 四元组。"""
+async def _build_batches(session: AsyncSession) -> list[Batch]:
     controls = {c.id: c for c in await session.scalars(select(Control).order_by(Control.id))}
     if not controls:
         raise AppError("控制点库为空，无法推断关系；请先在确认队列中确认控制点")
 
-    batches: list[tuple[str, str, list[int], str]] = []
+    # 字符预算按控制点在 prompt 里的实际渲染长度累加，两条通道共用同一把尺。
+    sizes = {control_id: control_chars(c) for control_id, c in controls.items()}
+    batches: list[Batch] = []
 
-    pairs = await duplicate_pairs(session)
-    for start in range(0, len(pairs), PAIRS_PER_BATCH):
-        window = pairs[start : start + PAIRS_PER_BATCH]
+    for window in batch_pairs(await duplicate_pairs(session), sizes=sizes):
         rendered = render_pairs(
             [(controls[p.low], controls[p.high], p.similarity) for p in window]
         )
-        ids = sorted({i for p in window for i in (p.low, p.high)})
-        batches.append((DUPLICATE_SYSTEM, rendered, ids, RelationType.DUPLICATES.value))
+        batches.append(Batch(
+            system=DUPLICATE_SYSTEM,
+            prompt=rendered,
+            control_ids=sorted({i for p in window for i in (p.low, p.high)}),
+            relation_type=RelationType.DUPLICATES.value,
+            allowed_pairs=tuple(frozenset((p.low, p.high)) for p in window),
+        ))
 
-    for cluster in await section_clusters(session):
-        rendered = render_cluster([controls[i] for i in cluster.control_ids])
-        batches.append(
-            (DEPENDS_SYSTEM, rendered, list(cluster.control_ids),
-             RelationType.DEPENDS_ON.value)
-        )
+    for cluster in await section_clusters(session, sizes=sizes):
+        batches.append(Batch(
+            system=DEPENDS_SYSTEM,
+            prompt=render_cluster([controls[i] for i in cluster.control_ids]),
+            control_ids=list(cluster.control_ids),
+            relation_type=RelationType.DEPENDS_ON.value,
+        ))
 
     if not batches:
         raise AppError("没有可推断的候选：控制点缺少向量或章节内不足两条")
@@ -101,6 +126,7 @@ async def run_inference(
         "rejected": 0,
         "failed": 0,
         "dropped_relations": 0,
+        "duplicate_relations": 0,
         "completed_batches": 0,
         "skipped_batches": 0,
         "attempted_batches": 0,
@@ -109,9 +135,14 @@ async def run_inference(
         "resumed_proposal_ids": [],
     }
 
-    for system, rendered, control_ids, relation_type in batches:
-        prompt = rendered + "\nOutput JSON Schema:\n" + json.dumps(RELATION_SCHEMA)
-        key = fingerprint(system, prompt, run_key)
+    # 章节簇是带重叠切分的，重叠区里的每一对会在两个批次各判一次；两条通道
+    # 之间也可能撞上同一对。不去重就会产出两条一模一样的待确认提案，审核者
+    # 确认了第一条，第二条只会在 materialize 里撞 Conflict，只能手工拒绝。
+    seen: set[tuple[int, int, str]] = set()
+
+    for batch in batches:
+        prompt = batch.prompt + "\nOutput JSON Schema:\n" + json.dumps(RELATION_SCHEMA)
+        key = fingerprint(batch.system, prompt, run_key)
         cached = await _checkpoint(session, key)
         resumed = (
             cached.redaction_hits[CHECKPOINT_KEY]["proposal_ids"]
@@ -125,7 +156,9 @@ async def run_inference(
             summary["resumed_proposal_ids"].extend(resumed)
             continue
 
-        validator = RelationCitationValidator(session, control_ids=control_ids)
+        validator = RelationCitationValidator(
+            session, control_ids=batch.control_ids, allowed_pairs=batch.allowed_pairs
+        )
         summary["attempted_batches"] += 1
         try:
             # 引用校验不进 run()：runner 只对 schema 失败做纠错重试，引用失败
@@ -133,7 +166,7 @@ async def run_inference(
             result = await run(
                 session,
                 task_key=RELATION_TASK_KEY,
-                system=system,
+                system=batch.system,
                 prompt=prompt,
                 schema=RELATION_SCHEMA,
             )
@@ -167,11 +200,22 @@ async def run_inference(
                     summary["dropped_relations"] += 1
             entries = kept
 
+        unique = []
+        for entry in entries:
+            marker = relation_key(entry, batch.relation_type)
+            if marker in seen:
+                logger.info("Skipped a relation already proposed this run: %s", marker)
+                summary["duplicate_relations"] += 1
+                continue
+            seen.add(marker)
+            unique.append(entry)
+        entries = unique
+
         ids: list[int] = []
         try:
             async with session.begin_nested():
                 for entry in entries:
-                    payload = {**entry, "relation_type": relation_type}
+                    payload = {**entry, "relation_type": batch.relation_type}
                     proposal = await review_service.create(
                         session,
                         kind=ProposalKind.RELATION,
