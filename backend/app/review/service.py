@@ -4,7 +4,7 @@ from enum import StrEnum
 from typing import Any
 
 from pydantic import ValidationError
-from sqlalchemy import or_, select
+from sqlalchemy import Integer, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,6 +17,13 @@ from app.ingest.models import Document
 from app.review import thresholds as thresholds_module
 from app.review.materialize import ControlPayload, lock_control_writes, materialize
 from app.review.models import Proposal, ProposalKind, ProposalStatus
+
+
+# 模型在 rationale 里自己写了否定表述，却仍把强度标成 full/partial 的那批。
+# 实测 281 条 partial 里 101 条命中，其中 25 条置信度仍在 0.75 以上——是最可能
+# 标错的一批。这是**关键词启发式**，不是判定：有些 does not 出现在无害的从句里。
+# 界面上必须如实标成「启发式」，别让人当成结论。
+RATIONALE_DOUBT = r"does not|doesn't|not specifically|no explicit|not address|lacks|absent"
 
 
 class Decision(StrEnum):
@@ -143,6 +150,8 @@ async def pending(
     kind: ProposalKind | None = None,
     document_id: int | None = None,
     strength: list[str] | None = None,
+    framework: str | None = None,
+    doubtful_rationale: bool = False,
     limit: int = 50,
 ) -> list[Proposal]:
     if not 1 <= limit <= 200:
@@ -161,6 +170,20 @@ async def pending(
         # 映射提案里只有 full/partial 影响覆盖度，supporting 不消除差距——
         # 审核 400 多条时，能只看影响结论的那些是刚需。
         stmt = stmt.where(Proposal.payload["strength"].astext.in_(strength))
+    if framework:
+        # 按框架筛：CSF 106 个要求项 vs 800-53 的 1014 个，两者的审阅回报差一个量级，
+        # 能只看一个框架是把 400 多条切成可做的量的最有效一刀。
+        from app.frameworks.models import Framework, FrameworkItem
+
+        stmt = stmt.where(
+            Proposal.payload["framework_item_id"].astext.cast(Integer).in_(
+                select(FrameworkItem.id)
+                .join(Framework, Framework.id == FrameworkItem.framework_id)
+                .where(Framework.key == framework)
+            )
+        )
+    if doubtful_rationale:
+        stmt = stmt.where(Proposal.payload["rationale"].astext.op("~*")(RATIONALE_DOUBT))
     return list(await session.scalars(stmt))
 
 

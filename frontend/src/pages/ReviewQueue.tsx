@@ -118,6 +118,17 @@ function draftValue(draft: string, key: string, fallback: string): string {
   }
 }
 
+/** 改一个筛选、保留其余。
+
+    此前每个筛选的 onChange 都是从零重建 query，切一个就把别的清空——
+    只有两个筛选时不易察觉，加到四个就会立刻显形。 */
+function withParam(current: URLSearchParams, key: string, value: string | string[]): URLSearchParams {
+  const next = new URLSearchParams(current);
+  next.delete(key);
+  for (const v of Array.isArray(value) ? value : [value]) if (v) next.append(key, v);
+  return next;
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -347,6 +358,8 @@ export function ReviewQueue() {
   const kind = params.get("kind") ?? "";
   const documentId = params.get("document_id") ?? "";
   const strength = params.getAll("strength");
+  const framework = params.get("framework") ?? "";
+  const doubtful = params.get("doubtful_rationale") === "1";
   const [selected, setSelected] = useState<number[]>([]);
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
@@ -356,15 +369,22 @@ export function ReviewQueue() {
   const [notice, setNotice] = useState("");
 
   const proposals = useQuery({
-    queryKey: ["proposals", kind, documentId, strength.join(",")],
+    queryKey: ["proposals", kind, documentId, strength.join(","), framework, doubtful],
     queryFn: () => {
       const query = new URLSearchParams({ limit: "200", ...(kind ? { kind } : {}), ...(documentId ? { document_id: documentId } : {}) });
       for (const value of strength) query.append("strength", value);
+      if (framework) query.set("framework", framework);
+      if (doubtful) query.set("doubtful_rationale", "true");
       return request<Proposal[]>(`/api/proposals?${query}`);
     },
     refetchInterval: 15000,
   });
 
+  const frameworks = useQuery({
+    queryKey: ["frameworks"],
+    queryFn: () => request<{ key: string; name_en: string }[]>("/api/frameworks"),
+    enabled: params.get("kind") === "mapping",
+  });
   const stats = useQuery({
     queryKey: ["proposal-stats"],
     queryFn: () => request<{ pending: number; by_kind: Record<string, number> }>("/api/proposals/stats"),
@@ -462,11 +482,18 @@ export function ReviewQueue() {
         <label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <span>{t("review.kind")}</span>
           <select
+            aria-label={t("review.kind")}
             value={kind}
             disabled={busy}
             onChange={(e) => {
               setSelected([]); setEditing(null); setRejecting(null);
-              setParams({ ...(documentId ? { document_id: documentId } : {}), ...(e.target.value ? { kind: e.target.value } : {}) });
+              // 换 kind 时清掉只对映射有意义的筛选：留着 strength 会让关系提案一条也筛不出来。
+              let next = withParam(params, "kind", e.target.value);
+              if (e.target.value !== "mapping") {
+                for (const key of ["strength", "framework", "doubtful_rationale"]) next.delete(key);
+                next = new URLSearchParams(next);
+              }
+              setParams(next);
             }}
             style={{ padding: "6px 28px 6px 12px" }}
           >
@@ -479,15 +506,51 @@ export function ReviewQueue() {
 
         {kind === "mapping" && (
           <label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <span>{t("review.framework")}</span>
+            <select
+              aria-label={t("review.framework")}
+              value={framework}
+              disabled={busy}
+              onChange={(e) => {
+                setSelected([]); setEditing(null); setRejecting(null);
+                setParams(withParam(params, "framework", e.target.value));
+              }}
+              style={{ padding: "6px 28px 6px 12px" }}
+            >
+              <option value="">{t("review.allFrameworks")}</option>
+              {(frameworks.data ?? []).map((f) => (
+                <option key={f.key} value={f.key}>{f.name_en || f.key}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {kind === "mapping" && (
+          <label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              aria-label={t("review.doubtful")}
+              checked={doubtful}
+              disabled={busy}
+              onChange={(e) => {
+                setSelected([]); setEditing(null); setRejecting(null);
+                setParams(withParam(params, "doubtful_rationale", e.target.checked ? "1" : ""));
+              }}
+            />
+            <span title={t("review.doubtfulHint")}>{t("review.doubtful")}</span>
+          </label>
+        )}
+
+        {kind === "mapping" && (
+          <label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <span>{t("review.strength")}</span>
             <select
+              aria-label={t("review.strength")}
               value={strength.join(",")}
               disabled={busy}
               onChange={(e) => {
                 setSelected([]); setEditing(null); setRejecting(null);
-                const next = new URLSearchParams({ ...(kind ? { kind } : {}), ...(documentId ? { document_id: documentId } : {}) });
-                for (const value of e.target.value ? e.target.value.split(",") : []) next.append("strength", value);
-                setParams(next);
+                setParams(withParam(params, "strength", e.target.value ? e.target.value.split(",") : []));
               }}
               style={{ padding: "6px 28px 6px 12px" }}
             >
@@ -505,7 +568,7 @@ export function ReviewQueue() {
         </button>
 
         {documentId && (
-          <button className="kn-btn-secondary kn-btn-sm" onClick={() => { setSelected([]); setParams(kind ? { kind } : {}); }}>
+          <button className="kn-btn-secondary kn-btn-sm" onClick={() => { setSelected([]); setParams(withParam(params, "document_id", "")); }}>
             {t("review.clearDocument")}
           </button>
         )}

@@ -243,3 +243,51 @@ test("each card kind says what it is claiming and what each column is", async ({
   await expect(page.locator("#proposal-27")).toContainText("the control being proposed");
   await expect(page.locator("#proposal-27")).toContainText("your own document");
 });
+
+test("filters compose instead of clearing each other", async ({ page }) => {
+  await mockSession(page);
+  // 每个筛选的 onChange 曾经从零重建 query，切一个就把别的清空。
+  // 只有两个筛选时不易察觉，加到四个必然显形。
+  const seen: string[] = [];
+  await page.route("**/api/frameworks", (route) => route.fulfill({
+    json: [{ id: 3, key: "nist-csf-2.0", name_zh: "CSF", name_en: "NIST CSF 2.0", version: "2.0", source: "nist.gov", item_count: 134, imported_at: "2026-09-09T00:00:00Z" }],
+  }));
+  await page.route("**/api/proposals/stats", (route) => route.fulfill({ json: { pending: 0, by_kind: { mapping: 0 } } }));
+  await page.route("**/api/proposals?**", (route) => {
+    seen.push(new URL(route.request().url()).search);
+    return route.fulfill({ json: [] });
+  });
+  await page.goto("/review?kind=mapping");
+
+  // exact 必需：卡片内的强度下拉框叫 "Mapping strength"，子串匹配会一并命中。
+  await page.getByLabel("Strength", { exact: true }).selectOption("full,partial");
+  await page.getByLabel("Framework", { exact: true }).selectOption("nist-csf-2.0");
+  await page.getByText("Reasoning hedges").click();
+
+  const last = seen[seen.length - 1];
+  expect(last).toContain("kind=mapping");
+  expect(last).toContain("strength=full");
+  expect(last).toContain("strength=partial");
+  expect(last).toContain("framework=nist-csf-2.0");
+  expect(last).toContain("doubtful_rationale=true");
+});
+
+test("switching away from mapping drops the mapping-only filters", async ({ page }) => {
+  await mockSession(page);
+  // strength 对关系提案没有意义，留着会让它一条也筛不出来。
+  const seen: string[] = [];
+  await page.route("**/api/frameworks", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/proposals/stats", (route) => route.fulfill({ json: { pending: 0, by_kind: { mapping: 0, relation: 0 } } }));
+  await page.route("**/api/proposals?**", (route) => {
+    seen.push(new URL(route.request().url()).search);
+    return route.fulfill({ json: [] });
+  });
+  await page.goto("/review?kind=mapping&strength=full&framework=nist-csf-2.0&doubtful_rationale=1");
+
+  await page.getByLabel("Proposal type").selectOption("relation");
+  const last = seen[seen.length - 1];
+  expect(last).toContain("kind=relation");
+  expect(last).not.toContain("strength=");
+  expect(last).not.toContain("framework=");
+  expect(last).not.toContain("doubtful_rationale=");
+});

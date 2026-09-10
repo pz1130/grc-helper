@@ -109,7 +109,11 @@
     "claimMapping": "左＝外部框架要求　右＝你的内部控制点。主张：该控制点{{strength}}这条要求。",
     "claimRelation": "两侧都是你的内部控制点。主张：二者构成「{{relation}}」关系。",
     "claimExtract": "左＝提议新建的控制点（模型撰写）　右＝它在你自己文档中的原文依据。请用右边核对左边。",
-    "claimGeneric": "左＝提议的内容　右＝它引用的依据。"
+    "claimGeneric": "左＝提议的内容　右＝它引用的依据。",
+    "framework": "框架",
+    "allFrameworks": "全部框架",
+    "doubtful": "理由含否定",
+    "doubtfulHint": "启发式：模型自己的理由里写了 does not / not specifically / lacks，强度却仍会消除差距。关键词匹配，不是判定。"
   },
   "controls": {
     "title": "控制点库",

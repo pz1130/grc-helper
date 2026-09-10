@@ -247,6 +247,8 @@ async def list_pending(
     kind: ProposalKind | None = None,
     document_id: int | None = Query(default=None, gt=0),
     strength: Annotated[list[MappingStrength] | None, Query()] = None,
+    framework: Annotated[str | None, Query(max_length=64)] = None,
+    doubtful_rationale: bool = False,
     limit: int = Query(default=50, ge=1, le=200),
     _: Annotated[User, Depends(require(Permission.READ))],
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -256,6 +258,8 @@ async def list_pending(
         kind=kind,
         document_id=document_id,
         strength=[value.value for value in strength] if strength else None,
+        framework=framework,
+        doubtful_rationale=doubtful_rationale,
         limit=limit,
     )
     limits = await load(session)

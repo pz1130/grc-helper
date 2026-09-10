@@ -234,3 +234,55 @@ async def test_a_control_with_no_recorded_source_reports_an_empty_list(client, d
     await _mapping_proposals(db_session, 1, tag="nosrc")
     body = (await client.get("/api/proposals?kind=mapping&limit=200", headers=headers)).json()
     assert body[0]["mapping_context"]["control"]["sources"] == []
+
+
+async def _mapping_in(db_session, fw_key: str, strength: str, rationale: str) -> None:
+    from app.frameworks.models import Framework
+
+    framework = Framework(key=fw_key, name_zh=fw_key, name_en=fw_key, version="1")
+    db_session.add(framework)
+    await db_session.flush()
+    item = FrameworkItem(framework_id=framework.id, code=f"{fw_key}-1", title="t",
+                         description="Requirement text.", level=1, order_index=1)
+    control = Control(code=f"C-{fw_key}", title="c", statement="s")
+    db_session.add_all([item, control])
+    await db_session.flush()
+    db_session.add(Proposal(
+        kind=ProposalKind.MAPPING, status=ProposalStatus.PENDING, confidence=0.7,
+        payload={"control_id": control.id, "framework_item_id": item.id, "strength": strength,
+                 "framework_item_quote": "Requirement text.", "rationale": rationale,
+                 "confidence": 0.7},
+        citations=[]))
+    await db_session.flush()
+
+
+@pytest.mark.asyncio
+async def test_filtering_by_framework_narrows_the_queue(client, db_session):
+    """CSF 106 个要求项 vs 800-53 的 1014 个，审阅回报差一个量级——
+    能只看一个框架，是把 400 多条切成可做的量最有效的一刀。"""
+    headers = await _auth(client, db_session)
+    await _mapping_in(db_session, "csf", "partial", "covers it")
+    await _mapping_in(db_session, "sp800", "partial", "covers it")
+
+    both = (await client.get("/api/proposals?kind=mapping&limit=200", headers=headers)).json()
+    only = (await client.get("/api/proposals?kind=mapping&framework=csf&limit=200",
+                             headers=headers)).json()
+
+    assert len(both) == 2
+    assert len(only) == 1
+    assert only[0]["mapping_context"]["framework_item"]["code"] == "csf-1"
+
+
+@pytest.mark.asyncio
+async def test_filtering_by_doubtful_rationale(client, db_session):
+    """模型自己写了「没有具体覆盖」却仍标 full/partial 的那批，最可能标错。"""
+    headers = await _auth(client, db_session)
+    await _mapping_in(db_session, "a", "partial", "The control fully covers this requirement.")
+    await _mapping_in(db_session, "b", "partial",
+                      "Related, but does not specifically address the scope element.")
+
+    rows = (await client.get(
+        "/api/proposals?kind=mapping&doubtful_rationale=true&limit=200", headers=headers)).json()
+
+    assert len(rows) == 1
+    assert "does not specifically address" in rows[0]["payload"]["rationale"]

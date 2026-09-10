@@ -29,3 +29,6 @@ samples/
 # eval 报告是机器产物：数值写进计划文档的验收记录，报告本身不入库。
 # 由 RELATION_REPORT_PATH / 同类环境变量按需生成。
 backend/relation-report.json
+
+# 审阅用的导出清单，同 relation-report.json：是查询产物，不入库。
+csf-flagged-mappings.md
