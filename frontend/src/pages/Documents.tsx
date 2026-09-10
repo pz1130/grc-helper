@@ -5,6 +5,16 @@ import { Link } from "react-router-dom";
 
 import { getToken, request } from "../api";
 
+interface Coverage {
+  document_id: number;
+  clauses: number;
+  normative_clauses: number;
+  controls: number;
+  proposals: number;
+  uncovered_normative: number;
+  never_extracted: boolean;
+}
+
 interface Doc {
   id: number;
   title: string;
@@ -22,6 +32,32 @@ interface Doc {
 
 const IN_FLIGHT = new Set(["uploaded", "parsing"]);
 
+/** 抽取盲区那一格。没有数据时留空，不猜。 */
+function ExtractionCell({ row }: { row?: Coverage }) {
+  const { t } = useTranslation();
+  if (!row) return <td>—</td>;
+  if (row.never_extracted) {
+    return (
+      <td>
+        <span className="kn-badge kn-badge-danger" title={t("documents.neverExtractedHint")}>
+          {t("documents.neverExtracted")}
+        </span>
+      </td>
+    );
+  }
+  return (
+    <td style={{ fontSize: "0.8125rem" }}>
+      <div>{t("documents.controlCount", { count: row.controls })}</div>
+      {row.uncovered_normative > 0 && (
+        <div style={{ color: "var(--accent-amber)" }}
+             title={t("documents.uncoveredHint")}>
+          {t("documents.uncovered", { count: row.uncovered_normative })}
+        </div>
+      )}
+    </td>
+  );
+}
+
 export function Documents() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -38,6 +74,12 @@ export function Documents() {
       (query.state.data ?? []).some((document) => IN_FLIGHT.has(document.status))
         ? 3000
         : false,
+  });
+  // 语料盲区：文档传了没抽取、规范条款没产出控制点。两者都是静默的——
+  // 不显示出来，界面上没有任何地方会提示。
+  const coverage = useQuery({
+    queryKey: ["document-coverage"],
+    queryFn: () => request<Coverage[]>("/api/documents/coverage"),
   });
 
   async function uploadOne(file: File): Promise<void> {
@@ -163,6 +205,7 @@ export function Documents() {
               <th>{t("documents.owner")}</th>
               <th>{t("documents.effective")}</th>
               <th>{t("documents.review")}</th>
+              <th title={t("documents.blindSpotHint")}>{t("documents.extraction")}</th>
               <th style={{ textAlign: "right" }}>Actions</th>
             </tr>
           </thead>
@@ -241,6 +284,7 @@ export function Documents() {
                   <td style={{ color: isOverdue ? "var(--accent-ruby)" : undefined, fontWeight: isOverdue ? 600 : undefined }}>
                     {document.review_due_date ?? "—"}
                   </td>
+                  <ExtractionCell row={(coverage.data ?? []).find((c) => c.document_id === document.id)} />
                   <td style={{ textAlign: "right" }}>
                     <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
                       <button

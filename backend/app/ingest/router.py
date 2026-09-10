@@ -13,8 +13,14 @@ from app.iam.audit import record
 from app.iam.deps import require
 from app.iam.models import User
 from app.iam.permissions import Permission
+from app.ingest.coverage import document_coverage, uncovered_clauses
 from app.ingest.models import DocStatus, DocType, Document
-from app.ingest.schemas import DocumentOut, PlainTextIn
+from app.ingest.schemas import (
+    DocumentCoverageOut,
+    DocumentOut,
+    PlainTextIn,
+    UncoveredClauseOut,
+)
 from app.ingest.service import find_by_hash
 from app.ingest.storage import ALLOWED_EXTENSIONS, sha256_of
 from app.worker import enqueue
@@ -89,6 +95,32 @@ async def list_documents(
     if doc_type:
         statement = statement.where(Document.doc_type == doc_type)
     return list(await session.scalars(statement))
+
+
+@router.get("/coverage", response_model=list[DocumentCoverageOut])
+async def coverage(
+    _: User = Depends(require(Permission.READ)),
+    session: AsyncSession = Depends(get_session),
+) -> list[DocumentCoverageOut]:
+    """你自己的制度里，有多少要求还没变成控制点。
+
+    与框架覆盖度方向相反：那个问「外部要求有没有被满足」，这个问「我们写下的
+    要求有没有被系统看见」。两种盲区都是静默的——不扫就没有任何地方会提示。
+    """
+    return [
+        DocumentCoverageOut(**{**row.__dict__, "never_extracted": row.never_extracted})
+        for row in await document_coverage(session)
+    ]
+
+
+@router.get("/{document_id}/uncovered", response_model=list[UncoveredClauseOut])
+async def uncovered(
+    document_id: int,
+    _: User = Depends(require(Permission.READ)),
+    session: AsyncSession = Depends(get_session),
+) -> list[UncoveredClauseOut]:
+    return [UncoveredClauseOut(**row.__dict__)
+            for row in await uncovered_clauses(session, document_id)]
 
 
 @router.get("/{document_id}", response_model=DocumentOut)

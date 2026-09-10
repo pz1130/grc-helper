@@ -44,7 +44,14 @@
     "failed": "解析失败",
     "pasteText": "粘贴纯文本",
     "reparse": "重新解析",
-    "pasteHint": "解析失败时的兜底：把原文粘进来，按编号切条款"
+    "pasteHint": "解析失败时的兜底：把原文粘进来，按编号切条款",
+    "extraction": "已抽取控制点",
+    "neverExtracted": "从未抽取",
+    "neverExtractedHint": "这份文档从未产生过任何抽取提案——不是「抽了但被拒」，是根本没跑过。它里面的内容一条都不在控制点库里。",
+    "controlCount": "{{count}} 个控制点",
+    "uncovered": "{{count}} 条规范条款无控制点",
+    "uncoveredHint": "启发式：含 shall / must / should 却没有任何控制点引用的条款。会误报（范围声明）也会漏报（表格用行列表达义务，不含情态词）。",
+    "blindSpotHint": "你自己的文档有没有被变成控制点。与框架覆盖度方向相反。"
   },
   "search": {
     "title": "检索",

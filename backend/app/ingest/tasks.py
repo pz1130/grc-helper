@@ -34,7 +34,7 @@ async def run_parse(session: AsyncSession, document: Document) -> dict[str, Any]
         document.parse_error = exc.reason
         await session.flush()
         raise
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         document.status = DocStatus.PARSE_FAILED
         document.parse_error = f"解析时发生未预期的错误：{type(exc).__name__}: {exc}"
         await session.flush()

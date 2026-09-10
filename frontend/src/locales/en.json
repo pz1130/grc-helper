@@ -44,7 +44,14 @@
     "failed": "Parse failed",
     "pasteText": "Paste plain text",
     "reparse": "Re-parse",
-    "pasteHint": "Fallback when parsing fails: paste the text, clauses are split by numbering"
+    "pasteHint": "Fallback when parsing fails: paste the text, clauses are split by numbering",
+    "extraction": "Controls extracted",
+    "neverExtracted": "Never extracted",
+    "neverExtractedHint": "This document has never produced a single extraction proposal — not “proposed and rejected”, but never run. Nothing in it is in the control library.",
+    "controlCount": "{{count}} controls",
+    "uncovered": "{{count}} normative clauses with no control",
+    "uncoveredHint": "Heuristic: clauses containing shall / must / should that no control cites. It over-reports (scope statements) and under-reports (tables carry obligations without modal verbs).",
+    "blindSpotHint": "Whether your own documents have been turned into controls. The opposite direction from framework coverage."
   },
   "search": {
     "title": "Search",

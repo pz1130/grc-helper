@@ -291,3 +291,34 @@ test("switching away from mapping drops the mapping-only filters", async ({ page
   expect(last).not.toContain("framework=");
   expect(last).not.toContain("doubtful_rationale=");
 });
+
+test("the documents page calls out corpus blind spots", async ({ page }) => {
+  await mockSession(page);
+  // 两种盲区都是静默的：文档传了没抽取、规范条款没产出控制点。
+  // 不显示出来，界面上没有任何地方会提示。
+  const docs = [1, 2, 3].map((id) => ({
+    id, title: `Doc ${id}`, doc_type: "procedure", status: "active", version: null,
+    owner: null, approver: null, approved_date: null, effective_date: null,
+    review_due_date: null, original_filename: `${id}.pdf`, parse_error: null,
+  }));
+  // 一个 handler 按 pathname 分派：分开注册时 "**/api/documents" 会把
+  // "/api/documents/coverage" 之外的列表请求一并兜掉，顺序还依赖注册次序。
+  await page.route("**/api/documents**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/documents/coverage") {
+      return route.fulfill({ json: [
+        { document_id: 1, clauses: 19, normative_clauses: 9, controls: 0, proposals: 0, uncovered_normative: 9, never_extracted: true },
+        { document_id: 2, clauses: 37, normative_clauses: 22, controls: 54, proposals: 59, uncovered_normative: 11, never_extracted: false },
+        { document_id: 3, clauses: 21, normative_clauses: 1, controls: 16, proposals: 16, uncovered_normative: 0, never_extracted: false },
+      ] });
+    }
+    return route.fulfill({ json: docs });
+  });
+  await page.goto("/documents");
+
+  await expect(page.getByText("Never extracted")).toBeVisible();
+  await expect(page.getByText("54 controls")).toBeVisible();
+  await expect(page.getByText("11 normative clauses with no control")).toBeVisible();
+  // 完全覆盖的那份不该出现警示
+  await expect(page.getByText("0 normative clauses with no control")).toHaveCount(0);
+});
