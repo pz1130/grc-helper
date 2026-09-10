@@ -95,45 +95,154 @@ export function Frameworks() {
   const busy = validate.isPending || importFramework.isPending;
   const metadataReady = Boolean(file && key.trim() && nameZh.trim() && nameEn.trim() && version.trim());
 
-  return <section>
-    <h2>{t("frameworks.title")}</h2>
-    {frameworks.isPending && <p role="status">{t("common.loading")}</p>}
-    {frameworks.error && <p role="alert">{frameworks.error.message}</p>}
-    {frameworks.data && frameworks.data.length === 0 && <p>{t("common.empty")}</p>}
-    {!!frameworks.data?.length && <table>
-      <thead><tr><th>{t("frameworks.name")}</th><th>{t("frameworks.key")}</th><th>{t("frameworks.version")}</th><th>{t("frameworks.items")}</th></tr></thead>
-      <tbody>{frameworks.data.map((framework) => <tr key={framework.id}>
-        <td><Link to={`/frameworks/${framework.id}`}>{framework.name_zh}</Link></td>
-        <td><code>{framework.key}</code></td>
-        <td>{framework.version}</td>
-        <td>{framework.item_count}</td>
-      </tr>)}</tbody>
-    </table>}
+  return (
+    <section>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 20 }}>
+        <div>
+          <h2>{t("frameworks.title")}</h2>
+          <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+            External Standards, Regulatory Baselines & Compliance Mapping Hub
+          </p>
+        </div>
+      </div>
 
-    {canWrite && <details open style={{ border: "1px solid #e5e5e5", borderRadius: 6, padding: 12, marginTop: 20 }}>
-      <summary>{t("frameworks.import")}</summary>
-      <p style={{ color: "#666" }}>{t("frameworks.importHint")}</p>
-      <label>{t("frameworks.file")} <input type="file" accept=".xlsx" disabled={busy} onChange={(event) => {
-        setFile(event.target.files?.[0] ?? null); setValidation(null); setError(""); setNotice("");
-      }} /></label>
-      <div style={{ display: "grid", gap: 8, maxWidth: 520, marginTop: 12 }}>
-        <label>{t("frameworks.key")} <input value={key} disabled={busy} onChange={(event) => setKey(event.target.value)} /></label>
-        <label>{t("frameworks.nameZh")} <input value={nameZh} disabled={busy} onChange={(event) => setNameZh(event.target.value)} /></label>
-        <label>{t("frameworks.nameEn")} <input value={nameEn} disabled={busy} onChange={(event) => setNameEn(event.target.value)} /></label>
-        <label>{t("frameworks.version")} <input value={version} disabled={busy} onChange={(event) => setVersion(event.target.value)} /></label>
-        <label>{t("frameworks.source")} <input value={source} disabled={busy} onChange={(event) => setSource(event.target.value)} /></label>
-      </div>
-      <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-        <button disabled={!file || busy} onClick={() => validate.mutate()}>{t("frameworks.validate")}</button>
-        <button disabled={!validation?.ok || !metadataReady || busy} onClick={() => importFramework.mutate()}>{t("frameworks.confirmImport")}</button>
-      </div>
-      {busy && <p role="status">{t("common.loading")}</p>}
-      {error && <p role="alert">{error}</p>}
-      {notice && <p role="status">{notice}</p>}
-      {validation && <div role={validation.ok ? "status" : "alert"}>
-        <p>{t("frameworks.report")} · {validation.items} {t("frameworks.items")}</p>
-        {validation.report.length > 0 && <ul>{validation.report.map((line, index) => <li key={index}>{line}</li>)}</ul>}
-      </div>}
-    </details>}
-  </section>;
+      {frameworks.isPending && <p role="status">{t("common.loading")}</p>}
+      {frameworks.error && <p role="alert"><span>⚠️</span> {frameworks.error.message}</p>}
+      {frameworks.data && frameworks.data.length === 0 && (
+        <div className="kn-card" style={{ textAlign: "center", padding: "40px 20px", marginBottom: 20 }}>
+          <p style={{ color: "var(--text-secondary)", margin: 0 }}>{t("common.empty")}</p>
+        </div>
+      )}
+
+      {!!frameworks.data?.length && (
+        <div className="kn-table-container" style={{ marginBottom: 24 }}>
+          <table>
+            <thead>
+              <tr>
+                <th>{t("frameworks.name")}</th>
+                <th>{t("frameworks.key")}</th>
+                <th>{t("frameworks.version")}</th>
+                <th>{t("frameworks.items")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {frameworks.data.map((framework) => (
+                <tr key={framework.id}>
+                  <td>
+                    <Link
+                      to={`/frameworks/${framework.id}`}
+                      style={{ fontWeight: 600, color: "var(--text-primary)" }}
+                    >
+                      {framework.name_zh}
+                    </Link>
+                    <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>
+                      {framework.name_en}
+                    </div>
+                  </td>
+                  <td>
+                    <code>{framework.key}</code>
+                  </td>
+                  <td>
+                    <span className="kn-badge">{framework.version}</span>
+                  </td>
+                  <td>
+                    <span className="kn-badge kn-badge-blue">
+                      {framework.item_count} {t("frameworks.items")}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {canWrite && (
+        <details className="kn-card" open style={{ marginTop: 24 }}>
+          <summary style={{ fontSize: "1rem", color: "var(--text-primary)" }}>
+            {t("frameworks.import")}
+          </summary>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", margin: "8px 0 16px 0" }}>
+            {t("frameworks.importHint")}
+          </p>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <span>{t("frameworks.file")}</span>
+              <input
+                type="file"
+                accept=".xlsx"
+                disabled={busy}
+                onChange={(event) => {
+                  setFile(event.target.files?.[0] ?? null);
+                  setValidation(null);
+                  setError("");
+                  setNotice("");
+                }}
+              />
+            </label>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14, maxWidth: 680, marginBottom: 18 }}>
+            <label>
+              {t("frameworks.key")}
+              <input value={key} disabled={busy} onChange={(event) => setKey(event.target.value)} />
+            </label>
+            <label>
+              {t("frameworks.nameZh")}
+              <input value={nameZh} disabled={busy} onChange={(event) => setNameZh(event.target.value)} />
+            </label>
+            <label>
+              {t("frameworks.nameEn")}
+              <input value={nameEn} disabled={busy} onChange={(event) => setNameEn(event.target.value)} />
+            </label>
+            <label>
+              {t("frameworks.version")}
+              <input value={version} disabled={busy} onChange={(event) => setVersion(event.target.value)} />
+            </label>
+            <label style={{ gridColumn: "1 / -1" }}>
+              {t("frameworks.source")}
+              <input value={source} disabled={busy} onChange={(event) => setSource(event.target.value)} />
+            </label>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+            <button
+              className="kn-btn-secondary kn-btn-sm"
+              disabled={!file || busy}
+              onClick={() => validate.mutate()}
+            >
+              {t("frameworks.validate")}
+            </button>
+            <button
+              className="kn-btn-primary kn-btn-sm"
+              disabled={!validation?.ok || !metadataReady || busy}
+              onClick={() => importFramework.mutate()}
+            >
+              {t("frameworks.confirmImport")}
+            </button>
+          </div>
+
+          {busy && <p role="status">{t("common.loading")}</p>}
+          {error && <p role="alert"><span>⚠️</span> {error}</p>}
+          {notice && <p role="status">{notice}</p>}
+
+          {validation && (
+            <div role={validation.ok ? "status" : "alert"} style={{ marginTop: 14 }}>
+              <p style={{ margin: "0 0 6px 0", fontWeight: 600 }}>
+                {t("frameworks.report")} · {validation.items} {t("frameworks.items")}
+              </p>
+              {validation.report.length > 0 && (
+                <ul style={{ paddingLeft: 18, margin: 0, fontSize: "0.8125rem" }}>
+                  {validation.report.map((line, index) => (
+                    <li key={index}>{line}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </details>
+      )}
+    </section>
+  );
 }

@@ -49,47 +49,186 @@ export function FrameworkDetail() {
   });
   const current = framework.data?.find((item) => String(item.id) === id);
 
-  return <section>
-    <p><Link to="/frameworks">← {t("frameworks.title")}</Link></p>
-    <h2>{current?.name_zh ?? id} {current && <small>· {current.version}</small>}</h2>
-    {canWrite && <button disabled={runMapping.isPending} onClick={() => runMapping.mutate()}>{t("frameworks.runMapping")}</button>}
-    {runMapping.isPending && <p role="status">{t("common.loading")}</p>}
-    {runMapping.error && <p role="alert">{runMapping.error.message}</p>}
-    {runMapping.data && <p role="status">{t("frameworks.mappingQueued", { id: runMapping.data.job_id })}</p>}
+  return (
+    <section>
+      <p style={{ marginBottom: 16 }}>
+        <Link to="/frameworks" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: "0.875rem" }}>
+          ← {t("frameworks.title")}
+        </Link>
+      </p>
 
-    <h3>{t("frameworks.tree")}</h3>
-    {tree.isPending && <p role="status">{t("common.loading")}</p>}
-    {tree.error && <p role="alert">{tree.error.message}</p>}
-    <ul>{tree.data?.map((item) => <li key={item.id} style={{ marginLeft: Math.max(0, item.level - 1) * 20 }}>
-      <code>{item.code}</code> {item.title}
-      {item.description && <span style={{ color: "#666" }}> — {item.description}</span>}
-    </li>)}</ul>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
+        <div>
+          <h2>
+            {current?.name_zh ?? id}
+            {current && <small style={{ color: "var(--text-secondary)", fontSize: "1.0625rem", marginLeft: 8 }}>· {current.version}</small>}
+          </h2>
+          {current?.name_en && (
+            <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+              {current.name_en} · Source: {current.source}
+            </p>
+          )}
+        </div>
 
-    <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 24 }}>
-      <h3 style={{ margin: 0 }}>{t("frameworks.coverage")}</h3>
-      <label>{t("frameworks.baseline")} <select value={baseline} onChange={(event) => setBaseline(event.target.value)}>
-        <option value="">{t("frameworks.baselineAll")}</option>
-        <option value="low">low</option><option value="moderate">moderate</option><option value="high">high</option>
-      </select></label>
-    </div>
-    {coverage.isPending && <p role="status">{t("common.loading")}</p>}
-    {coverage.error && <p role="alert">{coverage.error.message}</p>}
-    <div style={{ overflowX: "auto" }}><table>
-      <thead><tr><th>{t("frameworks.item")}</th><th>{t("frameworks.coverage")}</th></tr></thead>
-      <tbody>{coverage.data?.map((row) => {
-        const ratio = row.requirements ? row.covered / row.requirements : null;
-        const color = ratio === null ? undefined : ratio >= 1 ? "#d8f3dc" : ratio > 0 ? "#fff3bf" : "#ffd6d6";
-        return <tr key={row.item_id}><td style={{ paddingLeft: Math.max(0, row.level - 1) * 16 }}><code>{row.code}</code> {row.title}</td><td style={{ background: color }}>{row.covered} / {row.requirements}</td></tr>;
-      })}</tbody>
-    </table></div>
+        {canWrite && (
+          <button
+            className="kn-btn-primary"
+            disabled={runMapping.isPending}
+            onClick={() => runMapping.mutate()}
+          >
+            {t("frameworks.runMapping")}
+          </button>
+        )}
+      </div>
 
-    <h3 style={{ marginTop: 24 }}>{t("frameworks.gaps")}</h3>
-    {gaps.isPending && <p role="status">{t("common.loading")}</p>}
-    {gaps.error && <p role="alert">{gaps.error.message}</p>}
-    {gaps.data?.length === 0 && <p>{t("common.empty")}</p>}
-    <ul>{gaps.data?.map((gap) => <li key={gap.item_id}>
-      <code>{gap.code}</code> {gap.title}
-      {gap.has_supporting && <small style={{ marginLeft: 8, color: "#946000" }}>{t("frameworks.hasSupporting")}</small>}
-    </li>)}</ul>
-  </section>;
+      {runMapping.isPending && <p role="status">{t("common.loading")}</p>}
+      {runMapping.error && <p role="alert"><span>⚠️</span> {runMapping.error.message}</p>}
+      {runMapping.data && <p role="status">{t("frameworks.mappingQueued", { id: runMapping.data.job_id })}</p>}
+
+      {/* Coverage & Gap Analysis Section */}
+      <div className="kn-card" style={{ marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
+          <h3 style={{ margin: 0 }}>{t("frameworks.coverage")}</h3>
+          <label style={{ flexDirection: "row", alignItems: "center", gap: 8, margin: 0 }}>
+            <span>{t("frameworks.baseline")}</span>
+            <select
+              value={baseline}
+              onChange={(event) => setBaseline(event.target.value)}
+              style={{ padding: "5px 28px 5px 12px" }}
+            >
+              <option value="">{t("frameworks.baselineAll")}</option>
+              <option value="low">low</option>
+              <option value="moderate">moderate</option>
+              <option value="high">high</option>
+            </select>
+          </label>
+        </div>
+
+        {coverage.isPending && <p role="status">{t("common.loading")}</p>}
+        {coverage.error && <p role="alert"><span>⚠️</span> {coverage.error.message}</p>}
+
+        <div className="kn-table-container" style={{ margin: 0 }}>
+          <table>
+            <thead>
+              <tr>
+                <th>{t("frameworks.item")}</th>
+                <th>{t("frameworks.coverage")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {coverage.data?.map((row) => {
+                const ratio = row.requirements ? row.covered / row.requirements : null;
+                const badgeClass =
+                  ratio === null
+                    ? ""
+                    : ratio >= 1
+                    ? "kn-badge-emerald"
+                    : ratio > 0
+                    ? "kn-badge-amber"
+                    : "kn-badge-ruby";
+
+                return (
+                  <tr key={row.item_id}>
+                    <td style={{ paddingLeft: 18 + Math.max(0, row.level - 1) * 20 }}>
+                      <code style={{ marginRight: 8 }}>{row.code}</code>
+                      <span style={{ fontWeight: row.level === 1 ? 600 : 400 }}>{row.title}</span>
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <span className={`kn-badge ${badgeClass}`}>
+                          {row.covered} / {row.requirements}
+                        </span>
+                        {ratio !== null && (
+                          <div style={{ width: 90 }}>
+                            <div className="kn-progress-bar">
+                              <div
+                                className="kn-progress-fill"
+                                style={{
+                                  width: `${Math.round(ratio * 100)}%`,
+                                  background:
+                                    ratio >= 1
+                                      ? "var(--accent-emerald)"
+                                      : ratio > 0
+                                      ? "var(--accent-amber)"
+                                      : "var(--accent-ruby)",
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Gaps Checklist */}
+      <div className="kn-card" style={{ marginBottom: 24 }}>
+        <h3 style={{ margin: "0 0 14px 0" }}>{t("frameworks.gaps")}</h3>
+        {gaps.isPending && <p role="status">{t("common.loading")}</p>}
+        {gaps.error && <p role="alert"><span>⚠️</span> {gaps.error.message}</p>}
+        {gaps.data?.length === 0 && (
+          <p style={{ color: "var(--accent-emerald)", margin: 0 }}>✓ {t("common.empty")}</p>
+        )}
+        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {gaps.data?.map((gap) => (
+            <li
+              key={gap.item_id}
+              style={{
+                padding: "10px 14px",
+                background: "var(--stage-card-subtle)",
+                borderRadius: "var(--radius-sm)",
+                marginBottom: 8,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <span className="kn-badge kn-badge-ruby">GAP</span>
+              <code>{gap.code}</code>
+              <span style={{ color: "var(--text-primary)" }}>{gap.title}</span>
+              {gap.has_supporting && (
+                <small style={{ marginLeft: "auto", color: "var(--accent-amber)" }}>
+                  {t("frameworks.hasSupporting")}
+                </small>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Framework Tree */}
+      <div className="kn-card">
+        <h3 style={{ margin: "0 0 14px 0" }}>{t("frameworks.tree")}</h3>
+        {tree.isPending && <p role="status">{t("common.loading")}</p>}
+        {tree.error && <p role="alert"><span>⚠️</span> {tree.error.message}</p>}
+        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          {tree.data?.map((item) => (
+            <li
+              key={item.id}
+              style={{
+                paddingLeft: Math.max(0, item.level - 1) * 20,
+                paddingTop: 6,
+                paddingBottom: 6,
+                borderLeft: item.level > 1 ? "1px solid var(--stage-border-subtle)" : undefined,
+                marginLeft: item.level > 1 ? 8 : 0,
+              }}
+            >
+              <code style={{ marginRight: 8 }}>{item.code}</code>
+              <span style={{ fontWeight: item.level === 1 ? 600 : 400 }}>{item.title}</span>
+              {item.description && (
+                <span style={{ color: "var(--text-tertiary)", fontSize: "0.8125rem", marginLeft: 8 }}>
+                  — {item.description}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
 }

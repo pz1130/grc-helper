@@ -108,103 +108,141 @@ export function Providers() {
 
   return (
     <div>
-      <h3>{t("settings.providers")}</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>name</th>
-            <th>kind</th>
-            <th>model</th>
-            <th>api key</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {providers.data?.map((p) => (
-            <tr key={p.id}>
-              <td>
-                {p.name}
-                {p.is_fallback && " (fallback)"}
-              </td>
-              <td>{p.kind}</td>
-              <td>{p.model}</td>
-              <td>
-                <code>{p.api_key_masked}</code>
-              </td>
-              <td>
-                <button onClick={() => void testConnection(p.id)}>{t("common.test")}</button>
-                {probe[p.id]}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <h4>{t("common.add")}</h4>
-      <form onSubmit={submit} style={{ display: "grid", gap: 8, maxWidth: 420 }}>
-        <input
-          placeholder="name"
-          value={form.name}
-          required
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-        />
-        <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-          {KINDS.map((k) => (
-            <option key={k} value={k}>
-              {k}
-            </option>
-          ))}
-        </select>
-        <input
-          placeholder="model"
-          value={form.model}
-          required
-          onChange={(e) => setForm({ ...form, model: e.target.value })}
-        />
-        <input
-          placeholder="base_url（留空用默认；MiniMax 中国站须加 ?GroupId=你的GroupId）"
-          value={form.base_url}
-          onChange={(e) => setForm({ ...form, base_url: e.target.value })}
-        />
-        <input
-          type="password"
-          placeholder="api key"
-          value={form.api_key}
-          required
-          onChange={(e) => setForm({ ...form, api_key: e.target.value })}
-        />
-        <button type="submit">{t("common.save")}</button>
-      </form>
-
-      <h3 style={{ marginTop: 32 }}>{t("settings.routing")}</h3>
-      <table>
-        <tbody>
-          {TASK_KEYS.map((key) => {
-            const current = routing.data?.find((r) => r.task_key === key);
-            return (
-              <tr key={key}>
-                <td>{key}</td>
-                <td>
-                  <select
-                    aria-label={key}
-                    value={current?.provider_config_id ?? ""}
-                    onChange={(e) =>
-                      route.mutate({ task_key: key, provider_config_id: Number(e.target.value) })
-                    }
-                  >
-                    <option value="">—</option>
-                    {providers.data?.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} · {p.model}
-                      </option>
-                    ))}
-                  </select>
-                </td>
+      <div className="kn-card" style={{ marginBottom: 24 }}>
+        <h3 style={{ margin: "0 0 16px 0", fontSize: "1.125rem" }}>{t("settings.providers")}</h3>
+        <div className="kn-table-container" style={{ margin: 0 }}>
+          <table>
+            <thead>
+              <tr>
+                <th>name</th>
+                <th>kind</th>
+                <th>model</th>
+                <th>api key</th>
+                <th style={{ textAlign: "right" }}>Action</th>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              {providers.data?.map((p) => (
+                <tr key={p.id}>
+                  <td>
+                    <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{p.name}</span>
+                    {p.is_fallback && <span className="kn-badge kn-badge-purple" style={{ marginLeft: 8 }}>fallback</span>}
+                  </td>
+                  <td>
+                    <span className="kn-badge">{p.kind}</span>
+                  </td>
+                  <td>
+                    <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>{p.model}</span>
+                  </td>
+                  <td>
+                    <code>{p.api_key_masked}</code>
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
+                      <button className="kn-btn-secondary kn-btn-sm" onClick={() => void testConnection(p.id)}>
+                        {t("common.test")}
+                      </button>
+                      {probe[p.id] && (
+                        <span style={{ fontSize: "0.8125rem" }}>{probe[p.id]}</span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Add Provider Card */}
+      <div className="kn-card" style={{ marginBottom: 24 }}>
+        <h4 style={{ margin: "0 0 14px 0", fontSize: "1rem" }}>{t("common.add")}</h4>
+        <form onSubmit={submit} style={{ display: "grid", gap: 12, maxWidth: 520 }}>
+          <input
+            placeholder="name"
+            value={form.name}
+            required
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+          <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
+            {KINDS.map((k) => (
+              <option key={k} value={k}>
+                {k}
+              </option>
+            ))}
+          </select>
+          <input
+            placeholder="model"
+            value={form.model}
+            required
+            onChange={(e) => setForm({ ...form, model: e.target.value })}
+          />
+          <input
+            placeholder="base_url（留空用默认；MiniMax 中国站须加 ?GroupId=你的GroupId）"
+            value={form.base_url}
+            onChange={(e) => setForm({ ...form, base_url: e.target.value })}
+          />
+          <input
+            type="password"
+            placeholder="api key"
+            value={form.api_key}
+            required
+            onChange={(e) => setForm({ ...form, api_key: e.target.value })}
+          />
+          <div>
+            <button type="submit" className="kn-btn-primary" style={{ padding: "8px 24px" }}>
+              {t("common.save")}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Routing Matrix Card */}
+      <div className="kn-card">
+        <h3 style={{ margin: "0 0 16px 0", fontSize: "1.125rem" }}>{t("settings.routing")}</h3>
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginBottom: 14 }}>
+          Map specific inference pipelines to dedicated AI providers
+        </p>
+        <div className="kn-table-container" style={{ margin: 0 }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Task Pipeline</th>
+                <th>Assigned Provider</th>
+              </tr>
+            </thead>
+            <tbody>
+              {TASK_KEYS.map((key) => {
+                const current = routing.data?.find((r) => r.task_key === key);
+                return (
+                  <tr key={key}>
+                    <td>
+                      <code style={{ color: "var(--accent-blue)" }}>{key}</code>
+                    </td>
+                    <td>
+                      <select
+                        aria-label={key}
+                        value={current?.provider_config_id ?? ""}
+                        onChange={(e) =>
+                          route.mutate({ task_key: key, provider_config_id: Number(e.target.value) })
+                        }
+                        style={{ minWidth: 260, padding: "5px 28px 5px 12px" }}
+                      >
+                        <option value="">—</option>
+                        {providers.data?.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} · {p.model}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

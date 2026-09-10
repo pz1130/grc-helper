@@ -64,98 +64,145 @@ export function Redaction() {
 
   return (
     <div>
-      <h3>{t("settings.redaction")}</h3>
-      <p style={{ color: "#666", fontSize: 13 }}>
-        generation：完整脱敏，用于所有生成任务。
-        <br />
-        embedding：宽松脱敏，只脱人名/账号/IP，保留业务术语——脱掉术语会伤检索精度。
-      </p>
-      <label>
-        规则集
-        <select
-          value={ruleset}
-          onChange={(e) => setRuleset(e.target.value as Ruleset)}
-          style={{ marginLeft: 8 }}
-        >
-          <option value="generation">generation</option>
-          <option value="embedding">embedding</option>
-        </select>
-      </label>
+      {/* Ruleset selector & Table Card */}
+      <div className="kn-card" style={{ marginBottom: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginBottom: 14 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: "1.125rem" }}>{t("settings.redaction")}</h3>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", margin: "4px 0 0 0" }}>
+              Generation: Full PII & sensitive info masking · Embedding: Selective term-preserving redaction
+            </p>
+          </div>
+          <label style={{ flexDirection: "row", alignItems: "center", gap: 8, margin: 0 }}>
+            <span>规则集</span>
+            <select
+              value={ruleset}
+              onChange={(e) => setRuleset(e.target.value as Ruleset)}
+              style={{ padding: "5px 28px 5px 12px" }}
+            >
+              <option value="generation">generation</option>
+              <option value="embedding">embedding</option>
+            </select>
+          </label>
+        </div>
 
-      <table style={{ marginTop: 12 }}>
-        <thead>
-          <tr>
-            <th>type</th>
-            <th>pattern</th>
-            <th>prefix</th>
-            <th>enabled</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rules.data
-            ?.filter((r) => r.ruleset === ruleset)
-            .map((r) => (
-              <tr key={r.id}>
-                <td>{r.pattern_type}</td>
-                <td>
-                  <code>{r.pattern}</code>
-                </td>
-                <td>{r.replacement_prefix}</td>
-                <td>{r.enabled ? "✅" : "—"}</td>
+        <div className="kn-table-container" style={{ margin: 0 }}>
+          <table>
+            <thead>
+              <tr>
+                <th>type</th>
+                <th>pattern</th>
+                <th>prefix</th>
+                <th>enabled</th>
               </tr>
-            ))}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              {rules.data
+                ?.filter((r) => r.ruleset === ruleset)
+                .map((r) => (
+                  <tr key={r.id}>
+                    <td>
+                      <span className="kn-badge">{r.pattern_type}</span>
+                    </td>
+                    <td>
+                      <code>{r.pattern}</code>
+                    </td>
+                    <td>
+                      <span className="kn-badge kn-badge-blue">{r.replacement_prefix}</span>
+                    </td>
+                    <td>
+                      {r.enabled ? (
+                        <span className="kn-badge kn-badge-emerald">
+                          <span className="kn-dot kn-dot-emerald" /> Active
+                        </span>
+                      ) : (
+                        <span className="kn-badge">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-      <h4>{t("common.add")}</h4>
-      <form onSubmit={submit} style={{ display: "grid", gap: 8, maxWidth: 480 }}>
-        <select
-          aria-label="pattern type"
-          value={form.pattern_type}
-          onChange={(e) =>
-            setForm({ ...form, pattern_type: e.target.value as "regex" | "dictionary" })
-          }
-        >
-          <option value="regex">regex</option>
-          <option value="dictionary">dictionary（每行一个词）</option>
-        </select>
+      {/* Add Rule Card */}
+      <div className="kn-card" style={{ marginBottom: 24 }}>
+        <h4 style={{ margin: "0 0 14px 0", fontSize: "1rem" }}>{t("common.add")}</h4>
+        <form onSubmit={submit} style={{ display: "grid", gap: 12, maxWidth: 520 }}>
+          <select
+            aria-label="pattern type"
+            value={form.pattern_type}
+            onChange={(e) =>
+              setForm({ ...form, pattern_type: e.target.value as "regex" | "dictionary" })
+            }
+          >
+            <option value="regex">regex</option>
+            <option value="dictionary">dictionary（每行一个词）</option>
+          </select>
+          <textarea
+            placeholder="pattern"
+            value={form.pattern}
+            required
+            rows={3}
+            onChange={(e) => setForm({ ...form, pattern: e.target.value })}
+          />
+          <input
+            placeholder="replacement prefix，如 ORG"
+            value={form.replacement_prefix}
+            required
+            onChange={(e) => setForm({ ...form, replacement_prefix: e.target.value })}
+          />
+          <input
+            placeholder="备注"
+            value={form.note}
+            onChange={(e) => setForm({ ...form, note: e.target.value })}
+          />
+          <div>
+            <button type="submit" className="kn-btn-primary" style={{ padding: "8px 24px" }}>
+              {t("common.save")}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* Live Preview Sandbox Card */}
+      <div className="kn-card">
+        <h4 style={{ margin: "0 0 4px 0", fontSize: "1rem" }}>发送预览 / Send preview</h4>
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", marginBottom: 14 }}>
+          粘一段真实文字，看看实际会发出去什么。
+        </p>
         <textarea
-          placeholder="pattern"
-          value={form.pattern}
-          required
-          rows={3}
-          onChange={(e) => setForm({ ...form, pattern: e.target.value })}
+          aria-label="发送预览输入"
+          rows={4}
+          style={{ width: "100%", maxWidth: 720, marginBottom: 12 }}
+          value={sample}
+          onChange={(e) => setSample(e.target.value)}
         />
-        <input
-          placeholder="replacement prefix，如 ORG"
-          value={form.replacement_prefix}
-          required
-          onChange={(e) => setForm({ ...form, replacement_prefix: e.target.value })}
-        />
-        <input
-          placeholder="备注"
-          value={form.note}
-          onChange={(e) => setForm({ ...form, note: e.target.value })}
-        />
-        <button type="submit">{t("common.save")}</button>
-      </form>
-
-      <h4 style={{ marginTop: 32 }}>发送预览 / Send preview</h4>
-      <p style={{ color: "#666", fontSize: 13 }}>粘一段真实文字，看看实际会发出去什么。</p>
-      <textarea
-        aria-label="发送预览输入"
-        rows={4}
-        style={{ width: "100%", maxWidth: 640 }}
-        value={sample}
-        onChange={(e) => setSample(e.target.value)}
-      />
-      <button onClick={() => void runPreview()}>预览</button>
-      {preview && (
-        <pre style={{ background: "#f5f5f5", padding: 12, whiteSpace: "pre-wrap" }}>
-          {preview.redacted}
-          {"\n\n命中: " + JSON.stringify(preview.hits)}
-        </pre>
-      )}
+        <div>
+          <button className="kn-btn-primary kn-btn-sm" onClick={() => void runPreview()}>
+            预览
+          </button>
+        </div>
+        {preview && (
+          <pre
+            style={{
+              marginTop: 14,
+              padding: 16,
+              whiteSpace: "pre-wrap",
+              background: "var(--pre-bg)",
+              border: "1px solid var(--stage-border)",
+              borderRadius: "var(--radius-sm)",
+              fontSize: "0.875rem",
+              lineHeight: 1.6,
+              color: "var(--pre-color)",
+            }}
+          >
+            {preview.redacted}
+            {"\n\n命中: " + JSON.stringify(preview.hits)}
+          </pre>
+        )}
+      </div>
     </div>
   );
 }

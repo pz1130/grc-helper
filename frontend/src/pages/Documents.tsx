@@ -97,26 +97,37 @@ export function Documents() {
 
   return (
     <section>
-      <h2>{t("documents.title")}</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 20 }}>
+        <div>
+          <h2>{t("documents.title")}</h2>
+          <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+            Regulatory & Internal Policy Documents Repository
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <span className="kn-badge kn-badge-blue">
+            {documents.data?.length ?? 0} Total Documents
+          </span>
+        </div>
+      </div>
 
+      {/* Keynote Dropzone */}
       <div
+        className="kn-dropzone"
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
           if (event.dataTransfer.files.length) void uploadAll(event.dataTransfer.files);
         }}
         onClick={() => fileInput.current?.click()}
-        style={{
-          border: "2px dashed #bbb",
-          borderRadius: 6,
-          padding: 24,
-          textAlign: "center",
-          cursor: "pointer",
-          color: "#666",
-          marginBottom: 16,
-        }}
       >
-        {t("documents.dropHint")}
+        <svg className="kn-dropzone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+        <div className="kn-dropzone-title">{t("documents.dropHint")}</div>
+        <div className="kn-dropzone-subtitle">PDF, DOCX · Automatic Clause Extraction & OCR Processing</div>
         <input
           ref={fileInput}
           type="file"
@@ -129,88 +140,153 @@ export function Documents() {
         />
       </div>
 
-      {busy.length > 0 && <p>⏳ {busy.join(", ")}</p>}
+      {busy.length > 0 && (
+        <p role="status">
+          <span className="kn-dot kn-dot-blue kn-pulse" /> ⏳ {busy.join(", ")}
+        </p>
+      )}
       {error && (
-        <p role="alert" style={{ color: "#c00" }}>
-          {error}
+        <p role="alert">
+          <span>⚠️</span> {error}
         </p>
       )}
 
-      <table>
-        <thead>
-          <tr>
-            <th>{t("documents.title")}</th>
-            <th>{t("documents.docType")}</th>
-            <th>{t("documents.status")}</th>
-            <th>{t("documents.version")}</th>
-            <th>{t("documents.owner")}</th>
-            <th>{t("documents.effective")}</th>
-            <th>{t("documents.review")}</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {documents.data?.map((document) => (
-            <tr key={document.id}>
-              <td>
-                <Link to={`/documents/${document.id}`}>{document.title}</Link>
-                {document.parse_warnings && (
-                  <span title={document.parse_warnings} style={{ marginLeft: 6 }}>
-                    ⚠️
-                  </span>
-                )}
-                {document.ocr_quality_flag && <span title="OCR 质量存疑"> 🔍</span>}
-              </td>
-              <td>{document.doc_type}</td>
-              <td>
-                {IN_FLIGHT.has(document.status) ? "⏳ " : ""}
-                {document.status}
-                {document.status === "parse_failed" && (
-                  <div style={{ color: "#c00", fontSize: 12 }}>{document.parse_error}</div>
-                )}
-              </td>
-              <td>{document.version ?? "—"}</td>
-              <td>{document.owner ?? "—"}</td>
-              <td>{document.effective_date ?? "—"}</td>
-              <td
-                style={{
-                  color:
-                    document.review_due_date && document.review_due_date < today
-                      ? "#c00"
-                      : undefined,
-                }}
-              >
-                {document.review_due_date ?? "—"}
-              </td>
-              <td>
-                <button onClick={() => reparse.mutate(document.id)}>
-                  {t("documents.reparse")}
-                </button>
-                {document.status === "parse_failed" && (
-                  <button onClick={() => setPasting(document.id)}>
-                    {t("documents.pasteText")}
-                  </button>
-                )}
-              </td>
+      {/* Documents Data Table */}
+      <div className="kn-table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>{t("documents.title")}</th>
+              <th>{t("documents.docType")}</th>
+              <th>{t("documents.status")}</th>
+              <th>{t("documents.version")}</th>
+              <th>{t("documents.owner")}</th>
+              <th>{t("documents.effective")}</th>
+              <th>{t("documents.review")}</th>
+              <th style={{ textAlign: "right" }}>Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {documents.data?.map((document) => {
+              const isFailed = document.status === "parse_failed";
+              const isInFlight = IN_FLIGHT.has(document.status);
+              const isActive = document.status === "active";
+              const isOverdue = Boolean(document.review_due_date && document.review_due_date < today);
 
+              return (
+                <tr key={document.id}>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <Link
+                        to={`/documents/${document.id}`}
+                        style={{ fontWeight: 600, color: "var(--text-primary)" }}
+                      >
+                        {document.title}
+                      </Link>
+                      {document.parse_warnings && (
+                        <span
+                          title={document.parse_warnings}
+                          className="kn-badge kn-badge-amber"
+                          style={{ padding: "1px 6px", fontSize: "0.6875rem" }}
+                        >
+                          ⚠️
+                        </span>
+                      )}
+                      {document.ocr_quality_flag && (
+                        <span
+                          title="OCR 质量存疑"
+                          className="kn-badge kn-badge-purple"
+                          style={{ padding: "1px 6px", fontSize: "0.6875rem" }}
+                        >
+                          🔍 OCR
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td>
+                    <span className="kn-badge" style={{ textTransform: "capitalize" }}>
+                      {document.doc_type}
+                    </span>
+                  </td>
+                  <td>
+                    {isInFlight ? (
+                      <span className="kn-badge kn-badge-blue kn-pulse">
+                        <span className="kn-dot kn-dot-blue" />
+                        ⏳ {document.status}
+                      </span>
+                    ) : isActive ? (
+                      <span className="kn-badge kn-badge-emerald">
+                        <span className="kn-dot kn-dot-emerald" />
+                        {document.status}
+                      </span>
+                    ) : isFailed ? (
+                      <div>
+                        <span className="kn-badge kn-badge-ruby">
+                          <span className="kn-dot kn-dot-ruby" />
+                          {document.status}
+                        </span>
+                        {document.parse_error && (
+                          <div style={{ color: "var(--accent-ruby)", fontSize: "0.75rem", marginTop: 4 }}>
+                            {document.parse_error}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="kn-badge">{document.status}</span>
+                    )}
+                  </td>
+                  <td>{document.version ? <code>{document.version}</code> : "—"}</td>
+                  <td>{document.owner ?? "—"}</td>
+                  <td>{document.effective_date ?? "—"}</td>
+                  <td style={{ color: isOverdue ? "var(--accent-ruby)" : undefined, fontWeight: isOverdue ? 600 : undefined }}>
+                    {document.review_due_date ?? "—"}
+                  </td>
+                  <td style={{ textAlign: "right" }}>
+                    <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                      <button
+                        className="kn-btn-sm kn-btn-secondary"
+                        onClick={() => reparse.mutate(document.id)}
+                      >
+                        {t("documents.reparse")}
+                      </button>
+                      {document.status === "parse_failed" && (
+                        <button
+                          className="kn-btn-sm kn-btn-primary"
+                          onClick={() => setPasting(document.id)}
+                        >
+                          {t("documents.pasteText")}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Plain Text Fallback Drawer Card */}
       {pasting !== null && (
-        <div style={{ marginTop: 16 }}>
-          <h4>{t("documents.pasteText")}</h4>
-          <p style={{ color: "#666", fontSize: 13 }}>{t("documents.pasteHint")}</p>
+        <div className="kn-card" style={{ marginTop: 24, border: "1px solid var(--accent-blue)" }}>
+          <h4 style={{ margin: "0 0 8px 0" }}>{t("documents.pasteText")}</h4>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", marginBottom: 12 }}>
+            {t("documents.pasteHint")}
+          </p>
           <textarea
             aria-label={t("documents.pasteText")}
             rows={10}
-            style={{ width: "100%", maxWidth: 720 }}
+            style={{ width: "100%", maxWidth: 840, marginBottom: 16 }}
             value={pasted}
             onChange={(event) => setPasted(event.target.value)}
           />
-          <div>
-            <button onClick={() => submitPlainText.mutate(pasting)}>{t("common.save")}</button>
-            <button onClick={() => setPasting(null)}>{t("common.cancel")}</button>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button className="kn-btn-primary" onClick={() => submitPlainText.mutate(pasting)}>
+              {t("common.save")}
+            </button>
+            <button className="kn-btn-secondary" onClick={() => setPasting(null)}>
+              {t("common.cancel")}
+            </button>
           </div>
         </div>
       )}

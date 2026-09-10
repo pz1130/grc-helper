@@ -49,46 +49,60 @@ export function ThresholdsPage() {
   }
 
   return (
-    <form onSubmit={submit} style={{ display: "grid", gap: 12, maxWidth: 420 }}>
-      <h3>{t("settings.thresholds")}</h3>
-      <label>
-        自动接受阈值（高于此值允许批量接受）
-        <input
-          type="number"
-          step="0.01"
-          min="0"
-          max="1"
-          value={form.auto_accept_threshold}
-          onChange={(e) => setForm({ ...form, auto_accept_threshold: Number(e.target.value) })}
-        />
-      </label>
-      <label>
-        强制人工阈值（低于此值必须逐条确认）
-        <input
-          type="number"
-          step="0.01"
-          min="0"
-          max="1"
-          value={form.force_manual_threshold}
-          onChange={(e) => setForm({ ...form, force_manual_threshold: Number(e.target.value) })}
-        />
-      </label>
-      <label>
-        月度预算（USD）
-        <input
-          type="number"
-          step="1"
-          min="0"
-          value={form.monthly_budget_usd}
-          onChange={(e) => setForm({ ...form, monthly_budget_usd: Number(e.target.value) })}
-        />
-      </label>
-      {error && (
-        <p role="alert" style={{ color: "#c00" }}>
-          {error}
-        </p>
-      )}
-      <button type="submit">{t("common.save")}</button>
-    </form>
+    <div className="kn-card" style={{ maxWidth: 540 }}>
+      <h3 style={{ margin: "0 0 8px 0", fontSize: "1.125rem" }}>{t("settings.thresholds")}</h3>
+      <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", marginBottom: 20 }}>
+        Configure algorithmic decision boundaries and automated batch acceptance criteria
+      </p>
+
+      <form onSubmit={submit} style={{ display: "grid", gap: 16 }}>
+        <label>
+          自动接受阈值（高于此值允许批量接受）
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            max="1"
+            value={form.auto_accept_threshold}
+            onChange={(e) => setForm({ ...form, auto_accept_threshold: Number(e.target.value) })}
+          />
+        </label>
+
+        <label>
+          强制人工阈值（低于此值必须逐条确认）
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            max="1"
+            value={form.force_manual_threshold}
+            onChange={(e) => setForm({ ...form, force_manual_threshold: Number(e.target.value) })}
+          />
+        </label>
+
+        <label>
+          月度预算（USD）
+          <input
+            type="number"
+            step="1"
+            min="0"
+            value={form.monthly_budget_usd}
+            onChange={(e) => setForm({ ...form, monthly_budget_usd: Number(e.target.value) })}
+          />
+        </label>
+
+        {error && (
+          <p role="alert">
+            <span>⚠️</span> {error}
+          </p>
+        )}
+
+        <div>
+          <button type="submit" className="kn-btn-primary" style={{ padding: "8px 24px" }}>
+            {t("common.save")}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
