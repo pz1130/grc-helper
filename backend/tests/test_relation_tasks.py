@@ -33,7 +33,16 @@ def harness(monkeypatch):
     call = SimpleNamespace(id=10, redaction_hits={"dictionary": 2})
 
     session = MagicMock()
-    session.get = AsyncMock(return_value=call)
+
+    async def get(model, key):
+        # 按类型分派：此前对任何 get 都返回同一个 LLMCall 替身，
+        # _build_batches 查 AppSetting 时就会拿到一个没有 .value 的对象。
+        # None 表示「该参数没有覆盖值」，正是未标定语料的真实状态。
+        from app.llm.models import AppSetting
+
+        return None if model is AppSetting else call
+
+    session.get = AsyncMock(side_effect=get)
     session.scalars = AsyncMock(return_value=controls)
     session.scalar = AsyncMock(return_value=None)   # 无检查点
     session.execute = AsyncMock()

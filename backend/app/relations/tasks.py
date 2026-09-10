@@ -21,6 +21,7 @@ from app.llm.models import LLMCall
 from app.llm.providers.base import ProviderError
 from app.llm.runner import run
 from app.llm.validation import ValidationFailure
+from app.relations import params as relation_params
 from app.relations.citations import RelationCitationValidator
 from app.relations.clustering import batch_pairs, duplicate_pairs, section_clusters
 from app.relations.prompts import (
@@ -89,9 +90,13 @@ async def _build_batches(session: AsyncSession) -> list[Batch]:
 
     # 字符预算按控制点在 prompt 里的实际渲染长度累加，两条通道共用同一把尺。
     sizes = {control_id: control_chars(c) for control_id, c in controls.items()}
+    # 这些值按语料标定，来自 AppSetting——写死在常量里换个客户就得改代码部署。
+    cfg = await relation_params.load(session)
     batches: list[Batch] = []
 
-    for window in batch_pairs(await duplicate_pairs(session), sizes=sizes):
+    pairs = await duplicate_pairs(session, top_k=cfg.top_k, min_similarity=cfg.min_similarity)
+    for window in batch_pairs(pairs, sizes=sizes, max_pairs=cfg.pairs_per_batch,
+                              max_chars=cfg.max_batch_chars):
         rendered = render_pairs(
             [(controls[p.low], controls[p.high], p.similarity) for p in window]
         )
@@ -103,7 +108,10 @@ async def _build_batches(session: AsyncSession) -> list[Batch]:
             allowed_pairs=tuple(frozenset((p.low, p.high)) for p in window),
         ))
 
-    for cluster in await section_clusters(session, sizes=sizes):
+    for cluster in await section_clusters(
+        session, sizes=sizes, max_size=cfg.max_cluster_size,
+        overlap=cfg.cluster_overlap, max_chars=cfg.max_batch_chars,
+    ):
         batches.append(Batch(
             system=DEPENDS_SYSTEM,
             prompt=render_cluster([controls[i] for i in cluster.control_ids]),
