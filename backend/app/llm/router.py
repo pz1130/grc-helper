@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crypto import encrypt, mask, decrypt
+from app.clauses.models import EMBEDDING_DIM
+from app.crypto import decrypt, encrypt, mask
 from app.db import get_session
 from app.errors import AppError, NotFound
 from app.iam.audit import record
@@ -11,7 +12,6 @@ from app.iam.models import User
 from app.iam.permissions import Permission
 from app.llm import budget
 from app.llm.models import AppSetting, LLMCall, LLMProviderConfig, RedactionRule, TaskRouting
-from app.clauses.models import EMBEDDING_DIM
 from app.llm.providers.base import (
     CompletionRequest,
     EmbeddingRequest,

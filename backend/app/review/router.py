@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.clauses.models import Clause
 from app.controls.models import Control, ControlSource
 from app.db import get_session
+from app.extraction.drift import upgraded_from
 from app.frameworks.coverage import CLOSING
 from app.frameworks.models import FrameworkItem, Mapping, MappingStrength
 from app.iam.deps import require
@@ -53,6 +54,8 @@ async def clause_context(
             "document_title": document.title,
             "citation_label": clause.citation_label,
             "heading_path": clause.heading_path,
+            # 正文不进 citations 输出（太长），只用来判「结论是否强于原文」。
+            "_text": clause.text,
         }
         for clause, document in rows
     }
@@ -169,7 +172,11 @@ def _enrich(citations: Any, context: dict[int, dict[str, Any]]) -> Any:
             enriched.append(citation)
             continue
         # 条款可能已被删除；补不上就保留原样，不让整页 500。
-        extra = context.get(citation.get("clause_id"), {})
+        extra = {
+            key: value
+            for key, value in context.get(citation.get("clause_id"), {}).items()
+            if not key.startswith("_")
+        }
         enriched.append({**extra, **citation})
     return enriched
 
@@ -230,9 +237,22 @@ def present(proposal: Proposal, limits: Thresholds, context: PageContext) -> Pro
                 "to": _control_view(right, context),
             }
 
+    # 闸 4 保证「没有编造文字」，不保证「忠实转述」：被改的情态动词在生成的
+    # statement 里、不在引文里，引用校验查不到。只标记不拦截——SLA 表格本来就
+    # 不含情态词，做成硬闸门会把合理的表格转写全拒掉。
+    drift = False
+    if proposal.kind == ProposalKind.CONTROL_EXTRACT:
+        cited = [
+            context.clauses.get(_int(c.get("clause_id")), {}).get("_text", "")
+            for c in (proposal.citations or [])
+            if isinstance(c, dict)
+        ]
+        drift = upgraded_from(payload.get("statement"), cited)
+
     return ProposalOut.model_validate(proposal).model_copy(
         update={
             "bulk_acceptable": acceptable,
+            "normative_drift": drift,
             "ocr_quality_flag": flag,
             "mapping_context": mapping,
             "relation_context": relation,

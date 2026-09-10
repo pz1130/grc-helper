@@ -33,6 +33,8 @@ export interface Proposal {
   // Optional until the API exposes eligibility to all READ users. Never guess thresholds.
   bulk_acceptable?: boolean;
   ocr_quality_flag?: boolean;
+  /** 正文用了 must/shall，而被引原文里一个情态词都没有——结论强于出处。 */
+  normative_drift?: boolean;
   mapping_context?: {
     framework_item: { id: number; code: string; title: string; description: string };
     control: ControlView;
@@ -650,6 +652,16 @@ export function ReviewQueue() {
                   </label>
                 )}
               </div>
+
+              {p.normative_drift && (
+                <p
+                  role="note"
+                  title={t("review.driftHint")}
+                  style={{ marginTop: 10, color: "var(--accent-amber)", fontSize: "0.8125rem" }}
+                >
+                  ⚠️ {t("review.drift")}
+                </p>
+              )}
 
               {p.ocr_quality_flag && (
                 <div style={{ marginTop: 10 }}>

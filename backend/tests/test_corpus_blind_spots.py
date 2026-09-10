@@ -125,3 +125,80 @@ async def test_coverage_endpoint_is_readable_by_any_read_user(client, db_session
                              headers={"Authorization": f"Bearer {token}"})).json()
     row = next(r for r in body if r["title"] == "api")
     assert row["never_extracted"] is True and row["normative_clauses"] == 1
+
+
+# ---- 结论强于原文（OQ-11）----
+
+
+def test_a_description_upgraded_to_an_obligation_is_flagged():
+    """闸 4 查不到这个：被改的情态动词在生成的 statement 里，不在引文里。"""
+    from app.extraction.drift import upgraded_from
+
+    assert upgraded_from(
+        "The CAB must be arranged twice a week.",
+        ["The CAB is convened twice a week."],
+    )
+
+
+def test_a_faithful_restatement_is_not_flagged():
+    from app.extraction.drift import upgraded_from
+
+    assert not upgraded_from(
+        "Changes must be approved by the CAB before implementation.",
+        ["Every change must be approved by the CAB before implementation."],
+    )
+    assert not upgraded_from(
+        "Teams should review the dashboard weekly.",
+        ["Teams should review the dashboard weekly."],
+    ), "结论没用 must/shall，谈不上升格"
+
+
+def test_a_table_rendered_as_an_obligation_is_not_flagged_by_modal_alone():
+    """SLA 表格不含情态词，义务由「这是一张 SLA 表」的语境承载。
+
+    做成硬闸门会把它们全拒掉，所以原文侧从宽——
+    只要有任何情态/义务的迹象就不算升格，宁可漏报也不要制造噪声。
+    """
+    from app.extraction.drift import upgraded_from
+
+    # 表格确实会被标记（它真的没有情态词）——这是已知的误报，靠人判
+    assert upgraded_from(
+        "P1 incidents must be responded to within 10 minutes.",
+        ["Priority Level | Response Time | Target Metric P1 | 10 minutes | 90%"],
+    )
+    # 但只要原文出现任何义务迹象就不再标记
+    assert not upgraded_from(
+        "P1 incidents must be responded to within 10 minutes.",
+        ["The team is responsible for responding to P1 incidents within 10 minutes."],
+    )
+
+
+@pytest.mark.asyncio
+async def test_the_review_card_carries_the_drift_flag(client, db_session):
+    from sqlalchemy import select
+
+    db_session.add(User(email="lead2@example.com", name="L", role=Role.GRC_LEAD,
+                        password_hash=hash_password("pw123456")))
+    document = await _document(db_session, "drift", [
+        "The CAB is convened twice a week for change review.",
+    ])
+    clause = await db_session.scalar(
+        select(Clause).where(Clause.document_id == document.id))
+    db_session.add(Proposal(
+        kind=ProposalKind.CONTROL_EXTRACT, status=ProposalStatus.PENDING,
+        document_id=document.id, confidence=0.9,
+        payload={"title": "CAB cadence",
+                 "statement": "The CAB must be arranged twice a week.",
+                 "citations": [{"clause_id": clause.id, "quote": "The CAB is convened"}]},
+        citations=[{"clause_id": clause.id, "quote": "The CAB is convened"}]))
+    await db_session.flush()
+
+    token = (await client.post("/api/auth/login",
+                               json={"email": "lead2@example.com", "password": "pw123456"})
+             ).json()["access_token"]
+    body = (await client.get("/api/proposals?kind=control_extract&limit=200",
+                             headers={"Authorization": f"Bearer {token}"})).json()
+
+    row = next(r for r in body if r["payload"]["title"] == "CAB cadence")
+    assert row["normative_drift"] is True
+    assert all("_text" not in c for c in row["citations"]), "内部键不该泄到接口外"

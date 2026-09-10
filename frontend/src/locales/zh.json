@@ -120,7 +120,9 @@
     "framework": "框架",
     "allFrameworks": "全部框架",
     "doubtful": "理由含否定",
-    "doubtfulHint": "启发式：模型自己的理由里写了 does not / not specifically / lacks，强度却仍会消除差距。关键词匹配，不是判定。"
+    "doubtfulHint": "启发式：模型自己的理由里写了 does not / not specifically / lacks，强度却仍会消除差距。关键词匹配，不是判定。",
+    "drift": "结论强于原文",
+    "driftHint": "正文用了 must/shall，但被引的条款里一个情态词都没有。引用校验查不到这个——引文是逐字的，被改的是结论。表格是已知误报：它用行列表达义务，本来就不含情态词。"
   },
   "controls": {
     "title": "控制点库",

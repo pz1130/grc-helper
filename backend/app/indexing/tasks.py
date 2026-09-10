@@ -1,8 +1,7 @@
 """ARQ tasks for building and embedding the retrieval index."""
 
-from typing import Any
-
 import logging
+from typing import Any
 
 from app.db import session_factory
 from app.indexing.embedder import embed_pending

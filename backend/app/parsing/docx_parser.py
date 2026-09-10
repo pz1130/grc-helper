@@ -8,7 +8,7 @@ from docx import Document as DocxDocument
 from docx.table import Table
 from docx.text.paragraph import Paragraph
 
-from app.parsing.contract import ClauseNode, DocumentMeta, ParseError, ParsedDocument
+from app.parsing.contract import ClauseNode, DocumentMeta, ParsedDocument, ParseError
 
 _HEADING = re.compile(r"^Heading (\d+)$")
 _META = re.compile(
@@ -85,7 +85,7 @@ class DocxParser:
     def parse(self, path: Path) -> ParsedDocument:
         try:
             document = DocxDocument(str(path))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise ParseError(f"无法打开 docx 文件：{type(exc).__name__}") from exc
 
         warnings: list[str] = []

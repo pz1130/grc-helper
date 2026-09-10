@@ -322,3 +322,18 @@ test("the documents page calls out corpus blind spots", async ({ page }) => {
   // 完全覆盖的那份不该出现警示
   await expect(page.getByText("0 normative clauses with no control")).toHaveCount(0);
 });
+
+test("an extraction proposal stated more strongly than its source is flagged", async ({ page }) => {
+  await mockSession(page);
+  // 引用校验查不到这个：引文逐字正确，被改的是结论里的情态动词。
+  const proposal = {
+    id: 40, kind: "control_extract",
+    payload: { title: "CAB cadence", statement: "The CAB must be arranged twice a week.", citations: [] },
+    citations: [{ clause_id: 7, quote: "The CAB is convened twice a week", document_id: 3, citation_label: "4.4", document_title: "Change Management" }],
+    confidence: 0.95, document_id: 3, status: "pending", normative_drift: true,
+  };
+  await page.route("**/api/proposals/stats", (route) => route.fulfill({ json: { pending: 1, by_kind: { control_extract: 1 } } }));
+  await page.route("**/api/proposals?**", (route) => route.fulfill({ json: [proposal] }));
+  await page.goto("/review?kind=control_extract");
+  await expect(page.locator("#proposal-40").getByText(/Stated more strongly than the source/)).toBeVisible();
+});

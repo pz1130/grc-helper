@@ -15,9 +15,8 @@ DEFAULT_BASE_URLS: dict[ProviderKind, str] = {
 
 def build_provider(config: LLMProviderConfig) -> LLMProvider:
     from app.llm.providers.anthropic import AnthropicProvider
-    from app.llm.providers.openai_compat import OpenAICompatProvider
-
     from app.llm.providers.minimax import MiniMaxProvider
+    from app.llm.providers.openai_compat import OpenAICompatProvider
 
     if config.kind is ProviderKind.ANTHROPIC:
         return AnthropicProvider(config)

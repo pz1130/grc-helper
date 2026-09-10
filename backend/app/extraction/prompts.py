@@ -10,6 +10,10 @@ EXTRACT_SYSTEM = (
     "Return only JSON matching the supplied schema. Every control must cite one or more "
     "clause_id values FROM THIS BATCH. Copy each quote VERBATIM from that clause's body; "
     "never paraphrase quotes. Combine clauses supporting the same requirement. "
+    "PRESERVE THE SOURCE'S NORMATIVE STRENGTH: if the clause says 'should', write "
+    "'should'; if it merely describes what is done ('is arranged', 'are stored'), say so "
+    "with the same force — never upgrade it to 'must' or 'shall'. A control that is "
+    "stronger than the document it came from is a liability in an audit. "
     "confidence measures how explicitly the source supports the requirement. "
     "If there are no auditable requirements return controls: [] and insufficient_evidence: true."
 )

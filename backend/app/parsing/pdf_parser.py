@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pdfplumber
 
-from app.parsing.contract import DocumentMeta, ParseError, ParsedDocument
+from app.parsing.contract import DocumentMeta, ParsedDocument, ParseError
 from app.parsing.numbering import assemble_tree, extract_headings
 
 TEXT_LAYER_MIN_CHARS = 200
@@ -40,7 +40,7 @@ def extract_lines(path: Path) -> tuple[list[str], dict[int, int]]:
                 for line in (page.extract_text() or "").splitlines():
                     page_of[len(lines)] = page_number
                     lines.append(line)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         raise ParseError(f"无法读取 PDF：{type(exc).__name__}") from exc
     return lines, page_of
 

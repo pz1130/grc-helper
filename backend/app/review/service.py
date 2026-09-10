@@ -18,7 +18,6 @@ from app.review import thresholds as thresholds_module
 from app.review.materialize import ControlPayload, lock_control_writes, materialize
 from app.review.models import Proposal, ProposalKind, ProposalStatus
 
-
 # 模型在 rationale 里自己写了否定表述，却仍把强度标成 full/partial 的那批。
 # 实测 281 条 partial 里 101 条命中，其中 25 条置信度仍在 0.75 以上——是最可能
 # 标错的一批。这是**关键词启发式**，不是判定：有些 does not 出现在无害的从句里。

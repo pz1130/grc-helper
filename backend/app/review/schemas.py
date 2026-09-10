@@ -24,6 +24,8 @@ class ProposalOut(BaseModel):
     created_at: datetime
     bulk_acceptable: bool = False
     ocr_quality_flag: bool = False
+    # 正文用了 must/shall，而被引原文里一个情态词都没有——结论强于出处。
+    normative_drift: bool = False
     mapping_context: dict[str, Any] | None = None
     relation_context: dict[str, Any] | None = None
 
