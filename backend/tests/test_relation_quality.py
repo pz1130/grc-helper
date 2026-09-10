@@ -43,8 +43,21 @@ async def test_relation_inference_produces_reviewable_output(capsys: Any) -> Non
             controls = {c.id: c for c in await session.scalars(select(Control))}
             assert controls, "控制点库为空；请先在确认队列中确认控制点"
 
-            indexed = await embed_pending(session)
-            await session.commit()
+            # 循环到补完为止：embed_pending 的默认 limit 是给同步 HTTP 端点定的
+            # （两批往返），一次调用只覆盖前 128 个控制点。少了向量的控制点不会
+            # 报错，只会静默缺席 duplicates 通道——136 个里少 8 个，闸门就是在
+            # 不完整的语料上测的。
+            indexed = {"embedded": 0, "model": None, "pending": None}
+            while True:
+                round_ = await embed_pending(session)
+                await session.commit()
+                indexed["embedded"] += round_["embedded"]
+                indexed["model"] = round_["model"]
+                indexed["pending"] = round_["pending"]
+                if not round_["embedded"] or not round_["pending"]:
+                    break
+            assert indexed["pending"] == 0, (
+                f"仍有 {indexed['pending']} 个控制点没有向量，duplicates 通道会缺席它们")
 
             summary = await run_inference(session, run_key=f"relation-eval:{uuid4()}")
             await session.commit()
@@ -89,6 +102,7 @@ async def test_relation_inference_produces_reviewable_output(capsys: Any) -> Non
                 "model": provider.model,
                 "controls": len(controls),
                 "embedded": indexed["embedded"],
+                "embeddings_pending": indexed["pending"],
                 "batches": summary["batches"],
                 "rejected": summary["rejected"],
                 "failed": summary["failed"],
@@ -108,7 +122,8 @@ async def test_relation_inference_produces_reviewable_output(capsys: Any) -> Non
 
             with capsys.disabled():
                 print(f"model={provider.model} controls={len(controls)} "
-                      f"batches={summary['batches']}")
+                      f"batches={summary['batches']} "
+                      f"（向量补算 {indexed['embedded']}，剩余 {indexed['pending']}）")
                 print(f"批次校验通过率 = {batch_pass_rate:.2f}  "
                       f"（rejected {summary['rejected']} / failed {summary['failed']}）")
                 print(f"闸 4 通过率 = {gate4_pass_rate:.2f}  "

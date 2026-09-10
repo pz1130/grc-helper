@@ -1,4 +1,5 @@
 import asyncio
+import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -6,6 +7,19 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.config import get_settings
 from app.db import Base
+
+
+def _url() -> str:
+    """迁移目标库。
+
+    ALEMBIC_DATABASE_URL 是给「往返验证」用的逃生口：验收清单要求跑
+    upgrade head → downgrade 0011 → upgrade head，而 downgrade 会真的
+    DROP TABLE。没有这个覆盖时，唯一的 URL 来自 .env 的 DATABASE_URL，
+    也就是开发库——传 APP_DATABASE_URL 是没用的（那只有 eval 脚本自己读），
+    于是「隔离往返」会静默地在开发库上删表。已经踩过一次。
+    """
+    return os.environ.get("ALEMBIC_DATABASE_URL") or get_settings().database_url
+
 
 # 模型注册集中在 app.models，新增模型只需改那一处
 import app.models  # noqa: F401
@@ -24,7 +38,7 @@ def _run_migrations(connection) -> None:
 
 
 async def run_async_migrations() -> None:
-    engine = create_async_engine(get_settings().database_url)
+    engine = create_async_engine(_url())
     async with engine.connect() as connection:
         await connection.run_sync(_run_migrations)
     await engine.dispose()
@@ -32,7 +46,7 @@ async def run_async_migrations() -> None:
 
 def run_migrations_offline() -> None:
     context.configure(
-        url=get_settings().database_url,
+        url=_url(),
         target_metadata=target_metadata,
         literal_binds=True,
     )

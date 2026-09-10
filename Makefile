@@ -1,4 +1,4 @@
-.PHONY: up down logs test migrate revision fmt create-admin ping-worker e2e corpus retrieval extraction-eval seed-frameworks mapping-eval relation-eval
+.PHONY: up down logs test migrate revision migrate-roundtrip fmt create-admin ping-worker e2e corpus retrieval extraction-eval seed-frameworks mapping-eval relation-eval
 
 up:
 	docker compose up -d --build db redis api
@@ -17,6 +17,17 @@ migrate:
 
 revision:
 	docker compose run --rm api alembic revision --autogenerate -m "$(m)"
+
+# 验收清单要求的迁移往返。downgrade 会真的 DROP TABLE，所以必须打一次性库：
+# alembic 只认 ALEMBIC_DATABASE_URL 或 .env 的 DATABASE_URL，传 APP_DATABASE_URL
+# 是没用的——那样会静默地在开发库上删表。
+migrate-roundtrip:
+	docker compose exec -T db psql -U grc -d postgres -c "DROP DATABASE IF EXISTS grc_roundtrip"
+	docker compose exec -T db psql -U grc -d postgres -c "CREATE DATABASE grc_roundtrip OWNER grc"
+	docker compose run --rm --no-deps \
+	  -e ALEMBIC_DATABASE_URL=postgresql+asyncpg://grc:grc@db:5432/grc_roundtrip \
+	  api sh -c 'alembic upgrade head && alembic downgrade $(to) && alembic upgrade head && alembic check'
+	docker compose exec -T db psql -U grc -d postgres -c "DROP DATABASE IF EXISTS grc_roundtrip"
 
 fmt:
 	docker compose run --rm api ruff check --fix app tests
