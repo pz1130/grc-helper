@@ -8,7 +8,13 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.controls.models import Control, ControlRelation, ControlSource, RelationType, SourceRelation
+from app.controls.models import (
+    Control,
+    ControlRelation,
+    ControlSource,
+    RelationType,
+    SourceRelation,
+)
 from app.errors import AppError, Conflict, NotFound
 from app.frameworks.models import FrameworkItem, Mapping, MappingStrength
 from app.iam.models import AuditLog, User

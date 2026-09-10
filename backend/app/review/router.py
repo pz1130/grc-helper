@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
@@ -56,6 +57,61 @@ async def clause_context(
     }
 
 
+@dataclass(frozen=True)
+class PageContext:
+    """一页提案渲染所需的全部旁路数据，一次性查好。
+
+    此前每条提案要单独查 3 次（OCR 标记 + 框架项 + 控制点），412 条映射提案
+    就是 1200 多次往返。这里按页批量查，往返数与提案条数无关。
+    """
+
+    clauses: dict[int, dict[str, Any]] = field(default_factory=dict)
+    items: dict[int, FrameworkItem] = field(default_factory=dict)
+    controls: dict[int, Control] = field(default_factory=dict)
+    ocr_flagged: frozenset[int] = frozenset()
+
+
+def _int(value: Any) -> int | None:
+    return value if type(value) is int else None
+
+
+async def page_context(session: AsyncSession, proposals: list[Proposal]) -> PageContext:
+    item_ids: set[int] = set()
+    control_ids: set[int] = set()
+    for proposal in proposals:
+        payload = proposal.payload or {}
+        if proposal.kind == ProposalKind.MAPPING:
+            if (value := _int(payload.get("framework_item_id"))) is not None:
+                item_ids.add(value)
+            if (value := _int(payload.get("control_id"))) is not None:
+                control_ids.add(value)
+        elif proposal.kind == ProposalKind.RELATION:
+            for key in ("from_control_id", "to_control_id"):
+                if (value := _int(payload.get(key))) is not None:
+                    control_ids.add(value)
+
+    items = {
+        item.id: item
+        for item in (
+            await session.scalars(select(FrameworkItem).where(FrameworkItem.id.in_(item_ids)))
+            if item_ids else []
+        )
+    }
+    controls = {
+        control.id: control
+        for control in (
+            await session.scalars(select(Control).where(Control.id.in_(control_ids)))
+            if control_ids else []
+        )
+    }
+    return PageContext(
+        clauses=await clause_context(session, proposals),
+        items=items,
+        controls=controls,
+        ocr_flagged=await service.ocr_flags(session, proposals),
+    )
+
+
 def _enrich(citations: Any, context: dict[int, dict[str, Any]]) -> Any:
     """只做补全，绝不改写模型原始产出的字段。"""
     if not isinstance(citations, list):
@@ -71,57 +127,54 @@ def _enrich(citations: Any, context: dict[int, dict[str, Any]]) -> Any:
     return enriched
 
 
-async def present(
-    session: AsyncSession,
-    proposal: Proposal,
-    limits: Thresholds,
-    context: dict[int, dict[str, Any]] | None = None,
-) -> ProposalOut:
-    acceptable, flag = await service.eligibility(session, proposal, limits)
+def _control_view(control: Control) -> dict[str, Any]:
+    return {
+        "id": control.id,
+        "code": control.code,
+        "title": control.title,
+        "statement": control.statement,
+    }
+
+
+def present(proposal: Proposal, limits: Thresholds, context: PageContext) -> ProposalOut:
+    """纯渲染，不查库——旁路数据全部来自 PageContext。"""
+    payload = proposal.payload or {}
+    flag = proposal.id in context.ocr_flagged
+    acceptable = service.eligible(proposal, limits, ocr_flag=flag)
+
     mapping: dict[str, Any] | None = None
     if proposal.kind == ProposalKind.MAPPING:
-        item_id = proposal.payload.get("framework_item_id")
-        control_id = proposal.payload.get("control_id")
-        if type(item_id) is int and type(control_id) is int:
-            item = await session.get(FrameworkItem, item_id)
-            control = await session.get(Control, control_id)
-            if item is not None and control is not None:
-                mapping = {
-                    "framework_item": {
-                        "id": item.id,
-                        "code": item.code,
-                        "title": item.title,
-                        "description": item.description,
-                    },
-                    "control": {
-                        "id": control.id,
-                        "code": control.code,
-                        "title": control.title,
-                        "statement": control.statement,
-                    },
-                }
+        item = context.items.get(_int(payload.get("framework_item_id")))
+        control = context.controls.get(_int(payload.get("control_id")))
+        if item is not None and control is not None:
+            mapping = {
+                "framework_item": {
+                    "id": item.id,
+                    "code": item.code,
+                    "title": item.title,
+                    "description": item.description,
+                },
+                "control": _control_view(control),
+            }
+
     relation: dict[str, Any] | None = None
     if proposal.kind == ProposalKind.RELATION:
-        start = proposal.payload.get("from_control_id")
-        end = proposal.payload.get("to_control_id")
-        if type(start) is int and type(end) is int:
-            left = await session.get(Control, start)
-            right = await session.get(Control, end)
-            if left is not None and right is not None:
-                relation = {
-                    "relation_type": proposal.payload.get("relation_type"),
-                    "from": {"id": left.id, "code": left.code, "title": left.title,
-                             "statement": left.statement},
-                    "to": {"id": right.id, "code": right.code, "title": right.title,
-                           "statement": right.statement},
-                }
+        left = context.controls.get(_int(payload.get("from_control_id")))
+        right = context.controls.get(_int(payload.get("to_control_id")))
+        if left is not None and right is not None:
+            relation = {
+                "relation_type": payload.get("relation_type"),
+                "from": _control_view(left),
+                "to": _control_view(right),
+            }
+
     return ProposalOut.model_validate(proposal).model_copy(
         update={
             "bulk_acceptable": acceptable,
             "ocr_quality_flag": flag,
             "mapping_context": mapping,
             "relation_context": relation,
-            "citations": _enrich(proposal.citations, context or {}),
+            "citations": _enrich(proposal.citations, context.clauses),
         }
     )
 
@@ -144,8 +197,8 @@ async def list_pending(
         limit=limit,
     )
     limits = await load(session)
-    context = await clause_context(session, rows)
-    return [await present(session, row, limits, context) for row in rows]
+    context = await page_context(session, rows)
+    return [present(row, limits, context) for row in rows]
 
 
 @router.get("/stats")
@@ -193,9 +246,8 @@ async def decide(
             payload=payload.payload,
             reason=payload.reason,
         )
-        output = await present(
-            session, proposal, await load(session),
-            await clause_context(session, [proposal]),
+        output = present(
+            proposal, await load(session), await page_context(session, [proposal])
         )
         await session.commit()
     except Exception:

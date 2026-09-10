@@ -174,22 +174,30 @@ async def locked_proposal(session: AsyncSession, proposal_id: int) -> Proposal |
     )
 
 
-async def ocr_flag(session: AsyncSession, proposal: Proposal) -> bool:
-    citation_ids = set()
+def citation_clause_ids(proposal: Proposal) -> set[int]:
+    ids: set[int] = set()
     for citations in (proposal.citations, proposal.payload.get("citations", [])):
         if isinstance(citations, list):
-            citation_ids.update(
+            ids.update(
                 c["clause_id"]
                 for c in citations
                 if isinstance(c, dict) and type(c.get("clause_id")) is int
             )
+    return ids
+
+
+async def ocr_flag(session: AsyncSession, proposal: Proposal) -> bool:
     stmt = (
         select(Document.id)
         .where(
             Document.ocr_quality_flag.is_(True),
             or_(
                 Document.id == proposal.document_id,
-                Document.id.in_(select(Clause.document_id).where(Clause.id.in_(citation_ids))),
+                Document.id.in_(
+                    select(Clause.document_id).where(
+                        Clause.id.in_(citation_clause_ids(proposal))
+                    )
+                ),
             ),
         )
         .limit(1)
@@ -197,17 +205,70 @@ async def ocr_flag(session: AsyncSession, proposal: Proposal) -> bool:
     return await session.scalar(stmt) is not None
 
 
+async def ocr_flags(
+    session: AsyncSession, proposals: list[Proposal]
+) -> frozenset[int]:
+    """整页两次查完 OCR 存疑标记，返回命中的提案 id。
+
+    逐条查时 412 条映射提案就是 412 次往返。这里先把所有引用条款一次映射到
+    文档，再一次查出其中哪些文档存疑，剩下的判断在内存里做。
+    """
+    if not proposals:
+        return frozenset()
+    wanted_clauses = {cid for p in proposals for cid in citation_clause_ids(p)}
+    clause_document: dict[int, int] = {}
+    if wanted_clauses:
+        rows = await session.execute(
+            select(Clause.id, Clause.document_id).where(Clause.id.in_(wanted_clauses))
+        )
+        clause_document = dict(rows.all())
+
+    documents = {p.document_id for p in proposals if p.document_id is not None}
+    documents.update(clause_document.values())
+    if not documents:
+        return frozenset()
+    flagged = set(
+        await session.scalars(
+            select(Document.id).where(
+                Document.id.in_(documents), Document.ocr_quality_flag.is_(True)
+            )
+        )
+    )
+    if not flagged:
+        return frozenset()
+
+    hit = set()
+    for proposal in proposals:
+        touched = {clause_document[cid]
+                   for cid in citation_clause_ids(proposal) if cid in clause_document}
+        if proposal.document_id is not None:
+            touched.add(proposal.document_id)
+        if touched & flagged:
+            hit.add(proposal.id)
+    return frozenset(hit)
+
+
+def eligible(
+    proposal: Proposal, limits: thresholds_module.Thresholds, *, ocr_flag: bool
+) -> bool:
+    """纯函数：给定 OCR 标记，这条提案能否批量接受。
+
+    拆出来是为了让整页判定可以先批量查标记、再在内存里逐条判，
+    不必每条提案都往库里跑一次。
+    """
+    return (
+        proposal.status == ProposalStatus.PENDING
+        and proposal.kind == ProposalKind.CONTROL_EXTRACT
+        and proposal.payload.get("origin") != "matrix"
+        and thresholds_module.bulk_acceptable(proposal, limits, ocr_flag=ocr_flag)
+    )
+
+
 async def eligibility(
     session: AsyncSession, proposal: Proposal, limits: thresholds_module.Thresholds
 ) -> tuple[bool, bool]:
     flag = await ocr_flag(session, proposal)
-    acceptable = (
-        proposal.status == ProposalStatus.PENDING
-        and proposal.kind == ProposalKind.CONTROL_EXTRACT
-        and proposal.payload.get("origin") != "matrix"
-        and thresholds_module.bulk_acceptable(proposal, limits, ocr_flag=flag)
-    )
-    return acceptable, flag
+    return eligible(proposal, limits, ocr_flag=flag), flag
 
 
 async def decide(
