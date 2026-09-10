@@ -185,3 +185,31 @@ test("a mapping proposal shows the model's reasoning and where the control came 
   await expect(card.getByText("Access Control › Objectives")).toBeVisible();
   await expect(card.getByRole("link", { name: "3.1" })).toHaveAttribute("href", "/documents/4#clause-91");
 });
+
+test("changing the mapping strength sticks in the dropdown", async ({ page }) => {
+  await mockSession(page);
+  // select 的 value 绑在 payload.strength 上，而 payload 是 AI 的原始产出、永不变；
+  // onStrengthChange 只写 draft。两者不接上，选完就被弹回原值——看起来就是「改不了」。
+  const proposal = {
+    id: 25, kind: "mapping", payload: {
+      framework_item_id: 2, control_id: 5, strength: "partial",
+      framework_item_quote: "Identities are managed", rationale: "covers it", confidence: 0.8,
+    }, citations: [], confidence: 0.8, document_id: null, status: "pending",
+    mapping_context: {
+      framework_item: { id: 2, code: "PR.AA-01", title: "Identities", description: "Identities are managed for authorized users." },
+      control: { id: 5, code: "C-0005", title: "Identity management", statement: "All identities are managed centrally." },
+    },
+  };
+  await page.route("**/api/proposals/stats", (route) => route.fulfill({ json: { pending: 1, by_kind: { mapping: 1 } } }));
+  await page.route("**/api/proposals?**", (route) => route.fulfill({ json: [proposal] }));
+  await page.goto("/review?kind=mapping");
+  const card = page.locator("#proposal-25");
+  const select = card.getByLabel("Mapping strength");
+
+  await expect(select).toHaveValue("partial");
+  await select.selectOption("supporting");
+  await expect(select).toHaveValue("supporting");
+
+  // 改动要真的进到待提交的内容里，否则「修改后接受」保存的还是原值
+  await expect(card.getByLabel("Proposed content (JSON)")).toContainText('"strength": "supporting"');
+});

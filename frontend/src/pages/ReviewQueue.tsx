@@ -95,6 +95,17 @@ function Rationale({ payload }: { payload: Record<string, unknown> }) {
   );
 }
 
+/** 编辑中的 payload 以 draft 为准；draft 尚未成形（正在手敲 JSON）时回落到原值。 */
+function draftValue(draft: string, key: string, fallback: string): string {
+  try {
+    const parsed: unknown = JSON.parse(draft);
+    const value = asRecord(parsed)[key];
+    return typeof value === "string" ? value : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -141,7 +152,10 @@ function MappingPreview({
   const controlTitle = typeof control.title === "string" ? control.title : t("mapping.control");
   const controlStatement = typeof control.statement === "string" ? control.statement : "";
   const quote = typeof payload.framework_item_quote === "string" ? payload.framework_item_quote : "";
-  const strength = typeof payload.strength === "string" ? payload.strength : "partial";
+  const proposed = typeof payload.strength === "string" ? payload.strength : "partial";
+  // select 一旦绑死 payload.strength 就改不动：payload 是 AI 的原始产出、永不变，
+  // 而 onStrengthChange 只写 draft。选完会被弹回原值，看起来就是「点了没反应」。
+  const strength = editing ? draftValue(draft, "strength", proposed) : proposed;
   // 目标项已被已确认的 full/partial 关掉时，这条确认了也不改变覆盖度；若它本身
   // 是 supporting，连差距清单上的标记都不会新增——审之前就该看见这件事。
   const coverage = proposal.mapping_context?.item_coverage;
