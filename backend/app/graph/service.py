@@ -286,3 +286,172 @@ async def relation_graph(
             truncated=truncated,
         ),
     )
+
+
+def item_key(item_id: int) -> str:
+    return f"item:{item_id}"
+
+
+async def mapping_graph(
+    session: AsyncSession,
+    *,
+    framework_id: int,
+    focus: str | None = None,
+    hops: int = 1,
+    include_pending: bool = False,
+    only_gaps: bool = False,
+) -> GraphOut:
+    items = (
+        await session.execute(
+            select(FrameworkItem)
+            .where(FrameworkItem.framework_id == framework_id)
+            .order_by(FrameworkItem.order_index, FrameworkItem.code)
+        )
+    ).scalars().all()
+    item_ids = {item.id for item in items}
+
+    mappings = (
+        await session.execute(
+            select(Mapping)
+            .join(FrameworkItem, FrameworkItem.id == Mapping.framework_item_id)
+            .where(FrameworkItem.framework_id == framework_id)
+            .order_by(Mapping.id)
+        )
+    ).scalars().all()
+
+    covered = {row.framework_item_id for row in mappings}
+    parents = {item.parent_id for item in items if item.parent_id is not None}
+    control_ids = {row.control_id for row in mappings}
+
+    pending_rows: list[Proposal] = []
+    if include_pending:
+        pending_rows = (
+            await session.execute(
+                select(Proposal)
+                .where(
+                    Proposal.kind == ProposalKind.MAPPING,
+                    Proposal.status == ProposalStatus.PENDING,
+                )
+                .order_by(Proposal.id)
+            )
+        ).scalars().all()
+        pending_rows = [
+            row for row in pending_rows if (row.payload or {}).get("framework_item_id") in item_ids
+        ]
+        control_ids |= {(row.payload or {}).get("control_id", 0) for row in pending_rows}
+
+    controls: list[Control] = []
+    if control_ids:
+        controls = (
+            await session.execute(
+                select(Control).where(Control.id.in_(control_ids)).order_by(Control.code)
+            )
+        ).scalars().all()
+
+    item_nodes = [
+        GraphNode(
+            key=item_key(item.id),
+            kind="framework_item",
+            code=item.code,
+            title=item.title,
+            # 差距只看已确认的连线：一条待确认的提案不代表这项已被覆盖。
+            # 有子项的容器不算差距——覆盖落在叶子上。
+            is_gap=item.id not in covered and item.id not in parents,
+        )
+        for item in items
+    ]
+    control_nodes = [
+        GraphNode(key=control_key(c.id), kind="control", code=c.code, title=c.title)
+        for c in controls
+    ]
+
+    if only_gaps:
+        return GraphOut(
+            nodes=[node for node in item_nodes if node.is_gap],
+            edges=[],
+            groups=[],
+            stats=GraphStats(
+                nodes=sum(1 for node in item_nodes if node.is_gap),
+                edges=0,
+                pending_edges=0,
+                truncated=False,
+            ),
+        )
+
+    nodes = control_nodes + item_nodes
+    keys = {node.key for node in nodes}
+
+    edges = [
+        GraphEdge(
+            key=f"mapping:{row.id}",
+            source=control_key(row.control_id),
+            target=item_key(row.framework_item_id),
+            kind=row.strength.value,
+            status="confirmed",
+            confidence=row.confidence,
+            rationale=row.rationale,
+        )
+        for row in mappings
+        if control_key(row.control_id) in keys and item_key(row.framework_item_id) in keys
+    ]
+    seen = {(e.source, e.target) for e in edges}
+    for row in pending_rows:
+        payload = row.payload or {}
+        source = control_key(payload.get("control_id", 0))
+        target = item_key(payload.get("framework_item_id", 0))
+        if source not in keys or target not in keys or (source, target) in seen:
+            continue
+        seen.add((source, target))
+        edges.append(
+            GraphEdge(
+                key=f"proposal:{row.id}",
+                source=source,
+                target=target,
+                kind=payload.get("strength", ""),
+                status="pending",
+                confidence=payload.get("confidence", row.confidence),
+                rationale=payload.get("rationale", ""),
+                proposal_id=row.id,
+            )
+        )
+
+    if focus is not None:
+        kind, target_id = parse_focus(focus)
+        if kind == "control":
+            seeds = {control_key(target_id)}
+        elif kind == "item":
+            seeds = {item_key(target_id)}
+        else:
+            rows = (
+                await session.execute(
+                    select(ControlSource.control_id)
+                    .join(Clause, Clause.id == ControlSource.clause_id)
+                    .where(Clause.document_id == target_id)
+                )
+            ).scalars().all()
+            seeds = {control_key(control_id) for control_id in rows}
+        reached = _neighbourhood(seeds, edges, hops) | seeds
+        nodes = [node for node in nodes if node.key in reached]
+        keys = {node.key for node in nodes}
+        edges = [e for e in edges if e.source in keys and e.target in keys]
+
+    pending_count: dict[str, int] = {}
+    for edge in edges:
+        if edge.status != "pending":
+            continue
+        pending_count[edge.source] = pending_count.get(edge.source, 0) + 1
+        pending_count[edge.target] = pending_count.get(edge.target, 0) + 1
+    for node in nodes:
+        node.pending_edges = pending_count.get(node.key, 0)
+
+    return GraphOut(
+        nodes=nodes,
+        edges=edges,
+        groups=[],
+        stats=GraphStats(
+            nodes=len(nodes),
+            edges=len(edges),
+            pending_edges=sum(1 for e in edges if e.status == "pending"),
+            truncated=False,
+        ),
+    )

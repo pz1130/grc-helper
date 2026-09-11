@@ -446,3 +446,165 @@ async def test_panorama_truncation_is_deterministic(client, db_session, monkeypa
     assert [n["code"] for n in second["nodes"]] == [n["code"] for n in first["nodes"]]
 
 
+@pytest.mark.asyncio
+async def test_mapping_graph_is_bipartite_and_marks_gaps(client, db_session):
+    await _user(db_session)
+    framework, leaf = await _framework(db_session)
+    gap = FrameworkItem(
+        framework_id=framework.id,
+        parent_id=None,
+        code="PR.AA-01",
+        title="Access",
+        level=2,
+        order_index=2,
+    )
+    db_session.add(gap)
+    await db_session.flush()
+    control = await _control(db_session, "C-0001")
+    db_session.add(
+        Mapping(
+            control_id=control.id,
+            framework_item_id=leaf.id,
+            strength=MappingStrength.SUPPORTING,
+            rationale="partly",
+            quote="stakeholders",
+        )
+    )
+    await db_session.flush()
+    headers = await _auth(client)
+
+    body = (
+        await client.get(f"/api/graph/mappings?framework_id={framework.id}", headers=headers)
+    ).json()
+
+    kinds = {n["key"]: n["kind"] for n in body["nodes"]}
+    assert kinds[f"control:{control.id}"] == "control"
+    assert kinds[f"item:{leaf.id}"] == "framework_item"
+    gaps = [n for n in body["nodes"] if n["is_gap"]]
+    assert [n["code"] for n in gaps] == ["PR.AA-01"]
+    assert len(body["edges"]) == 1
+    assert body["edges"][0]["kind"] == "supporting"
+    assert body["edges"][0]["source"] == f"control:{control.id}"
+    assert body["edges"][0]["target"] == f"item:{leaf.id}"
+
+
+@pytest.mark.asyncio
+async def test_mapping_graph_can_show_only_gaps(client, db_session):
+    await _user(db_session)
+    framework, leaf = await _framework(db_session)
+    gap = FrameworkItem(
+        framework_id=framework.id,
+        parent_id=None,
+        code="PR.AA-01",
+        title="Access",
+        level=2,
+        order_index=2,
+    )
+    db_session.add(gap)
+    await db_session.flush()
+    control = await _control(db_session, "C-0001")
+    db_session.add(
+        Mapping(
+            control_id=control.id,
+            framework_item_id=leaf.id,
+            strength=MappingStrength.FULL,
+            rationale="",
+            quote="",
+        )
+    )
+    await db_session.flush()
+    headers = await _auth(client)
+
+    body = (
+        await client.get(
+            f"/api/graph/mappings?framework_id={framework.id}&only_gaps=true", headers=headers
+        )
+    ).json()
+
+    assert [n["code"] for n in body["nodes"]] == ["PR.AA-01"]
+    assert body["edges"] == []
+
+
+@pytest.mark.asyncio
+async def test_mapping_graph_draws_pending_mapping_proposals(client, db_session):
+    await _user(db_session)
+    framework, leaf = await _framework(db_session)
+    control = await _control(db_session, "C-0001")
+    proposal = Proposal(
+        kind=ProposalKind.MAPPING,
+        status=ProposalStatus.PENDING,
+        confidence=0.95,
+        payload={
+            "control_id": control.id,
+            "framework_item_id": leaf.id,
+            "strength": "partial",
+            "rationale": "supports stakeholder discovery",
+            "confidence": 0.95,
+        },
+        citations=[],
+    )
+    db_session.add(proposal)
+    await db_session.flush()
+    headers = await _auth(client)
+
+    body = (
+        await client.get(
+            f"/api/graph/mappings?framework_id={framework.id}&include_pending=true", headers=headers
+        )
+    ).json()
+
+    pending = [e for e in body["edges"] if e["status"] == "pending"]
+    assert len(pending) == 1
+    assert pending[0]["kind"] == "partial"
+    assert pending[0]["proposal_id"] == proposal.id
+    # 有待确认连线的框架项不算差距，但它也还没被覆盖——is_gap 只看已确认的线。
+    assert [n["is_gap"] for n in body["nodes"] if n["key"] == f"item:{leaf.id}"] == [True]
+
+
+@pytest.mark.asyncio
+async def test_mapping_graph_focus_on_an_item_keeps_its_controls(client, db_session):
+    await _user(db_session)
+    framework, leaf = await _framework(db_session)
+    other = FrameworkItem(
+        framework_id=framework.id,
+        parent_id=None,
+        code="PR.AA-01",
+        title="Access",
+        level=2,
+        order_index=2,
+    )
+    db_session.add(other)
+    await db_session.flush()
+    first = await _control(db_session, "C-0001")
+    second = await _control(db_session, "C-0002")
+    db_session.add(
+        Mapping(
+            control_id=first.id,
+            framework_item_id=leaf.id,
+            strength=MappingStrength.FULL,
+            rationale="",
+            quote="",
+        )
+    )
+    db_session.add(
+        Mapping(
+            control_id=second.id,
+            framework_item_id=other.id,
+            strength=MappingStrength.FULL,
+            rationale="",
+            quote="",
+        )
+    )
+    await db_session.flush()
+    headers = await _auth(client)
+
+    body = (
+        await client.get(
+            f"/api/graph/mappings?framework_id={framework.id}&focus=item:{leaf.id}&hops=1",
+            headers=headers,
+        )
+    ).json()
+
+    assert {n["key"] for n in body["nodes"]} == {f"item:{leaf.id}", f"control:{first.id}"}
+
+

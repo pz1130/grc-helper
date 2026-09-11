@@ -43,3 +43,24 @@ async def relation_graph(
         types=parsed,
         framework_id=framework_id,
     )
+
+
+@router.get("/mappings", response_model=GraphOut)
+async def mapping_graph(
+    *,
+    framework_id: int,
+    focus: str | None = None,
+    hops: int = Query(default=1, ge=1, le=2),
+    include_pending: bool = False,
+    only_gaps: bool = False,
+    _: Reader,
+    session: Session,
+) -> GraphOut:
+    return await service.mapping_graph(
+        session,
+        framework_id=framework_id,
+        focus=focus,
+        hops=hops,
+        include_pending=include_pending,
+        only_gaps=only_gaps,
+    )
