@@ -32,6 +32,7 @@ def create_app() -> FastAPI:
     from app.graph.router import router as graph_router
     from app.iam.router import audit_router, users_router
     from app.iam.router import router as iam_router
+    from app.impact.router import router as impact_router
     from app.indexing.router import router as index_router
     from app.ingest.router import router as documents_router
     from app.llm.router import router as settings_router
@@ -50,6 +51,9 @@ def create_app() -> FastAPI:
     application.include_router(audit_router)
     application.include_router(settings_router)
     application.include_router(documents_router)
+    # 与 ingest 同 prefix /api/documents；排在其后，避免盖住上传与
+    # GET /{document_id} 等既有路由（Starlette 按注册顺序匹配同形路径）。
+    application.include_router(impact_router)
     application.include_router(clauses_router)
     application.include_router(search_router)
     application.include_router(index_router)
