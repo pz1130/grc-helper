@@ -3,11 +3,12 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Path, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit import service
 from app.audit.export import build_docx
+from app.audit.history import similar_history
 from app.audit.models import AnswerDraft, AuditEngagement, AuditQuestion, QuestionStatus
 from app.audit.schemas import (
     AnswerOut,
@@ -18,6 +19,7 @@ from app.audit.schemas import (
     HistoryOut,
     QuestionOut,
     QuestionsImportIn,
+    SimilarHistoryOut,
 )
 from app.audit.xlsx import parse_questions
 from app.db import get_session
@@ -29,6 +31,7 @@ from app.iam.permissions import Permission
 from app.llm.providers.base import ProviderError
 from app.llm.validation import ValidationFailure
 from app.matrix.template import MAX_FILE_BYTES
+from app.worker import enqueue
 
 router = APIRouter(prefix="/api/audit", tags=["audit-assistant"])
 Reader = Annotated[User, Depends(require(Permission.READ))]
@@ -132,6 +135,53 @@ async def generate_answer(
     except ProviderError as exc:
         await session.commit()
         raise AppError("AI 服务调用失败，请稍后重试或检查模型配置") from exc
+
+
+@router.post("/engagements/{engagement_id}/generate-all")
+async def generate_all_answers(
+    engagement_id: Annotated[int, Path(gt=0)], actor: Author, session: Session
+) -> dict[str, str | int]:
+    service.require_engagement_scope(actor, engagement_id)
+    engagement = await session.get(AuditEngagement, engagement_id)
+    if engagement is None:
+        raise NotFound("审计项目不存在")
+    pending_count = await session.scalar(
+        select(func.count(AuditQuestion.id)).where(
+            AuditQuestion.engagement_id == engagement_id,
+            AuditQuestion.status == QuestionStatus.PENDING,
+        )
+    )
+    if not pending_count:
+        raise AppError("该审计项目没有待生成的问题")
+    job_id = await enqueue("generate_engagement_answers", engagement_id, actor.id)
+    if not job_id:
+        raise AppError("批量生成任务投递失败")
+    await record(
+        session,
+        user=actor,
+        action="audit_answers.batch_enqueue",
+        entity_type="AuditEngagement",
+        entity_id=engagement_id,
+        after={"job_id": job_id, "question_count": pending_count},
+    )
+    await session.commit()
+    return {"job_id": job_id, "question_count": pending_count}
+
+
+@router.get(
+    "/questions/{question_id}/similar-history",
+    response_model=list[SimilarHistoryOut],
+)
+async def get_similar_history(
+    question_id: Annotated[int, Path(gt=0)], actor: Reader, session: Session
+) -> list:
+    question = await service.require_question_scope(session, actor, question_id)
+    return await similar_history(
+        session,
+        question.question_text,
+        exclude_question_id=question.id,
+        limit=3,
+    )
 
 
 @router.get("/questions/{question_id}/answer", response_model=AnswerOut | None)

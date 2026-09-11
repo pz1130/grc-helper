@@ -14,6 +14,10 @@ interface Answer {
   confidence: number | null; final_body: string | null; finalized_at: string | null;
 }
 interface HistoryAnswer extends Answer { question_text: string; engagement_name: string }
+interface SimilarAnswer {
+  answer_id: number; question_id: number; question_text: string; engagement_name: string;
+  answer: string; language: string; finalized_at: string; similarity: number;
+}
 
 export function AuditAssistant() {
   const { t, i18n } = useTranslation();
@@ -56,6 +60,11 @@ export function AuditAssistant() {
     queryFn: () => request<Answer | null>(`/api/audit/questions/${questionId}/answer`),
     enabled: questionId != null,
     refetchInterval: 10000,
+  });
+  const similar = useQuery({
+    queryKey: ["audit-similar-history", questionId],
+    queryFn: () => request<SimilarAnswer[]>(`/api/audit/questions/${questionId}/similar-history`),
+    enabled: questionId != null,
   });
   useEffect(() => { if (answer.data) setDraft(answer.data.body); else setDraft(""); }, [answer.data]);
 
@@ -102,6 +111,11 @@ export function AuditAssistant() {
       setNotice(t("audit.exported"));
     },
   });
+  const generateAll = useMutation({
+    mutationFn: () => request<{ job_id: string; question_count: number }>(`/api/audit/engagements/${engagementId}/generate-all`, { method: "POST" }),
+    onError: fail,
+    onSuccess: async (row) => { setError(""); setNotice(t("audit.batchQueued", { count: row.question_count })); await refresh(); },
+  });
   const generate = useMutation({
     mutationFn: (language: string) => request<{ proposal_id: number }>(`/api/audit/questions/${questionId}/generate`, { method: "POST", body: JSON.stringify({ language }) }),
     onError: fail,
@@ -117,7 +131,7 @@ export function AuditAssistant() {
     onError: fail,
     onSuccess: async () => { setError(""); setNotice(t("audit.finalized")); await refresh(); },
   });
-  const busy = createEngagement.isPending || importQuestions.isPending || importXlsx.isPending || exportWord.isPending || generate.isPending || save.isPending || finalize.isPending;
+  const busy = createEngagement.isPending || importQuestions.isPending || importXlsx.isPending || exportWord.isPending || generateAll.isPending || generate.isPending || save.isPending || finalize.isPending;
   const selected = questions.data?.find((row) => row.id === questionId);
 
   return (
@@ -139,6 +153,7 @@ export function AuditAssistant() {
             <button className="kn-btn-primary" disabled={busy || !engagementName.trim()} style={{ marginTop: 8 }} onClick={() => createEngagement.mutate()}>{t("common.create", { defaultValue: "Create" })}</button>
           </div>}
           {engagementId && <button className="kn-btn-secondary" disabled={busy} style={{ width: "100%", marginTop: 12 }} onClick={() => exportWord.mutate()}>{t("audit.exportWord")}</button>}
+          {engagementId && canDraft && <button className="kn-btn-primary" disabled={busy || !questions.data?.some((row) => row.status === "pending")} style={{ width: "100%", marginTop: 8 }} onClick={() => generateAll.mutate()}>{t("audit.generateAll")}</button>}
         </aside>
 
         <div className="kn-card">
@@ -180,6 +195,15 @@ export function AuditAssistant() {
             {!answer.data.finalized_at && canFinalize && <button className="kn-btn-primary" disabled={busy || !draft.trim()} style={{ marginLeft: 8 }} onClick={() => finalize.mutate()}>{t("audit.finalize")}</button>}
             {answer.data.finalized_at && <span className="kn-badge kn-badge-emerald">{t("audit.finalized")}</span>}
           </>}
+          {selected && <div style={{ borderTop: "1px solid var(--stage-border)", marginTop: 20, paddingTop: 12 }}>
+            <h4>{t("audit.similarHistory")}</h4>
+            {similar.data?.map((row) => <details key={row.answer_id} style={{ marginBottom: 8 }}>
+              <summary>{row.question_text} · {Math.round(row.similarity * 100)}%</summary>
+              <p style={{ whiteSpace: "pre-wrap", color: "var(--text-secondary)" }}>{row.answer}</p>
+              <small style={{ color: "var(--text-tertiary)" }}>{row.engagement_name}</small>
+            </details>)}
+            {similar.data?.length === 0 && <p style={{ color: "var(--text-tertiary)" }}>{t("audit.noSimilarHistory")}</p>}
+          </div>}
         </main>
       </div>
       <div className="kn-card" style={{ marginTop: 20 }}>

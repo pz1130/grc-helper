@@ -98,3 +98,15 @@ class AnswerOut(BaseModel):
 class HistoryOut(AnswerOut):
     question_text: str
     engagement_name: str
+
+
+class SimilarHistoryOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    answer_id: int
+    question_id: int
+    question_text: str
+    engagement_name: str
+    answer: str
+    language: str
+    finalized_at: datetime
+    similarity: float

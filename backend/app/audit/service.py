@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit.citations import AnswerCitationValidator, ground_answer_citations
+from app.audit.history import similar_history
 from app.audit.models import AnswerDraft, AuditEngagement, AuditQuestion, QuestionStatus
 from app.audit.prompts import ANSWER_SCHEMA, ANSWER_SYSTEM, ANSWER_TASK_KEY
 from app.controls.models import Control, ControlSource
@@ -156,6 +157,9 @@ async def generate_answer(session: AsyncSession, question_id: int, language: str
         }
         for hit in result_set.hits
     ]
+    history = await similar_history(
+        session, question.question_text, exclude_question_id=question.id, limit=3
+    )
     prompt = json.dumps(
         {
             "question": question.question_text,
@@ -173,6 +177,15 @@ async def generate_answer(session: AsyncSession, question_id: int, language: str
                     "valid_until": row.valid_until.isoformat() if row.valid_until else None,
                 }
                 for row in evidence
+            ],
+            "similar_finalized_answers": [
+                {
+                    "question": row.question_text,
+                    "answer": row.answer[:4000],
+                    "language": row.language,
+                    "similarity": row.similarity,
+                }
+                for row in history
             ],
             "schema": ANSWER_SCHEMA,
         },

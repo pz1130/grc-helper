@@ -12,6 +12,7 @@ from arq.connections import RedisSettings
 from arq.worker import func
 
 import app.models  # noqa: F401  — 注册全部模型，跨模块外键才解析得了
+from app.audit.tasks import generate_engagement_answers
 from app.config import get_settings
 from app.extraction.tasks import extract_controls
 from app.indexing.tasks import index_document, reindex_all
@@ -55,9 +56,10 @@ class WorkerSettings:
         func(extract_controls, timeout=LONG_JOB_TIMEOUT),
         func(map_framework, timeout=LONG_JOB_TIMEOUT),
         func(infer_relations, timeout=LONG_JOB_TIMEOUT),
+        func(generate_engagement_answers, timeout=LONG_JOB_TIMEOUT),
     ]
     redis_settings = _redis_settings()
     max_jobs = 4
-    job_timeout = 900          # 15 分钟：够一份大 PDF 走完 OCR + 抽取
+    job_timeout = 900  # 15 分钟：够一份大 PDF 走完 OCR + 抽取
     keep_result = 3600
-    max_tries = 3              # 幂等任务的自动重试（spec §9）
+    max_tries = 3  # 幂等任务的自动重试（spec §9）

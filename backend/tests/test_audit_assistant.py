@@ -6,6 +6,7 @@ from openpyxl import Workbook
 from sqlalchemy import select
 
 from app.audit.citations import AnswerCitationValidator
+from app.audit.history import similar_history, similarity
 from app.audit.models import (
     AnswerDraft,
     AuditEngagement,
@@ -424,3 +425,79 @@ async def test_word_export_contains_finalized_answers_only(client, db_session):
     assert await db_session.scalar(
         select(AuditLog.id).where(AuditLog.action == "audit_engagement.export")
     )
+
+
+def test_question_similarity_supports_english_and_chinese():
+    assert similarity(
+        "How is privileged access reviewed?",
+        "How do you review privileged access accounts?",
+    ) > similarity(
+        "How is privileged access reviewed?",
+        "How are backups restored?",
+    )
+    assert similarity("如何复核特权账号？", "特权账号如何定期复核？") > 0.3
+
+
+@pytest.mark.asyncio
+async def test_similar_history_returns_closest_finalized_answer(client, db_session):
+    actor = await _user(db_session)
+    engagement = await _engagement(db_session, actor)
+    old_question, unrelated, current = await import_questions(
+        db_session,
+        engagement.id,
+        "How is privileged access reviewed?\nHow are backups restored?\nHow do you review privileged access accounts?",
+        "en",
+        actor=actor,
+    )
+    for question, body in ((old_question, "Quarterly."), (unrelated, "From snapshots.")):
+        answer = AnswerDraft(
+            question_id=question.id,
+            body=body,
+            language="en",
+            cited_clause_ids=[],
+            cited_control_ids=[],
+            suggested_evidence_ids=[],
+            gap_notes="",
+            reviewed_by=actor.id,
+        )
+        db_session.add(answer)
+        await db_session.flush()
+        await finalize_answer(db_session, answer, actor=actor)
+
+    rows = await similar_history(db_session, current.question_text, exclude_question_id=current.id)
+    response = await client.get(
+        f"/api/audit/questions/{current.id}/similar-history", headers=_headers(actor)
+    )
+
+    assert rows[0].question_id == old_question.id
+    assert response.status_code == 200
+    assert response.json()[0]["answer"] == "Quarterly."
+    assert response.json()[0]["similarity"] > 0
+
+
+@pytest.mark.asyncio
+async def test_batch_generation_enqueues_pending_questions(client, db_session, monkeypatch):
+    actor = await _user(db_session)
+    engagement = await _engagement(db_session, actor)
+    await import_questions(
+        db_session, engagement.id, "Question one?\nQuestion two?", "en", actor=actor
+    )
+    calls = []
+
+    async def fake_enqueue(function, *args):
+        calls.append((function, args))
+        return "audit-job-1"
+
+    monkeypatch.setattr("app.audit.router.enqueue", fake_enqueue)
+    response = await client.post(
+        f"/api/audit/engagements/{engagement.id}/generate-all",
+        headers=_headers(actor),
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"job_id": "audit-job-1", "question_count": 2}
+    assert calls == [("generate_engagement_answers", (engagement.id, actor.id))]
+    audit = await db_session.scalar(
+        select(AuditLog).where(AuditLog.action == "audit_answers.batch_enqueue")
+    )
+    assert audit.after["question_count"] == 2
