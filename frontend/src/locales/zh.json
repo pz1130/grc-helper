@@ -456,7 +456,13 @@
     "stats": "{{nodes}} 个节点 · {{edges}} 条边",
     "layout": { "document": "按文件", "function": "按 Function", "force": "力导向" },
     "drawer": { "title": "详情", "openInDocument": "跳转原文", "toReview": "去确认队列" },
-    "edgeKind": { "depends_on": "依赖", "duplicates": "重复", "conflicts_with": "冲突", "full": "完全", "partial": "部分", "supporting": "支撑" }
+    "edgeKind": { "depends_on": "依赖", "duplicates": "重复", "conflicts_with": "冲突", "full": "完全", "partial": "部分", "supporting": "支撑" },
+    "focus": "焦点",
+    "hops": "展开跳数",
+    "panorama": "全景",
+    "pendingCount": "{{count}} 条待确认",
+    "truncated": "已截断",
+    "filters": { "pending": "显示待确认提案", "onlyUnconfirmed": "只看未确认", "onlyConflicts": "只看冲突", "framework": "框架", "allFrameworks": "全部框架" }
   },
   "common": {
     "loading": "加载中…",

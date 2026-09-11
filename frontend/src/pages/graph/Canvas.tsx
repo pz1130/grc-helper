@@ -47,6 +47,7 @@ export function Canvas({ data, layoutKind, width, height, onSelectNode, onSelect
             data-edge-key={edge.key}
             data-kind={edge.kind}
             data-status={edge.status}
+            strokeDasharray={edge.status === "pending" ? "5 4" : undefined}
             style={{ cursor: "pointer" }}
             onClick={() => onSelectEdge(edge)}
           >

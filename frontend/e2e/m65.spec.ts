@@ -40,7 +40,20 @@ export async function mockGraph(page: Page) {
       heading: "Approval", heading_path: "Change › Approval", citation_label: "4.2",
       text: "All normal changes are approved by the CAB before implementation.", level: 2, page_ref: 7,
     } });
-    if (url.pathname === "/api/graph/relations") return route.fulfill({ json: relationGraph });
+    if (url.pathname === "/api/graph/relations") {
+      if (url.searchParams.get("include_pending") === "true") {
+        return route.fulfill({ json: {
+          ...relationGraph,
+          nodes: relationGraph.nodes.map((node) => node.key === "control:3" ? { ...node, pending_edges: 1 } : node),
+          edges: [
+            ...relationGraph.edges,
+            { key: "proposal:31", source: "control:1", target: "control:3", kind: "depends_on", status: "pending", confidence: 0.8, rationale: "model said so", proposal_id: 31 },
+          ],
+          stats: { nodes: 3, edges: 3, pending_edges: 1, truncated: false },
+        } });
+      }
+      return route.fulfill({ json: relationGraph });
+    }
     return route.fulfill({ status: 500, json: { message: `Unexpected API: ${url.pathname}` } });
   });
 }
@@ -55,7 +68,7 @@ test("the relation graph renders nodes and edges grouped by document", async ({ 
   await expect(page.locator('[data-edge-key="relation:11"]')).toHaveAttribute("data-kind", "depends_on");
   await expect(page.locator('[data-edge-key="relation:11"]')).toHaveAttribute("data-status", "confirmed");
   await expect(page.getByText("3 nodes · 2 edges")).toBeVisible();
-  await expect(page.getByText("Change Management Procedure")).toBeVisible();
+  await expect(page.getByRole("list").getByText("Change Management Procedure")).toBeVisible();
 });
 
 test("nodes in the same document share a lane", async ({ page }) => {
@@ -137,4 +150,51 @@ test("clicking an edge shows the model's rationale", async ({ page }) => {
   const drawer = page.getByRole("complementary", { name: "Details" });
   await expect(drawer.getByText("approval precedes rollback")).toBeVisible();
   await expect(drawer.getByText("0.90")).toBeVisible();
+});
+
+test("focus and hop count travel to the API", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+
+  const requested = page.waitForRequest((request) => {
+    if (!request.url().includes("/api/graph/relations?")) return false;
+    const url = new URL(request.url());
+    return url.searchParams.get("focus") === "control:1" && url.searchParams.get("hops") === "2";
+  });
+  await page.getByLabel("Focus").selectOption("control:1");
+  await page.getByLabel("Hops").selectOption("2");
+  const url = new URL((await requested).url());
+  expect(url.searchParams.get("hops")).toBe("2");
+});
+
+test("pending edges are dashed and counted apart from confirmed ones", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+
+  await page.getByLabel("Show pending proposals").check();
+
+  await expect(page.locator('[data-edge-key="proposal:31"]')).toHaveAttribute("data-status", "pending");
+  await expect(page.locator('[data-edge-key="proposal:31"]')).toHaveAttribute("stroke-dasharray", "5 4");
+  await expect(page.getByText("1 pending")).toBeVisible();
+});
+
+test("only-unconfirmed hides the confirmed edges without another request", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+  await page.getByLabel("Show pending proposals").check();
+  await expect(page.locator("[data-edge-key]")).toHaveCount(3);
+
+  await page.getByLabel("Only unconfirmed").check();
+
+  await expect(page.locator("[data-edge-key]")).toHaveCount(1);
+  await expect(page.locator('[data-edge-key="proposal:31"]')).toBeVisible();
+});
+
+test("conflicts-only narrows the requested relation types", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+
+  const requested = page.waitForRequest((request) => request.url().includes("types=conflicts_with"));
+  await page.getByLabel("Only conflicts").check();
+  await requested;
 });

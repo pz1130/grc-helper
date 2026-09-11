@@ -456,7 +456,13 @@
     "stats": "{{nodes}} nodes · {{edges}} edges",
     "layout": { "document": "By document", "function": "By function", "force": "Force" },
     "drawer": { "title": "Details", "openInDocument": "Open in document", "toReview": "Go to review queue" },
-    "edgeKind": { "depends_on": "Depends on", "duplicates": "Duplicates", "conflicts_with": "Conflicts with", "full": "Full", "partial": "Partial", "supporting": "Supporting" }
+    "edgeKind": { "depends_on": "Depends on", "duplicates": "Duplicates", "conflicts_with": "Conflicts with", "full": "Full", "partial": "Partial", "supporting": "Supporting" },
+    "focus": "Focus",
+    "hops": "Hops",
+    "panorama": "Panorama",
+    "pendingCount": "{{count}} pending",
+    "truncated": "Truncated",
+    "filters": { "pending": "Show pending proposals", "onlyUnconfirmed": "Only unconfirmed", "onlyConflicts": "Only conflicts", "framework": "Framework", "allFrameworks": "All frameworks" }
   },
   "common": {
     "loading": "Loading…",
