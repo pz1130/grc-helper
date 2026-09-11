@@ -30,6 +30,8 @@ async function mockMaturity(page: Page) {
     } });
     if (url.pathname === "/api/maturity/assessments/3/scores" && request.method() === "PUT") return route.fulfill({ json: { id: 99 } });
     if (url.pathname === "/api/maturity/assessments/3/finalize") return route.fulfill({ json: { id: 3, framework_id: 7, name: "2026 baseline", as_of_date: "2026-09-11", status: "final" } });
+    if (url.pathname === "/api/risks" && request.method() === "GET") return route.fulfill({ json: [] });
+    if (url.pathname === "/api/risks/from-maturity-gap") return route.fulfill({ status: 201, json: { id: 8 } });
     return route.fulfill({ status: 500, json: { message: `Unexpected API: ${url.pathname}` } });
   });
 }
@@ -48,4 +50,41 @@ test("maturity workspace shows dual rollups and saves leaf scores", async ({ pag
   await page.getByLabel("GV.RR-01 Documentation rationale").fill("Roles are documented");
   await page.getByRole("row").filter({ hasText: "GV.RR-01" }).getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("row").filter({ hasText: "GV.RR-01" }).getByRole("status")).toHaveText("Saved.");
+});
+
+test("a low implementation score converts to a traceable risk", async ({ page }) => {
+  await mockMaturity(page);
+  await page.goto("/maturity");
+
+  const created = page.waitForRequest((request) => request.url().endsWith("/api/risks/from-maturity-gap"));
+  await page.getByRole("row").filter({ hasText: "PR.AA-01" }).getByRole("button", { name: "Create risk" }).click();
+  expect((await created).postDataJSON()).toEqual({ assessment_id: 3, framework_item_id: 21 });
+  await expect(page.getByRole("row").filter({ hasText: "PR.AA-01" }).getByRole("status")).toHaveText("Risk created.");
+});
+
+test("risk register plots exposure and updates mitigation", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("grc.token", "mock-token");
+    localStorage.setItem("grc.lang", "en");
+  });
+  await page.route("**/api/**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.pathname === "/api/auth/me") return route.fulfill({ json: { id: 1, email: "lead@example.com", name: "Lead", role: "grc_lead" } });
+    if (url.pathname === "/api/risks/owners") return route.fulfill({ json: [{ id: 1, name: "Lead", email: "lead@example.com" }] });
+    if (url.pathname === "/api/risks" && request.method() === "GET") return route.fulfill({ json: [{ id: 8, title: "PR.AA-01 implementation gap", description: "Only a pilot exists.", source: "gap", source_ref: { assessment_id: 3, framework_item_id: 21 }, likelihood: 3, impact: 4, inherent_score: 12, mitigation: "", residual_likelihood: null, residual_impact: null, residual_score: null, owner_user_id: 1, due_date: "2026-12-10", status: "open" }] });
+    if (url.pathname === "/api/risks/8" && request.method() === "PATCH") return route.fulfill({ json: { id: 8 } });
+    return route.fulfill({ status: 500, json: { message: `Unexpected API: ${url.pathname}` } });
+  });
+  await page.goto("/risks");
+
+  await expect(page.getByRole("heading", { name: "Risk register" })).toBeVisible();
+  await expect(page.getByLabel("Impact 4, likelihood 3, 1 risks")).toHaveText("1");
+  await expect(page.getByText("PR.AA-01 implementation gap")).toBeVisible();
+  await page.getByLabel("PR.AA-01 implementation gap Mitigation").fill("Complete the rollout");
+  await page.getByLabel("PR.AA-01 implementation gap Residual likelihood").selectOption("2");
+  await page.getByLabel("PR.AA-01 implementation gap Residual impact").selectOption("2");
+  const updated = page.waitForRequest((request) => request.url().endsWith("/api/risks/8") && request.method() === "PATCH");
+  await page.getByRole("row").filter({ hasText: "PR.AA-01 implementation gap" }).getByRole("button", { name: "Save" }).click();
+  expect((await updated).postDataJSON()).toMatchObject({ mitigation: "Complete the rollout", residual_likelihood: 2, residual_impact: 2 });
 });

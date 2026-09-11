@@ -18,7 +18,8 @@
     "techAssets": "技术栈台账",
     "evidence": "证据库",
     "audit": "审计助手",
-    "maturity": "成熟度评估"
+    "maturity": "成熟度评估",
+    "risks": "风险登记册"
   },
   "login": {
     "title": "登录",
@@ -404,7 +405,50 @@
     "action": "操作",
     "noScores": "完成至少一个领域的评分后显示对比。",
     "empty": "还没有成熟度评估。选择框架创建第一份评估。",
-    "scaleHint": "评分范围 0–4。汇总只计算已评分的末级条目，未评分项不按零分处理。"
+    "scaleHint": "评分范围 0–4。汇总只计算已评分的末级条目，未评分项不按零分处理。",
+    "createRisk": "转为风险",
+    "riskCreated": "风险已创建。",
+    "viewRisk": "查看已有风险"
+  },
+  "risks": {
+    "title": "风险登记册",
+    "subtitle": "记录风险责任、整改期限与剩余风险，不包含工单审批流。",
+    "matrix": "风险矩阵",
+    "matrixHint": "横轴为可能性，纵轴为影响；数字表示该位置的未关闭风险数量。",
+    "matrixCell": "影响 {{impact}}，可能性 {{likelihood}}，{{count}} 条风险",
+    "impactLikelihood": "影响 / 可能性",
+    "list": "风险清单",
+    "risk": "风险",
+    "riskTitle": "风险标题",
+    "add": "新增风险",
+    "likelihood": "可能性",
+    "impact": "影响",
+    "inherentScore": "固有风险",
+    "residualScore": "剩余风险",
+    "residualLikelihood": "剩余可能性",
+    "residualImpact": "剩余影响",
+    "owner": "责任人",
+    "dueDate": "整改期限",
+    "ownerDue": "责任人与期限",
+    "unassigned": "未分配",
+    "mitigation": "整改措施",
+    "mitigationResidual": "整改与剩余风险",
+    "status": "状态",
+    "statusFilter": "状态筛选",
+    "allStatuses": "全部状态",
+    "empty": "当前筛选下没有风险。",
+    "sources": {
+      "gap": "成熟度差距",
+      "conflict": "制度冲突",
+      "manual": "人工登记",
+      "audit_finding": "审计发现"
+    },
+    "statuses": {
+      "open": "待处理",
+      "mitigating": "整改中",
+      "accepted": "已接受",
+      "closed": "已关闭"
+    }
   },
   "common": {
     "loading": "加载中…",

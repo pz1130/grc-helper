@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 
 import { request } from "../api";
 import { useAuth } from "../auth";
@@ -51,6 +52,12 @@ interface Summary {
   overall: Aggregate;
   groups: Group[];
   items: MaturityItem[];
+}
+
+interface RiskRef {
+  id: number;
+  source: string;
+  source_ref: Record<string, unknown>;
 }
 
 function formatScore(value: number | null): string {
@@ -126,6 +133,29 @@ function RadarChart({ groups }: { groups: Group[] }) {
   );
 }
 
+function GapRiskButton({ item, assessment }: { item: MaturityItem; assessment: Assessment }) {
+  const { t } = useTranslation();
+  const queryClient = useQueryClient();
+  const risks = useQuery({ queryKey: ["risks"], queryFn: () => request<RiskRef[]>("/api/risks") });
+  const existing = risks.data?.find((risk) => risk.source === "gap" && Number(risk.source_ref.assessment_id) === assessment.id && Number(risk.source_ref.framework_item_id) === item.framework_item_id);
+  const create = useMutation({
+    mutationFn: () => request("/api/risks/from-maturity-gap", {
+      method: "POST",
+      body: JSON.stringify({ assessment_id: assessment.id, framework_item_id: item.framework_item_id }),
+    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["risks"] }),
+  });
+  if (item.impl_score === null || item.impl_score >= 3) return null;
+  if (existing) return <Link to="/risks" style={{ display: "inline-block", marginTop: 7, fontSize: "0.75rem" }}>{t("maturity.viewRisk")}</Link>;
+  return (
+    <>
+      <button className="kn-btn-sm" onClick={() => create.mutate()} disabled={create.isPending || risks.isPending} style={{ marginTop: 7 }}>{t("maturity.createRisk")}</button>
+      {create.isSuccess && <small role="status" style={{ display: "block", color: "var(--accent-emerald)", marginTop: 5 }}>{t("maturity.riskCreated")}</small>}
+      {create.error && <small role="alert" style={{ display: "block", color: "var(--accent-ruby)", marginTop: 5 }}>{create.error.message}</small>}
+    </>
+  );
+}
+
 function ScoreEditor({ item, assessment, canWrite }: { item: MaturityItem; assessment: Assessment; canWrite: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -181,11 +211,12 @@ function ScoreEditor({ item, assessment, canWrite }: { item: MaturityItem; asses
           </div>
         )}
       </td>
-      {!locked && (
+      {canWrite && (
         <td>
-          <button className="kn-btn-sm" disabled={!docScore || !implScore || save.isPending} onClick={() => save.mutate()}>{t("common.save")}</button>
-          {save.isSuccess && <small role="status" style={{ display: "block", color: "var(--accent-emerald)", marginTop: 5 }}>{t("common.saved")}</small>}
-          {save.error && <small role="alert" style={{ display: "block", color: "var(--accent-ruby)", marginTop: 5 }}>{save.error.message}</small>}
+          {!locked && <button className="kn-btn-sm" disabled={!docScore || !implScore || save.isPending} onClick={() => save.mutate()}>{t("common.save")}</button>}
+          {!locked && save.isSuccess && <small role="status" style={{ display: "block", color: "var(--accent-emerald)", marginTop: 5 }}>{t("common.saved")}</small>}
+          {!locked && save.error && <small role="alert" style={{ display: "block", color: "var(--accent-ruby)", marginTop: 5 }}>{save.error.message}</small>}
+          <GapRiskButton item={item} assessment={assessment} />
         </td>
       )}
     </tr>
@@ -283,7 +314,7 @@ export function Maturity() {
             {summary.data.groups.map((group) => (
               <div key={group.framework_item_id} style={{ marginTop: 22 }}>
                 <h4 style={{ marginBottom: 10 }}>{group.code} · {group.title}</h4>
-                <div className="kn-table-container" style={{ margin: 0 }}><table><thead><tr><th>{t("maturity.item")}</th><th>{t("maturity.docScore")}</th><th>{t("maturity.implScore")}</th><th>{t("maturity.rationale")}</th>{canWrite && selected.status === "draft" && <th>{t("maturity.action")}</th>}</tr></thead><tbody>{groupedItems.get(group.framework_item_id)?.map((item) => <ScoreEditor key={item.framework_item_id} item={item} assessment={selected} canWrite={canWrite} />)}</tbody></table></div>
+                <div className="kn-table-container" style={{ margin: 0 }}><table><thead><tr><th>{t("maturity.item")}</th><th>{t("maturity.docScore")}</th><th>{t("maturity.implScore")}</th><th>{t("maturity.rationale")}</th>{canWrite && <th>{t("maturity.action")}</th>}</tr></thead><tbody>{groupedItems.get(group.framework_item_id)?.map((item) => <ScoreEditor key={item.framework_item_id} item={item} assessment={selected} canWrite={canWrite} />)}</tbody></table></div>
               </div>
             ))}
           </div>

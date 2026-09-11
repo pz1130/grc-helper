@@ -24,6 +24,7 @@ from app.llm import models as llm_models
 from app.maturity import models as maturity_models
 from app.relations import models as relations_models
 from app.review import models as review_models
+from app.risk import models as risk_models
 from app.search import models as search_models
 
 __all__ = [
@@ -39,5 +40,6 @@ __all__ = [
     "maturity_models",
     "relations_models",
     "review_models",
+    "risk_models",
     "search_models",
 ]

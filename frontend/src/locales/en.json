@@ -18,7 +18,8 @@
     "techAssets": "Tech assets",
     "evidence": "Evidence",
     "audit": "Audit assistant",
-    "maturity": "Maturity"
+    "maturity": "Maturity",
+    "risks": "Risk register"
   },
   "login": {
     "title": "Sign in",
@@ -404,7 +405,50 @@
     "action": "Action",
     "noScores": "Score at least one domain to see a comparison.",
     "empty": "No maturity assessments yet. Choose a framework to create the first one.",
-    "scaleHint": "Scores range from 0 to 4. Rollups include scored leaf items only; unscored items are not treated as zero."
+    "scaleHint": "Scores range from 0 to 4. Rollups include scored leaf items only; unscored items are not treated as zero.",
+    "createRisk": "Create risk",
+    "riskCreated": "Risk created.",
+    "viewRisk": "View existing risk"
+  },
+  "risks": {
+    "title": "Risk register",
+    "subtitle": "Track ownership, due dates, and residual exposure without adding a ticket approval workflow.",
+    "matrix": "Risk matrix",
+    "matrixHint": "Likelihood runs horizontally and impact vertically. Each number is the count of risks that are not closed.",
+    "matrixCell": "Impact {{impact}}, likelihood {{likelihood}}, {{count}} risks",
+    "impactLikelihood": "Impact / likelihood",
+    "list": "Risk list",
+    "risk": "Risk",
+    "riskTitle": "Risk title",
+    "add": "Add risk",
+    "likelihood": "Likelihood",
+    "impact": "Impact",
+    "inherentScore": "Inherent risk",
+    "residualScore": "Residual risk",
+    "residualLikelihood": "Residual likelihood",
+    "residualImpact": "Residual impact",
+    "owner": "Owner",
+    "dueDate": "Due date",
+    "ownerDue": "Owner and due date",
+    "unassigned": "Unassigned",
+    "mitigation": "Mitigation",
+    "mitigationResidual": "Mitigation and residual risk",
+    "status": "Status",
+    "statusFilter": "Status filter",
+    "allStatuses": "All statuses",
+    "empty": "No risks match the current filter.",
+    "sources": {
+      "gap": "Maturity gap",
+      "conflict": "Policy conflict",
+      "manual": "Manual",
+      "audit_finding": "Audit finding"
+    },
+    "statuses": {
+      "open": "Open",
+      "mitigating": "Mitigating",
+      "accepted": "Accepted",
+      "closed": "Closed"
+    }
   },
   "common": {
     "loading": "Loading…",
