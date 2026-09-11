@@ -2,9 +2,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clauses.models import Clause
-from app.controls.models import Control, ControlRelation, ControlSource, RelationType
+from app.controls.models import Control, ControlRelation, ControlSource, RelationType, SourceRelation
 from app.errors import BadRequest
-from app.graph.schemas import GraphEdge, GraphNode, GraphOut, GraphStats
+from app.frameworks.models import FrameworkItem, Mapping
+from app.graph.schemas import GraphEdge, GraphGroup, GraphNode, GraphOut, GraphStats
+from app.ingest.models import Document
 from app.review.models import Proposal, ProposalKind, ProposalStatus
 
 # 全景模式的硬上限。超了按 code 升序截断——随机截断的全景图
@@ -110,6 +112,83 @@ async def _relation_seeds(session: AsyncSession, kind: str, target_id: int) -> s
     raise BadRequest("关系图的 focus 只能是 control: 或 document:")
 
 
+async def _document_groups(
+    session: AsyncSession,
+) -> tuple[dict[int, str], dict[int, list[str]], dict[str, str]]:
+    """控制点 → (主文件 key, 其余文件 key 列表)，外加 key → 文件名。
+
+    主文件取 relation='defines' 的那份；多条 defines 或一条都没有时，
+    取 clause_id 最小的那条——必须确定，否则同一份数据两次分组会不一样。
+    """
+    rows = (
+        await session.execute(
+            select(
+                ControlSource.control_id,
+                ControlSource.clause_id,
+                ControlSource.relation,
+                Clause.document_id,
+                Document.title,
+            )
+            .join(Clause, Clause.id == ControlSource.clause_id)
+            .join(Document, Document.id == Clause.document_id)
+            .order_by(ControlSource.control_id, ControlSource.clause_id)
+        )
+    ).all()
+
+    labels: dict[str, str] = {}
+    per_control: dict[int, list[tuple[int, int, str]]] = {}
+    for control_id, clause_id, relation, document_id, title in rows:
+        key = f"document:{document_id}"
+        labels[key] = title
+        weight = 0 if relation == SourceRelation.DEFINES else 1
+        per_control.setdefault(control_id, []).append((weight, clause_id, key))
+
+    primary: dict[int, str] = {}
+    extra: dict[int, list[str]] = {}
+    for control_id, entries in per_control.items():
+        entries.sort()  # 先 defines，同权重再比 clause_id——排序即确定性
+        ordered: list[str] = []
+        for _weight, _clause_id, key in entries:
+            if key not in ordered:
+                ordered.append(key)
+        primary[control_id] = ordered[0]
+        extra[control_id] = ordered[1:]
+    return primary, extra, labels
+
+
+async def _control_functions(session: AsyncSession) -> tuple[dict[int, list[str]], dict[int, set[int]]]:
+    """控制点 → CSF Function 代码列表，以及控制点 → 它映射到的框架 id 集合。"""
+    items = (
+        await session.execute(select(FrameworkItem.id, FrameworkItem.parent_id, FrameworkItem.code))
+    ).all()
+    parent = {item_id: parent_id for item_id, parent_id, _code in items}
+    code = {item_id: item_code for item_id, _parent_id, item_code in items}
+
+    def root_code(item_id: int) -> str:
+        current = item_id
+        while parent.get(current) is not None:
+            current = parent[current]
+        return code.get(current, "")
+
+    rows = (
+        await session.execute(
+            select(Mapping.control_id, Mapping.framework_item_id, FrameworkItem.framework_id)
+            .join(FrameworkItem, FrameworkItem.id == Mapping.framework_item_id)
+            .order_by(Mapping.control_id, Mapping.id)
+        )
+    ).all()
+
+    functions: dict[int, list[str]] = {}
+    frameworks: dict[int, set[int]] = {}
+    for control_id, item_id, framework_id in rows:
+        bucket = functions.setdefault(control_id, [])
+        function_code = root_code(item_id)
+        if function_code and function_code not in bucket:
+            bucket.append(function_code)
+        frameworks.setdefault(control_id, set()).add(framework_id)
+    return functions, frameworks
+
+
 async def relation_graph(
     session: AsyncSession,
     *,
@@ -120,15 +199,35 @@ async def relation_graph(
     framework_id: int | None = None,
 ) -> GraphOut:
     controls = (await session.execute(select(Control).order_by(Control.code))).scalars().all()
+    primary, extra, labels = await _document_groups(session)
+    functions, frameworks = await _control_functions(session)
+
+    if framework_id is not None:
+        controls = [c for c in controls if framework_id in frameworks.get(c.id, set())]
+
+    truncated = False
+    if focus is None and len(controls) > MAX_NODES:
+        controls = controls[:MAX_NODES]  # 已按 code 升序
+        truncated = True
+
     nodes = [
-        GraphNode(key=control_key(c.id), kind="control", code=c.code, title=c.title)
+        GraphNode(
+            key=control_key(c.id),
+            kind="control",
+            code=c.code,
+            title=c.title,
+            group=primary.get(c.id),
+            group_extra=extra.get(c.id, []),
+            functions=functions.get(c.id, []),
+        )
         for c in controls
     ]
     keys = {node.key for node in nodes}
 
-    relations = (
-        await session.execute(select(ControlRelation).order_by(ControlRelation.id))
-    ).scalars().all()
+    stmt = select(ControlRelation).order_by(ControlRelation.id)
+    if types is not None:
+        stmt = stmt.where(ControlRelation.relation_type.in_(types))
+    relations = (await session.execute(stmt)).scalars().all()
     edges = [
         GraphEdge(
             key=f"relation:{row.id}",
@@ -147,7 +246,7 @@ async def relation_graph(
         seen = {_pair_key(e.source, e.target, e.kind) for e in edges}
         for edge in await _pending_relation_edges(session, keys, types):
             pair = _pair_key(edge.source, edge.target, edge.kind)
-            if pair in seen:  # 已确认的赢，不画重影
+            if pair in seen:
                 continue
             seen.add(pair)
             edges.append(edge)
@@ -169,13 +268,21 @@ async def relation_graph(
     for node in nodes:
         node.pending_edges = pending_count.get(node.key, 0)
 
+    used = {node.group for node in nodes if node.group} | {
+        key for node in nodes for key in node.group_extra
+    }
+    groups = [
+        GraphGroup(key=key, kind="document", label=labels.get(key, key)) for key in sorted(used)
+    ]
+
     return GraphOut(
         nodes=nodes,
         edges=edges,
+        groups=groups,
         stats=GraphStats(
             nodes=len(nodes),
             edges=len(edges),
             pending_edges=sum(1 for e in edges if e.status == "pending"),
-            truncated=False,
+            truncated=truncated,
         ),
     )

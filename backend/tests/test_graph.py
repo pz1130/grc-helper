@@ -8,6 +8,7 @@ from app.controls.models import (
     RelationType,
     SourceRelation,
 )
+from app.frameworks.models import Framework, FrameworkItem, Mapping, MappingStrength
 from app.graph.service import control_key
 from app.iam.models import User
 from app.iam.permissions import Role
@@ -303,4 +304,145 @@ async def test_two_hops_may_shorten_once_pending_edges_join(client, db_session):
         control_key(second.id),
         control_key(third.id),
     }
+
+
+async def _framework(db_session, key: str = "nist-csf-2.0") -> tuple[Framework, FrameworkItem]:
+    framework = Framework(
+        key=key, name_zh="框架", name_en="Framework", version="2.0", source="nist.gov"
+    )
+    db_session.add(framework)
+    await db_session.flush()
+    function = FrameworkItem(
+        framework_id=framework.id, parent_id=None, code="GV", title="Govern", level=1, order_index=0
+    )
+    db_session.add(function)
+    await db_session.flush()
+    leaf = FrameworkItem(
+        framework_id=framework.id,
+        parent_id=function.id,
+        code="GV.PO-01",
+        title="Policy",
+        level=2,
+        order_index=1,
+    )
+    db_session.add(leaf)
+    await db_session.flush()
+    return framework, leaf
+
+
+@pytest.mark.asyncio
+async def test_group_prefers_the_defining_document_and_lists_the_rest(client, db_session):
+    await _user(db_session)
+    elaborating = await _document(db_session, "Procedure", 1)
+    defining = await _document(db_session, "Policy", 2)
+    control = await _control(db_session, "C-0001")
+    first_clause = await _clause(db_session, elaborating.id, "7.2")
+    second_clause = await _clause(db_session, defining.id, "4.1")
+    db_session.add(
+        ControlSource(
+            control_id=control.id, clause_id=first_clause.id, relation=SourceRelation.ELABORATES
+        )
+    )
+    db_session.add(
+        ControlSource(
+            control_id=control.id, clause_id=second_clause.id, relation=SourceRelation.DEFINES
+        )
+    )
+    await db_session.flush()
+    headers = await _auth(client)
+
+    body = (await client.get("/api/graph/relations", headers=headers)).json()
+
+    node = body["nodes"][0]
+    assert node["group"] == f"document:{defining.id}"
+    assert node["group_extra"] == [f"document:{elaborating.id}"]
+    assert {g["key"]: g["label"] for g in body["groups"]} == {
+        f"document:{defining.id}": "Policy",
+        f"document:{elaborating.id}": "Procedure",
+    }
+    assert {g["kind"] for g in body["groups"]} == {"document"}
+
+
+@pytest.mark.asyncio
+async def test_functions_come_from_the_level_one_ancestor_of_each_mapping(client, db_session):
+    await _user(db_session)
+    _framework_row, leaf = await _framework(db_session)
+    mapped = await _control(db_session, "C-0001")
+    await _control(db_session, "C-0002")
+    db_session.add(
+        Mapping(
+            control_id=mapped.id,
+            framework_item_id=leaf.id,
+            strength=MappingStrength.FULL,
+            rationale="",
+            quote="",
+        )
+    )
+    await db_session.flush()
+    headers = await _auth(client)
+
+    body = (await client.get("/api/graph/relations", headers=headers)).json()
+
+    by_key = {n["key"]: n for n in body["nodes"]}
+    assert by_key[control_key(mapped.id)]["functions"] == ["GV"]
+    assert [n["functions"] for n in body["nodes"] if n["code"] == "C-0002"] == [[]]
+
+
+@pytest.mark.asyncio
+async def test_type_filter_keeps_only_the_requested_relation_types(client, db_session):
+    await _user(db_session)
+    first = await _control(db_session, "C-0001")
+    second = await _control(db_session, "C-0002")
+    third = await _control(db_session, "C-0003")
+    await _relation(db_session, first, second, RelationType.DEPENDS_ON)
+    await _relation(db_session, second, third, RelationType.DUPLICATES)
+    headers = await _auth(client)
+
+    body = (await client.get("/api/graph/relations?types=duplicates", headers=headers)).json()
+
+    assert [e["kind"] for e in body["edges"]] == ["duplicates"]
+
+
+@pytest.mark.asyncio
+async def test_framework_filter_keeps_only_controls_mapped_into_it(client, db_session):
+    await _user(db_session)
+    framework, leaf = await _framework(db_session)
+    mapped = await _control(db_session, "C-0001")
+    await _control(db_session, "C-0002")
+    db_session.add(
+        Mapping(
+            control_id=mapped.id,
+            framework_item_id=leaf.id,
+            strength=MappingStrength.PARTIAL,
+            rationale="",
+            quote="",
+        )
+    )
+    await db_session.flush()
+    headers = await _auth(client)
+
+    body = (
+        await client.get(f"/api/graph/relations?framework_id={framework.id}", headers=headers)
+    ).json()
+
+    assert [n["code"] for n in body["nodes"]] == ["C-0001"]
+
+
+@pytest.mark.asyncio
+async def test_panorama_truncation_is_deterministic(client, db_session, monkeypatch):
+    from app.graph import service as graph_service
+
+    monkeypatch.setattr(graph_service, "MAX_NODES", 2)
+    await _user(db_session)
+    for index in range(4):
+        await _control(db_session, f"C-000{index}")
+    headers = await _auth(client)
+
+    first = (await client.get("/api/graph/relations", headers=headers)).json()
+    second = (await client.get("/api/graph/relations", headers=headers)).json()
+
+    assert [n["code"] for n in first["nodes"]] == ["C-0000", "C-0001"]
+    assert first["stats"]["truncated"] is True
+    assert [n["code"] for n in second["nodes"]] == [n["code"] for n in first["nodes"]]
+
 
