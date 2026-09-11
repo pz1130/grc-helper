@@ -160,7 +160,11 @@
     "doubtful": "Reasoning hedges",
     "doubtfulHint": "Heuristic: the model's own rationale says “does not / not specifically / lacks”, yet the strength still closes the gap. Keyword match, not a verdict.",
     "drift": "Stated more strongly than the source",
-    "driftHint": "The statement says must/shall, but none of the cited clauses contain a modal verb. Citation checks cannot catch this — the quote is verbatim, the conclusion is not. Tables are a known false positive: they carry obligations without modal verbs."
+    "driftHint": "The statement says must/shall, but none of the cited clauses contain a modal verb. Citation checks cannot catch this — the quote is verbatim, the conclusion is not. Tables are a known false positive: they carry obligations without modal verbs.",
+    "conflictTopic": "Conflict topic",
+    "conflictDifference": "What differs",
+    "conflictSideA": "Side A",
+    "conflictSideB": "Side B"
   },
   "audit": {
     "title": "Audit response workspace",

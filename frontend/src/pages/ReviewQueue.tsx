@@ -374,6 +374,127 @@ function RelationBody({
   );
 }
 
+interface ClauseDetail {
+  id: number;
+  document_id: number;
+  document_title: string;
+  citation_label: string;
+  text: string;
+}
+
+function asClauseId(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function ConflictClausePane({
+  clauseId, quote, sideLabel,
+}: {
+  clauseId: number | null;
+  quote: string;
+  sideLabel: string;
+}) {
+  const { t } = useTranslation();
+  const { data, isPending } = useQuery({
+    queryKey: ["clause", clauseId],
+    queryFn: () => request<ClauseDetail>(`/api/clauses/${clauseId}`),
+    enabled: clauseId != null,
+  });
+
+  return (
+    <section className="kn-card" style={{ background: "var(--stage-card-subtle)" }}>
+      <h3 style={{ fontSize: "1rem" }}>
+        {sideLabel}
+        {data && <> · {data.document_title}</>}
+      </h3>
+      {clauseId != null && isPending && (
+        <p style={{ color: "var(--text-tertiary)", fontSize: "0.875rem" }}>{t("common.loading")}</p>
+      )}
+      {data && (
+        <>
+          <Link to={`/documents/${data.document_id}#clause-${data.id}`}>
+            <code>{data.citation_label}</code>
+          </Link>
+          <p style={{ whiteSpace: "pre-wrap", fontSize: "0.875rem", lineHeight: 1.6, color: "var(--text-secondary)" }}>
+            <HighlightQuote text={data.text} quote={quote} />
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
+function ConflictBody({
+  proposal, editing, draft, busy, onDraftChange,
+}: {
+  proposal: Proposal;
+  editing: boolean;
+  draft: string;
+  busy: boolean;
+  onDraftChange: (value: string) => void;
+}) {
+  const { t } = useTranslation();
+  const payload = proposal.payload;
+  const topic = typeof payload.topic === "string" ? payload.topic : "";
+  const difference = typeof payload.difference === "string" ? payload.difference : "";
+  const quoteA = typeof payload.quote_a === "string" ? payload.quote_a : "";
+  const quoteB = typeof payload.quote_b === "string" ? payload.quote_b : "";
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      <p>
+        <strong style={{ color: "var(--accent-blue)" }}>{t("review.conflictTopic")}</strong>
+        {topic && <> · {topic}</>}
+        {proposal.confidence != null && (
+          <> · {t("review.confidence")} {proposal.confidence.toFixed(2)}</>
+        )}
+      </p>
+      {/* 审的是两边条款原文是否真打架，不能只看模型抽出的片语。 */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <ConflictClausePane
+          clauseId={asClauseId(payload.clause_a_id)}
+          quote={quoteA}
+          sideLabel={t("review.conflictSideA")}
+        />
+        <ConflictClausePane
+          clauseId={asClauseId(payload.clause_b_id)}
+          quote={quoteB}
+          sideLabel={t("review.conflictSideB")}
+        />
+      </div>
+      {difference && (
+        <div
+          style={{
+            marginTop: 16,
+            padding: "10px 14px",
+            fontSize: "0.875rem",
+            lineHeight: 1.6,
+            color: "var(--text-secondary)",
+            background: "var(--stage-card-subtle)",
+            borderLeft: "3px solid var(--accent-blue)",
+            borderRadius: "var(--radius-xs)",
+          }}
+        >
+          <strong style={{ color: "var(--text-primary)" }}>{t("review.conflictDifference")}</strong>
+          <div style={{ marginTop: 4 }}>{difference}</div>
+        </div>
+      )}
+      {editing && (
+        <label style={{ display: "block", marginTop: 16 }}>
+          {t("review.payload")}
+          <textarea
+            aria-label={t("review.payload")}
+            rows={8}
+            style={{ width: "100%", boxSizing: "border-box" }}
+            value={draft}
+            disabled={busy}
+            onChange={(event) => onDraftChange(event.target.value)}
+          />
+        </label>
+      )}
+    </div>
+  );
+}
+
 export function ReviewQueue() {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -757,6 +878,7 @@ export function ReviewQueue() {
               key={p.id}
               id={`proposal-${p.id}`}
               className="kn-card"
+              data-proposal-kind={p.kind}
               style={{ padding: "20px 24px" }}
             >
               {/* Proposal Header */}
@@ -779,7 +901,7 @@ export function ReviewQueue() {
                   )}
                 </div>
 
-                {canDecide && p.kind !== "relation" && (
+                {canDecide && p.kind !== "relation" && p.kind !== "conflict" && (
                   <label style={{ flexDirection: "row", alignItems: "center", gap: 6, margin: 0 }}>
                     <input
                       type="checkbox"
@@ -839,6 +961,14 @@ export function ReviewQueue() {
                 />
               ) : p.kind === "relation" ? (
                 <RelationBody
+                  proposal={p}
+                  editing={editing === p.id}
+                  draft={draft}
+                  busy={busy}
+                  onDraftChange={setDraft}
+                />
+              ) : p.kind === "conflict" ? (
+                <ConflictBody
                   proposal={p}
                   editing={editing === p.id}
                   draft={draft}
