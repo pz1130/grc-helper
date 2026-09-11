@@ -479,6 +479,18 @@
     "exportFailed": "Export failed",
     "filters": { "pending": "Show pending proposals", "onlyUnconfirmed": "Only unconfirmed", "onlyConflicts": "Only conflicts", "framework": "Framework", "allFrameworks": "All frameworks" }
   },
+  "impact": {
+    "title": "Change impact",
+    "added": "Added clauses",
+    "removed": "Removed clauses",
+    "matched": "Matched clauses",
+    "affectedControls": "Affected controls",
+    "affectedMappings": "Affected mappings",
+    "affectedEvidence": "Affected evidence",
+    "noPrevious": "This document has no previous version.",
+    "importNewVersion": "Import new version",
+    "viewImpact": "View change impact"
+  },
   "common": {
     "loading": "Loading…",
     "refresh": "Refresh",

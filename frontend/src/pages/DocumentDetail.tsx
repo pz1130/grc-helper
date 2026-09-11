@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
-import { request } from "../api";
+import { getToken, request } from "../api";
 
 interface ClauseNode {
   id: number;
@@ -25,6 +25,7 @@ interface Doc {
   version: string | null;
   owner: string | null;
   parse_warnings: string | null;
+  supersedes_id: number | null;
 }
 
 function flatten(nodes: ClauseNode[]): ClauseNode[] {
@@ -91,7 +92,11 @@ export function DocumentDetail() {
   const { t } = useTranslation();
   const { id } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const fileInput = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<ClauseNode | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const doc = useQuery({
     queryKey: ["document", id],
@@ -100,6 +105,31 @@ export function DocumentDetail() {
   const clauses = useQuery({
     queryKey: ["clauses", id],
     queryFn: () => request<ClauseNode[]>(`/api/documents/${id}/clauses`),
+  });
+
+  const uploadVersion = useMutation({
+    mutationFn: async (file: File) => {
+      const body = new FormData();
+      body.append("file", file);
+      body.append("title", file.name.replace(/\.(pdf|docx)$/i, ""));
+      body.append("doc_type", /guideline/i.test(file.name) ? "guideline" : "procedure");
+      body.append("supersedes_id", String(id));
+      const response = await fetch("/api/documents", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body,
+      });
+      if (!response.ok) {
+        const detail = await response.json().catch(() => ({}));
+        throw new Error(detail.message ?? String(response.status));
+      }
+      return (await response.json()) as Doc;
+    },
+    onSuccess: (created) => {
+      setImporting(false);
+      void queryClient.invalidateQueries({ queryKey: ["documents"] });
+      navigate(`/documents/${created.id}`);
+    },
   });
 
   const total = clauses.data ? flatten(clauses.data).length : 0;
@@ -144,7 +174,57 @@ export function DocumentDetail() {
             {doc.data?.owner && <span className="kn-badge">Owner: {doc.data.owner}</span>}
           </div>
         </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {doc.data?.supersedes_id != null && (
+            <Link
+              to={`/documents/${id}/change-impact`}
+              className="kn-btn-secondary kn-btn-sm"
+              style={{ display: "inline-flex", alignItems: "center", textDecoration: "none" }}
+            >
+              {t("impact.viewImpact")}
+            </Link>
+          )}
+          <button
+            type="button"
+            className="kn-btn-primary kn-btn-sm"
+            onClick={() => setImporting(true)}
+          >
+            {t("impact.importNewVersion")}
+          </button>
+        </div>
       </div>
+
+      {importing && (
+        <div className="kn-card" style={{ marginBottom: 20, border: "1px solid var(--accent-blue)" }}>
+          <h4 style={{ margin: "0 0 8px 0" }}>{t("impact.importNewVersion")}</h4>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", marginBottom: 12 }}>
+            {t("documents.dropHint")}
+          </p>
+          <input type="hidden" name="supersedes_id" value={id ?? ""} />
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".pdf,.docx"
+            aria-label={t("documents.upload")}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) uploadVersion.mutate(file);
+              event.target.value = "";
+            }}
+          />
+          {uploadVersion.isPending && <p role="status">{t("common.loading")}</p>}
+          {uploadVersion.error && (
+            <p role="alert">
+              <span>⚠️</span> {uploadVersion.error.message}
+            </p>
+          )}
+          <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+            <button type="button" className="kn-btn-secondary" onClick={() => setImporting(false)}>
+              {t("common.cancel")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {doc.data?.parse_warnings && (
         <pre

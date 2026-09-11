@@ -476,6 +476,18 @@
     "exportFailed": "导出失败",
     "filters": { "pending": "显示待确认提案", "onlyUnconfirmed": "只看未确认", "onlyConflicts": "只看冲突", "framework": "框架", "allFrameworks": "全部框架" }
   },
+  "impact": {
+    "title": "变更影响",
+    "added": "新增条款",
+    "removed": "删除条款",
+    "matched": "配对条款",
+    "affectedControls": "受影响控制点",
+    "affectedMappings": "受影响映射",
+    "affectedEvidence": "受影响证据",
+    "noPrevious": "该文档没有上一版本。",
+    "importNewVersion": "导入新版本",
+    "viewImpact": "查看变更影响"
+  },
   "common": {
     "loading": "加载中…",
     "refresh": "刷新",

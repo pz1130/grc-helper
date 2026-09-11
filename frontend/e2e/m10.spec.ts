@@ -78,3 +78,72 @@ test("conflict cards offer no bulk accept checkbox", async ({ page }) => {
     page.locator('[data-proposal-kind="conflict"] input[type="checkbox"]'),
   ).toHaveCount(0);
 });
+
+const impact = {
+  previous_document: { id: 3, title: "Password Policy", version: "1.0" },
+  added: [{ clause_id: 21, citation_label: "4.4", text: "Passwords must not be reused." }],
+  removed: [{ clause_id: 11, citation_label: "4.2", text: "Passwords rotate every 90 days." }],
+  matched: [{ old_clause_id: 12, new_clause_id: 22, citation_label: "4.3" }],
+  affected_controls: [{ id: 7, code: "C-0007", title: "Password rotation" }],
+  affected_mappings: [{ id: 31, control_id: 7, framework_item_code: "PR.AA-01" }],
+  affected_evidence: [{ id: 41, control_id: 7, title: "AD rotation export" }],
+};
+
+async function mockImpact(page: Page, options: { noPrevious?: boolean } = {}) {
+  await page.addInitScript(() => {
+    localStorage.setItem("grc.token", "mock-token");
+    localStorage.setItem("grc.lang", "en");
+  });
+  await page.route("**/api/**", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === "/api/auth/me")
+      return route.fulfill({ json: { id: 1, email: "lead@example.com", name: "Lead", role: "grc_lead" } });
+    if (url.pathname === "/api/documents/5")
+      return route.fulfill({ json: {
+        id: 5, title: "Password Policy", status: "active", version: "2.0",
+        owner: null, parse_warnings: null, supersedes_id: options.noPrevious ? null : 3,
+      } });
+    if (url.pathname === "/api/documents/5/clauses")
+      return route.fulfill({ json: [] });
+    if (url.pathname === "/api/documents/5/change-impact") {
+      if (options.noPrevious)
+        return route.fulfill({ status: 400, json: { message: "该文档没有上一版本" } });
+      return route.fulfill({ json: impact });
+    }
+    return route.fulfill({ status: 500, json: { message: `Unexpected API: ${url.pathname}` } });
+  });
+}
+
+test("the document page offers importing a new version", async ({ page }) => {
+  await mockImpact(page);
+  await page.goto("/documents/5");
+
+  await expect(page.getByRole("button", { name: "Import new version" })).toBeVisible();
+});
+
+test("the change impact page shows added, removed and matched clauses", async ({ page }) => {
+  await mockImpact(page);
+  await page.goto("/documents/5/change-impact");
+
+  await expect(page.getByText("Passwords must not be reused.")).toBeVisible();
+  await expect(page.getByText("Passwords rotate every 90 days.")).toBeVisible();
+  await expect(page.locator('[data-impact-section="added"] li')).toHaveCount(1);
+  await expect(page.locator('[data-impact-section="removed"] li')).toHaveCount(1);
+  await expect(page.locator('[data-impact-section="matched"] li')).toHaveCount(1);
+});
+
+test("the change impact page lists what the removed clauses were holding up", async ({ page }) => {
+  await mockImpact(page);
+  await page.goto("/documents/5/change-impact");
+
+  await expect(page.getByText("C-0007")).toBeVisible();
+  await expect(page.getByText("PR.AA-01")).toBeVisible();
+  await expect(page.getByText("AD rotation export")).toBeVisible();
+});
+
+test("a document with no previous version says so instead of erroring", async ({ page }) => {
+  await mockImpact(page, { noPrevious: true });   // 让接口回 400
+  await page.goto("/documents/5/change-impact");
+
+  await expect(page.getByText("no previous version")).toBeVisible();
+});

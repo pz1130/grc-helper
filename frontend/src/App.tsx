@@ -6,6 +6,7 @@ import { Login } from "./pages/Login";
 import { Overview } from "./pages/Overview";
 import { Documents } from "./pages/Documents";
 import { DocumentDetail } from "./pages/DocumentDetail";
+import { ChangeImpact } from "./pages/ChangeImpact";
 import { AuditLog } from "./pages/settings/AuditLog";
 import { Providers } from "./pages/settings/Providers";
 import { Redaction } from "./pages/settings/Redaction";
@@ -76,6 +77,7 @@ export function App() {
         <Route path="/maturity" element={<Maturity />} />
         <Route path="/risks" element={<RiskRegister />} />
         <Route path="/documents/:id" element={<DocumentDetail />} />
+        <Route path="/documents/:id/change-impact" element={<ChangeImpact />} />
         <Route path="/settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="providers" replace />} />
           <Route path="providers" element={<Providers />} />
