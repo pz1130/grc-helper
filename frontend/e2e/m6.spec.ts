@@ -89,6 +89,32 @@ test("relation proposals do not offer a bulk-accept checkbox", async ({ page }) 
   await expect(page.getByLabel("Select proposal 31")).toHaveCount(0);
 });
 
+test("automation preview shows impact before any write", async ({ page }) => {
+  await mockSession(page);
+  await mockRelationQueue(page);
+  await page.route("**/api/proposals/auto-process/preview", async (route) => {
+    await route.fulfill({ json: {
+      scanned: 482,
+      truncated: false,
+      by_tier: { auto: 20, sample: 48, manual: 2, deferred: 412 },
+      by_kind: { mapping: { auto: 15, sample: 40, manual: 2, deferred: 345 } },
+      by_framework: { "nist-csf-2.0": { auto: 8, sample: 12, manual: 1, deferred: 100 } },
+      by_reason: {},
+      auto_items: [{ id: 41, kind: "mapping", confidence: 0.96, source: "C-0001", target: "PR.AA-01" }],
+      sample_items: [{ id: 42, kind: "relation", confidence: 0.81, source: "C-0001", target: "C-0002" }],
+      estimated_changes: { mappings: 15, relations: 5 },
+    } });
+  });
+  await page.goto("/review");
+
+  await page.getByRole("button", { name: "Preview automation" }).click();
+
+  const preview = page.getByRole("region", { name: "Automation preview" });
+  await expect(preview).toContainText("Execution is expected to add 15 formal mappings and 5 formal relationships.");
+  await expect(preview).toContainText("C-0001 → PR.AA-01");
+  await expect(preview.getByRole("button", { name: "Run automation (20)" })).toBeVisible();
+});
+
 test("relation cards show a payload textarea while editing", async ({ page }) => {
   await mockSession(page);
   await mockRelationQueue(page);

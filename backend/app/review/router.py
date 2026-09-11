@@ -10,14 +10,14 @@ from app.controls.models import Control, ControlSource
 from app.db import get_session
 from app.extraction.drift import upgraded_from
 from app.frameworks.coverage import CLOSING
-from app.frameworks.models import FrameworkItem, Mapping, MappingStrength
+from app.frameworks.models import Framework, FrameworkItem, Mapping, MappingStrength
 from app.iam.deps import require
 from app.iam.models import User
 from app.iam.permissions import Permission
 from app.ingest.models import Document
 from app.review import service
 from app.review.models import Proposal, ProposalKind, ProposalStatus
-from app.review.schemas import BulkAcceptIn, DecideIn, ProposalOut
+from app.review.schemas import AutoProcessIn, BulkAcceptIn, DecideIn, ProposalOut
 from app.review.thresholds import Thresholds, load
 
 router = APIRouter(prefix="/api/proposals", tags=["proposals"])
@@ -227,10 +227,15 @@ def present(proposal: Proposal, limits: Thresholds, context: PageContext) -> Pro
             }
 
     relation: dict[str, Any] | None = None
+    exact_duplicate = False
     if proposal.kind == ProposalKind.RELATION:
         left = context.controls.get(_int(payload.get("from_control_id")))
         right = context.controls.get(_int(payload.get("to_control_id")))
         if left is not None and right is not None:
+            exact_duplicate = (
+                " ".join(left.statement.split()).casefold()
+                == " ".join(right.statement.split()).casefold()
+            )
             relation = {
                 "relation_type": payload.get("relation_type"),
                 "from": _control_view(left, context),
@@ -249,6 +254,18 @@ def present(proposal: Proposal, limits: Thresholds, context: PageContext) -> Pro
         ]
         drift = upgraded_from(payload.get("statement"), cited)
 
+    context_complete = (
+        mapping is not None if proposal.kind == ProposalKind.MAPPING
+        else relation is not None if proposal.kind == ProposalKind.RELATION
+        else True
+    )
+    assessment = service.assess(
+        proposal,
+        limits,
+        ocr_flag=flag,
+        context_complete=context_complete,
+        exact_duplicate=exact_duplicate,
+    )
     return ProposalOut.model_validate(proposal).model_copy(
         update={
             "bulk_acceptable": acceptable,
@@ -256,6 +273,8 @@ def present(proposal: Proposal, limits: Thresholds, context: PageContext) -> Pro
             "ocr_quality_flag": flag,
             "mapping_context": mapping,
             "relation_context": relation,
+            "review_tier": assessment.tier,
+            "review_reasons": list(assessment.reasons),
             "citations": _enrich(proposal.citations, context.clauses),
         }
     )
@@ -269,6 +288,7 @@ async def list_pending(
     strength: Annotated[list[MappingStrength] | None, Query()] = None,
     framework: Annotated[str | None, Query(max_length=64)] = None,
     doubtful_rationale: bool = False,
+    actionable_only: bool = False,
     limit: int = Query(default=50, ge=1, le=200),
     _: Annotated[User, Depends(require(Permission.READ))],
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -280,11 +300,18 @@ async def list_pending(
         strength=[value.value for value in strength] if strength else None,
         framework=framework,
         doubtful_rationale=doubtful_rationale,
-        limit=limit,
+        limit=2000 if actionable_only else limit,
     )
     limits = await load(session)
     context = await page_context(session, rows)
-    return [present(row, limits, context) for row in rows]
+    output = [present(row, limits, context) for row in rows]
+    if actionable_only:
+        output = [
+            proposal
+            for proposal in output
+            if proposal.review_tier in (service.ReviewTier.SAMPLE, service.ReviewTier.MANUAL)
+        ]
+    return output[:limit]
 
 
 @router.get("/stats")
@@ -314,6 +341,111 @@ async def bulk_accept(
         await session.rollback()
         raise
     return result
+
+
+@router.post("/auto-process")
+async def auto_process(
+    payload: AutoProcessIn,
+    actor: Annotated[User, Depends(require(Permission.REVIEW_DECIDE))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, int]:
+    try:
+        result = await service.auto_process(session, actor=actor, limit=payload.limit)
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
+    return result
+
+
+@router.get("/auto-process/preview")
+async def auto_process_preview(
+    _: Annotated[User, Depends(require(Permission.READ))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> dict[str, object]:
+    """Read-only impact preview for the exact policy used by auto_process()."""
+    rows = await service.pending(session, limit=2000)
+    rows = [
+        row for row in rows
+        if row.kind in (ProposalKind.MAPPING, ProposalKind.RELATION)
+    ]
+    limits = await load(session)
+    context = await page_context(session, rows)
+    proposals = [present(row, limits, context) for row in rows]
+
+    framework_ids = {item.framework_id for item in context.items.values()}
+    framework_keys = {
+        framework.id: framework.key
+        for framework in (
+            await session.scalars(
+                select(Framework).where(Framework.id.in_(framework_ids))
+            )
+            if framework_ids else []
+        )
+    }
+    by_tier = {tier.value: 0 for tier in service.ReviewTier}
+    by_kind: dict[str, dict[str, int]] = {}
+    by_framework: dict[str, dict[str, int]] = {}
+    by_reason: dict[str, int] = {}
+    auto_items: list[dict[str, object]] = []
+    sample_items: list[dict[str, object]] = []
+
+    for proposal in proposals:
+        tier = proposal.review_tier.value
+        by_tier[tier] += 1
+        kind_counts = by_kind.setdefault(
+            proposal.kind.value, {value.value: 0 for value in service.ReviewTier}
+        )
+        kind_counts[tier] += 1
+        for reason in proposal.review_reasons:
+            by_reason[reason] = by_reason.get(reason, 0) + 1
+
+        payload = proposal.payload
+        summary: dict[str, object] = {
+            "id": proposal.id,
+            "kind": proposal.kind.value,
+            "confidence": proposal.confidence,
+        }
+        if proposal.kind == ProposalKind.MAPPING:
+            item = context.items.get(_int(payload.get("framework_item_id")))
+            control = context.controls.get(_int(payload.get("control_id")))
+            if item is not None:
+                framework_key = framework_keys.get(item.framework_id, "unknown")
+                framework_counts = by_framework.setdefault(
+                    framework_key, {value.value: 0 for value in service.ReviewTier}
+                )
+                framework_counts[tier] += 1
+                summary["target"] = item.code
+            if control is not None:
+                summary["source"] = control.code
+            summary["strength"] = payload.get("strength")
+        else:
+            left = context.controls.get(_int(payload.get("from_control_id")))
+            right = context.controls.get(_int(payload.get("to_control_id")))
+            summary.update({
+                "source": left.code if left else payload.get("from_control_id"),
+                "target": right.code if right else payload.get("to_control_id"),
+                "relation_type": payload.get("relation_type"),
+            })
+        if proposal.review_tier == service.ReviewTier.AUTO and len(auto_items) < 200:
+            auto_items.append(summary)
+        elif proposal.review_tier == service.ReviewTier.SAMPLE and len(sample_items) < 200:
+            sample_items.append(summary)
+
+    return {
+        "scanned": len(proposals),
+        "truncated": len(rows) == 2000,
+        "by_tier": by_tier,
+        "by_kind": by_kind,
+        "by_framework": by_framework,
+        "by_reason": by_reason,
+        "auto_items": auto_items,
+        "sample_items": sample_items,
+        "estimated_changes": {
+            "mappings": by_kind.get("mapping", {}).get("auto", 0),
+            "relations": by_kind.get("relation", {}).get("auto", 0),
+        },
+    }
 
 
 @router.post("/{proposal_id}/decide", response_model=ProposalOut)

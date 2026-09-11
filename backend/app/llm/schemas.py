@@ -79,6 +79,7 @@ class PreviewOut(BaseModel):
 class ThresholdsIn(BaseModel):
     auto_accept_threshold: float = Field(ge=0.0, le=1.0)
     force_manual_threshold: float = Field(ge=0.0, le=1.0)
+    review_sample_rate: float = Field(ge=0.0, le=1.0)
     monthly_budget_usd: float = Field(ge=0.0)
 
 

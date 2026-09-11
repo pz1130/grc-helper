@@ -48,6 +48,30 @@ export interface Proposal {
     from: ControlView;
     to: ControlView;
   } | null;
+  review_tier?: "auto" | "sample" | "manual" | "deferred";
+  review_reasons?: string[];
+}
+
+interface AutomationItem {
+  id: number;
+  kind: string;
+  confidence: number | null;
+  source?: string | number;
+  target?: string | number;
+  strength?: unknown;
+  relation_type?: unknown;
+}
+
+interface AutomationPreview {
+  scanned: number;
+  truncated: boolean;
+  by_tier: Record<"auto" | "sample" | "manual" | "deferred", number>;
+  by_kind: Record<string, Record<string, number>>;
+  by_framework: Record<string, Record<string, number>>;
+  by_reason: Record<string, number>;
+  auto_items: AutomationItem[];
+  sample_items: AutomationItem[];
+  estimated_changes: { mappings: number; relations: number };
 }
 
 /** 一句话说明这张卡在主张什么、两栏各是什么。
@@ -362,6 +386,7 @@ export function ReviewQueue() {
   const strength = params.getAll("strength");
   const framework = params.get("framework") ?? "";
   const doubtful = params.get("doubtful_rationale") === "1";
+  const showAll = params.get("show_all") === "1";
   const [selected, setSelected] = useState<number[]>([]);
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
@@ -369,14 +394,16 @@ export function ReviewQueue() {
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [showAutomationPreview, setShowAutomationPreview] = useState(false);
 
   const proposals = useQuery({
-    queryKey: ["proposals", kind, documentId, strength.join(","), framework, doubtful],
+    queryKey: ["proposals", kind, documentId, strength.join(","), framework, doubtful, showAll],
     queryFn: () => {
       const query = new URLSearchParams({ limit: "200", ...(kind ? { kind } : {}), ...(documentId ? { document_id: documentId } : {}) });
       for (const value of strength) query.append("strength", value);
       if (framework) query.set("framework", framework);
       if (doubtful) query.set("doubtful_rationale", "true");
+      if (!showAll) query.set("actionable_only", "true");
       return request<Proposal[]>(`/api/proposals?${query}`);
     },
     refetchInterval: 15000,
@@ -392,9 +419,14 @@ export function ReviewQueue() {
     queryFn: () => request<{ pending: number; by_kind: Record<string, number> }>("/api/proposals/stats"),
     refetchInterval: 15000,
   });
+  const automationPreview = useQuery({
+    queryKey: ["automation-preview"],
+    queryFn: () => request<AutomationPreview>("/api/proposals/auto-process/preview"),
+    enabled: showAutomationPreview,
+  });
 
   async function refresh() {
-    await Promise.all(["proposals", "proposal-stats", "controls", "control"].map((key) => client.invalidateQueries({ queryKey: [key] })));
+    await Promise.all(["proposals", "proposal-stats", "automation-preview", "controls", "control"].map((key) => client.invalidateQueries({ queryKey: [key] })));
   }
 
   const decide = useMutation({
@@ -420,6 +452,16 @@ export function ReviewQueue() {
     onSuccess: async (result) => { setNotice(t("review.bulkResult", result)); setSelected([]); await refresh(); },
   });
 
+  const autoProcess = useMutation({
+    mutationFn: () => request<{ scanned: number; accepted: number; skipped: number; sample: number; manual: number; deferred: number }>(
+      "/api/proposals/auto-process",
+      { method: "POST", body: JSON.stringify({ limit: 200 }) },
+    ),
+    onMutate: () => { setError(""); setNotice(""); },
+    onError: (e: Error) => setError(e.message),
+    onSuccess: async (result) => { setNotice(t("review.autoResult", result)); await refresh(); },
+  });
+
   const infer = useMutation({
     mutationFn: () => request<{ job_id: string }>("/api/relations/infer", { method: "POST" }),
     onMutate: () => { setError(""); setNotice(""); },
@@ -434,7 +476,7 @@ export function ReviewQueue() {
     onSuccess: (result) => setNotice(t("relations.embedded", { count: result.embedded, pending: result.pending })),
   });
 
-  const busy = decide.isPending || bulk.isPending || infer.isPending || embedVectors.isPending;
+  const busy = decide.isPending || bulk.isPending || autoProcess.isPending || infer.isPending || embedVectors.isPending;
 
   function modify(id: number) {
     try {
@@ -527,6 +569,17 @@ export function ReviewQueue() {
           </label>
         )}
 
+        <label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <input
+            type="checkbox"
+            aria-label={t("review.showAll")}
+            checked={showAll}
+            disabled={busy}
+            onChange={(e) => setParams(withParam(params, "show_all", e.target.checked ? "1" : ""))}
+          />
+          <span>{t("review.showAll")}</span>
+        </label>
+
         {kind === "mapping" && (
           <label style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
             <input
@@ -576,13 +629,22 @@ export function ReviewQueue() {
         )}
 
         {canDecide && (
-          <button
-            className="kn-btn-primary kn-btn-sm"
-            disabled={busy || proposals.isFetching || !selectedIds.length}
-            onClick={() => bulk.mutate(selectedIds)}
-          >
-            {t("review.bulkAccept")} ({selectedIds.length})
-          </button>
+          <>
+            <button
+              className="kn-btn-primary kn-btn-sm"
+              disabled={busy || proposals.isFetching || !selectedIds.length}
+              onClick={() => bulk.mutate(selectedIds)}
+            >
+              {t("review.bulkAccept")} ({selectedIds.length})
+            </button>
+            <button
+              className="kn-btn-secondary kn-btn-sm"
+              disabled={busy || proposals.isFetching}
+              onClick={() => setShowAutomationPreview(true)}
+            >
+              {t("review.previewAutomation")}
+            </button>
+          </>
         )}
 
         {canWrite && (
@@ -596,6 +658,79 @@ export function ReviewQueue() {
           </div>
         )}
       </div>
+
+      {showAutomationPreview && (
+        <section className="kn-card" aria-label={t("review.previewTitle")} style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
+            <div>
+              <h3 style={{ margin: 0 }}>{t("review.previewTitle")}</h3>
+              <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", marginBottom: 0 }}>
+                {t("review.previewReadOnly")}
+              </p>
+            </div>
+            <button className="kn-btn-secondary kn-btn-sm" onClick={() => setShowAutomationPreview(false)}>
+              {t("common.close", { defaultValue: "Close" })}
+            </button>
+          </div>
+          {automationPreview.isPending && <p role="status">{t("common.loading")}</p>}
+          {automationPreview.error && <p role="alert">⚠️ {automationPreview.error.message}</p>}
+          {automationPreview.data && (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginTop: 18 }}>
+                {(["auto", "sample", "manual", "deferred"] as const).map((tier) => (
+                  <div key={tier} className="kn-card" style={{ background: "var(--stage-card-subtle)", padding: 14 }}>
+                    <div style={{ color: "var(--text-tertiary)", fontSize: "0.75rem" }}>{t(`review.tiers.${tier}`)}</div>
+                    <strong style={{ fontSize: "1.5rem" }}>{automationPreview.data.by_tier[tier] ?? 0}</strong>
+                  </div>
+                ))}
+              </div>
+              <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+                {t("review.previewImpact", automationPreview.data.estimated_changes)}
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 16 }}>
+                <div>
+                  <h4>{t("review.byFramework")}</h4>
+                  {Object.entries(automationPreview.data.by_framework).map(([framework, tiers]) => (
+                    <div key={framework} style={{ fontSize: "0.8125rem", marginBottom: 6 }}>
+                      <code>{framework}</code> · {t("review.autoShort")} {tiers.auto ?? 0} · {t("review.sampleShort")} {tiers.sample ?? 0}
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <h4>{t("review.autoItems")}</h4>
+                  <div style={{ maxHeight: 180, overflowY: "auto", fontSize: "0.8125rem" }}>
+                    {automationPreview.data.auto_items.map((item) => (
+                      <div key={item.id}>#{item.id} · {item.source ?? "?"} → {item.target ?? "?"} · {(item.confidence ?? 0).toFixed(2)}</div>
+                    ))}
+                    {!automationPreview.data.auto_items.length && <span>{t("review.none")}</span>}
+                  </div>
+                </div>
+                <div>
+                  <h4>{t("review.sampleItems")}</h4>
+                  <div style={{ maxHeight: 180, overflowY: "auto", fontSize: "0.8125rem" }}>
+                    {automationPreview.data.sample_items.map((item) => (
+                      <div key={item.id}>#{item.id} · {item.source ?? "?"} → {item.target ?? "?"} · {(item.confidence ?? 0).toFixed(2)}</div>
+                    ))}
+                    {!automationPreview.data.sample_items.length && <span>{t("review.none")}</span>}
+                  </div>
+                </div>
+              </div>
+              {canDecide && (
+                <button
+                  className="kn-btn-primary"
+                  style={{ marginTop: 18 }}
+                  disabled={busy || automationPreview.data.by_tier.auto === 0}
+                  onClick={() => {
+                    if (window.confirm(t("review.autoConfirmCount", { count: automationPreview.data.by_tier.auto }))) autoProcess.mutate();
+                  }}
+                >
+                  {t("review.executeAutomation", { count: automationPreview.data.by_tier.auto })}
+                </button>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
       {!canDecide && <p style={{ color: "var(--text-tertiary)", fontSize: "0.875rem" }}>{t("review.readOnly")}</p>}
       {notice && <p role="status">{notice}</p>}
@@ -637,6 +772,11 @@ export function ReviewQueue() {
                     <span className={`kn-dot ${confidence >= 0.85 ? "kn-dot-emerald" : confidence >= 0.65 ? "kn-dot-amber" : "kn-dot-ruby"}`} />
                     {t("review.confidence")} {p.confidence?.toFixed(2) ?? "—"}
                   </span>
+                  {p.review_tier && (
+                    <span className={`kn-badge ${p.review_tier === "auto" ? "kn-badge-emerald" : p.review_tier === "sample" || p.review_tier === "manual" ? "kn-badge-amber" : ""}`}>
+                      {t(`review.tiers.${p.review_tier}`)}
+                    </span>
+                  )}
                 </div>
 
                 {canDecide && p.kind !== "relation" && (
@@ -674,6 +814,12 @@ export function ReviewQueue() {
               {canDecide && !p.ocr_quality_flag && p.bulk_acceptable !== true && (
                 <p style={{ color: "var(--text-tertiary)", fontSize: "0.8125rem", marginTop: 8 }}>
                   {t(p.bulk_acceptable === false ? "review.manualOnly" : "review.eligibilityUnknown")}
+                </p>
+              )}
+
+              {p.review_tier && p.review_tier !== "auto" && (
+                <p style={{ color: "var(--text-tertiary)", fontSize: "0.8125rem", marginTop: 8 }}>
+                  {t(`review.tierHints.${p.review_tier}`)}
                 </p>
               )}
 

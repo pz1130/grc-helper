@@ -13,12 +13,14 @@ from app.review.models import Proposal
 
 _AUTO_ACCEPT_DEFAULT = 0.90
 _FORCE_MANUAL_DEFAULT = 0.60
+_REVIEW_SAMPLE_RATE_DEFAULT = 0.10
 
 
 @dataclass(frozen=True)
 class Thresholds:
     auto_accept: float
     force_manual: float
+    review_sample_rate: float = _REVIEW_SAMPLE_RATE_DEFAULT
 
 
 async def _value(session: AsyncSession, key: str, fallback: float) -> float:
@@ -39,6 +41,9 @@ async def load(session: AsyncSession) -> Thresholds:
     return Thresholds(
         auto_accept=await _value(session, "auto_accept_threshold", _AUTO_ACCEPT_DEFAULT),
         force_manual=await _value(session, "force_manual_threshold", _FORCE_MANUAL_DEFAULT),
+        review_sample_rate=await _value(
+            session, "review_sample_rate", _REVIEW_SAMPLE_RATE_DEFAULT
+        ),
     )
 
 

@@ -4,7 +4,7 @@ from typing import Annotated, Any
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.review.models import ProposalKind, ProposalStatus
-from app.review.service import Decision
+from app.review.service import Decision, ReviewTier
 
 
 class ProposalOut(BaseModel):
@@ -28,6 +28,8 @@ class ProposalOut(BaseModel):
     normative_drift: bool = False
     mapping_context: dict[str, Any] | None = None
     relation_context: dict[str, Any] | None = None
+    review_tier: ReviewTier = ReviewTier.MANUAL
+    review_reasons: list[str] = Field(default_factory=list)
 
 
 class DecideIn(BaseModel):
@@ -59,3 +61,8 @@ class BulkAcceptIn(BaseModel):
         if len(set(self.ids)) != len(self.ids):
             raise ValueError("提案编号不能重复")
         return self
+
+
+class AutoProcessIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    limit: Annotated[int, Field(strict=True, ge=1, le=200)] = 200

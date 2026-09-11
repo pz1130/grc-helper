@@ -107,12 +107,14 @@ async def test_thresholds_roundtrip(client, db_session):
         json={
             "auto_accept_threshold": 0.95,
             "force_manual_threshold": 0.5,
+            "review_sample_rate": 0.1,
             "monthly_budget_usd": 300,
         },
         headers=headers,
     )
     resp = await client.get("/api/settings/thresholds", headers=headers)
     assert resp.json()["auto_accept_threshold"] == 0.95
+    assert resp.json()["review_sample_rate"] == 0.1
 
 
 @pytest.mark.asyncio
@@ -125,6 +127,7 @@ async def test_threshold_ordering_is_enforced(client, db_session):
         json={
             "auto_accept_threshold": 0.4,
             "force_manual_threshold": 0.8,
+            "review_sample_rate": 0.1,
             "monthly_budget_usd": 300,
         },
         headers=headers,

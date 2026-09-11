@@ -35,7 +35,13 @@ from app.llm.schemas import (
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-_THRESHOLD_KEYS = ("auto_accept_threshold", "force_manual_threshold", "monthly_budget_usd")
+_THRESHOLD_DEFAULTS = {
+    "auto_accept_threshold": 0.90,
+    "force_manual_threshold": 0.60,
+    "review_sample_rate": 0.10,
+    "monthly_budget_usd": 200.0,
+}
+_THRESHOLD_KEYS = tuple(_THRESHOLD_DEFAULTS)
 
 
 def _to_out(config: LLMProviderConfig) -> ProviderOut:
@@ -310,7 +316,9 @@ async def get_thresholds(
     values: dict[str, float] = {}
     for key in _THRESHOLD_KEYS:
         setting = await session.get(AppSetting, key)
-        values[key] = float(setting.value["value"]) if setting else 0.0
+        values[key] = (
+            float(setting.value["value"]) if setting else _THRESHOLD_DEFAULTS[key]
+        )
     return ThresholdsOut(**values)
 
 

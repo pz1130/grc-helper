@@ -78,7 +78,7 @@ class RelationPayload(BaseModel):
 
 
 async def _materialize_relation(
-    session: AsyncSession, proposal: Proposal, data: dict[str, Any], *, actor_id: int
+    session: AsyncSession, proposal: Proposal, data: dict[str, Any], *, actor_id: int | None
 ) -> None:
     from app.relations.citations import RelationCitationValidator
 
@@ -128,7 +128,7 @@ async def _materialize_relation(
 
 
 async def _materialize_mapping(
-    session: AsyncSession, proposal: Proposal, data: dict[str, Any], *, actor_id: int
+    session: AsyncSession, proposal: Proposal, data: dict[str, Any], *, actor_id: int | None
 ) -> None:
     from app.mapping.citations import MappingCitationValidator
 
@@ -224,7 +224,7 @@ async def _matrix_origin(session: AsyncSession, proposal: Proposal, data: dict[s
 
 
 async def materialize(
-    session: AsyncSession, proposal: Proposal, data: dict[str, Any], *, actor_id: int
+    session: AsyncSession, proposal: Proposal, data: dict[str, Any], *, actor_id: int | None
 ) -> None:
     if not isinstance(data, dict):
         raise AppError("提案内容必须是对象")

@@ -8,6 +8,7 @@ import { request } from "../../api";
 interface Thresholds {
   auto_accept_threshold: number;
   force_manual_threshold: number;
+  review_sample_rate: number;
   monthly_budget_usd: number;
 }
 
@@ -16,6 +17,7 @@ export function ThresholdsPage() {
   const [form, setForm] = useState<Thresholds>({
     auto_accept_threshold: 0.9,
     force_manual_threshold: 0.6,
+    review_sample_rate: 0.1,
     monthly_budget_usd: 200,
   });
   const [error, setError] = useState("");
@@ -77,6 +79,18 @@ export function ThresholdsPage() {
             max="1"
             value={form.force_manual_threshold}
             onChange={(e) => setForm({ ...form, force_manual_threshold: Number(e.target.value) })}
+          />
+        </label>
+
+        <label>
+          持续抽样比例（高可信结果也按此比例留给人工复核）
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            max="1"
+            value={form.review_sample_rate}
+            onChange={(e) => setForm({ ...form, review_sample_rate: Number(e.target.value) })}
           />
         </label>
 
