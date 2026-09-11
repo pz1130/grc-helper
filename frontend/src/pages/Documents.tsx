@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { getToken, request } from "../api";
 
@@ -58,14 +58,22 @@ function ExtractionCell({ row }: { row?: Coverage }) {
   );
 }
 
+function isoSoonUntil(today: string): string {
+  return new Date(
+    Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, Number(today.slice(8, 10)) + 30),
+  ).toISOString().slice(0, 10);
+}
+
 export function Documents() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const [params, setParams] = useSearchParams();
   const fileInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [pasting, setPasting] = useState<number | null>(null);
   const [pasted, setPasted] = useState("");
+  const reviewFilter = params.get("review") ?? "";
 
   const documents = useQuery({
     queryKey: ["documents"],
@@ -136,6 +144,19 @@ export function Documents() {
   });
 
   const today = new Date().toISOString().slice(0, 10);
+  const soonUntil = isoSoonUntil(today);
+  const allDocs = documents.data ?? [];
+  const overdueCount = allDocs.filter((doc) => doc.review_due_date && doc.review_due_date < today).length;
+  const soonCount = allDocs.filter(
+    (doc) => doc.review_due_date && doc.review_due_date >= today && doc.review_due_date <= soonUntil,
+  ).length;
+  const visible = allDocs.filter((document) => {
+    if (reviewFilter === "overdue") return Boolean(document.review_due_date && document.review_due_date < today);
+    if (reviewFilter === "soon") {
+      return Boolean(document.review_due_date && document.review_due_date >= today && document.review_due_date <= soonUntil);
+    }
+    return true;
+  });
 
   return (
     <section>
@@ -146,7 +167,24 @@ export function Documents() {
             Regulatory & Internal Policy Documents Repository
           </p>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
+            {t("documents.review")}
+            <select
+              aria-label={t("documents.review")}
+              value={reviewFilter === "overdue" || reviewFilter === "soon" ? reviewFilter : ""}
+              onChange={(event) => {
+                const next = new URLSearchParams(params);
+                if (event.target.value) next.set("review", event.target.value);
+                else next.delete("review");
+                setParams(next, { replace: true });
+              }}
+            >
+              <option value="">{t("documents.filterAll")}</option>
+              <option value="overdue">{t("documents.reviewOverdue", { count: overdueCount })}</option>
+              <option value="soon">{t("documents.reviewSoon", { count: soonCount })}</option>
+            </select>
+          </label>
           <span className="kn-badge kn-badge-blue">
             {documents.data?.length ?? 0} Total Documents
           </span>
@@ -210,7 +248,7 @@ export function Documents() {
             </tr>
           </thead>
           <tbody>
-            {documents.data?.map((document) => {
+            {visible.map((document) => {
               const isFailed = document.status === "parse_failed";
               const isInFlight = IN_FLIGHT.has(document.status);
               const isActive = document.status === "active";

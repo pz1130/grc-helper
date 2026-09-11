@@ -147,3 +147,73 @@ test("a document with no previous version says so instead of erroring", async ({
 
   await expect(page.getByText("no previous version")).toBeVisible();
 });
+
+function daysFromToday(days: number): string {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+const documents = [
+  { id: 1, title: "Overdue Policy", review_due_date: daysFromToday(-365), status: "active" },
+  { id: 2, title: "Due Soon Standard", review_due_date: daysFromToday(9), status: "active" },
+  { id: 3, title: "Fresh Guideline", review_due_date: daysFromToday(400), status: "active" },
+  { id: 4, title: "Undated Procedure", review_due_date: null, status: "active" },
+];
+
+async function mockDocuments(page: Page, docs: typeof documents) {
+  await page.addInitScript(() => {
+    localStorage.setItem("grc.token", "mock-token");
+    localStorage.setItem("grc.lang", "en");
+  });
+  await page.route("**/api/**", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === "/api/auth/me")
+      return route.fulfill({ json: { id: 1, email: "lead@example.com", name: "Lead", role: "grc_lead" } });
+    if (url.pathname === "/api/settings/usage")
+      return route.fulfill({ json: { month_to_date_cost: 0, budget: null, by_task: [] } });
+    if (url.pathname === "/api/evidence/stats")
+      return route.fulfill({ json: { expired: 0 } });
+    if (url.pathname === "/api/documents")
+      return route.fulfill({ json: docs });
+    if (url.pathname === "/api/documents/coverage")
+      return route.fulfill({ json: [] });
+    return route.fulfill({ status: 500, json: { message: `Unexpected API: ${url.pathname}` } });
+  });
+}
+
+test("the overview counts overdue and soon-due policies", async ({ page }) => {
+  await mockDocuments(page, documents);
+  await page.goto("/");
+
+  const card = page.locator('[data-card="review-due"]');
+  await expect(card).toBeVisible();
+  await expect(card.getByText("1 overdue")).toBeVisible();
+  await expect(card.getByText("1 due within 30 days")).toBeVisible();
+});
+
+test("the overview card links into the filtered document list", async ({ page }) => {
+  await mockDocuments(page, documents);
+  await page.goto("/");
+
+  await page.locator('[data-card="review-due"]').getByRole("link").first().click();
+
+  await expect(page).toHaveURL(/\/documents\?review=overdue/);
+});
+
+test("the document list can show only the overdue ones", async ({ page }) => {
+  await mockDocuments(page, documents);
+  await page.goto("/documents?review=overdue");
+
+  await expect(page.getByText("Overdue Policy")).toBeVisible();
+  await expect(page.getByText("Fresh Guideline")).toHaveCount(0);
+  await expect(page.getByText("Undated Procedure")).toHaveCount(0);
+});
+
+test("documents without a review date are not counted as overdue", async ({ page }) => {
+  await mockDocuments(page, documents);
+  await page.goto("/");
+
+  // 没填日期 ≠ 逾期。填不填是人的事，系统不替他判。
+  await expect(page.locator('[data-card="review-due"]').getByText("1 overdue")).toBeVisible();
+});

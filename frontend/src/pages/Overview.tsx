@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 
 import { request } from "../api";
 
@@ -13,6 +14,21 @@ interface EvidenceStats {
   expired: number;
 }
 
+interface ReviewDocument {
+  id: number;
+  review_due_date: string | null;
+}
+
+function isoToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isoSoonUntil(today: string): string {
+  return new Date(
+    Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, Number(today.slice(8, 10)) + 30),
+  ).toISOString().slice(0, 10);
+}
+
 export function Overview() {
   const { t } = useTranslation();
   const { data } = useQuery({
@@ -23,6 +39,17 @@ export function Overview() {
     queryKey: ["evidence-stats"],
     queryFn: () => request<EvidenceStats>("/api/evidence/stats"),
   });
+  const documents = useQuery({
+    queryKey: ["documents"],
+    queryFn: () => request<ReviewDocument[]>("/api/documents"),
+  });
+
+  const today = isoToday();
+  const soonUntil = isoSoonUntil(today);
+  const overdue = (documents.data ?? []).filter((doc) => doc.review_due_date && doc.review_due_date < today).length;
+  const soon = (documents.data ?? []).filter(
+    (doc) => doc.review_due_date && doc.review_due_date >= today && doc.review_due_date <= soonUntil,
+  ).length;
 
   const cost = data?.month_to_date_cost ?? 0;
   const budget = data?.budget;
@@ -87,6 +114,29 @@ export function Overview() {
           </div>
           <span className={`kn-badge ${evidenceStats.data?.expired ? "kn-badge-ruby" : "kn-badge-emerald"}`}>
             {evidenceStats.data?.expired ? t("overview.needsAttention") : t("overview.upToDate")}
+          </span>
+        </div>
+
+        <div className="kn-card kn-stat-card" data-card="review-due">
+          <div>
+            <span className="kn-stat-label">{t("documents.reviewDue")}</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+              <Link
+                to="/documents?review=overdue"
+                style={{ color: overdue ? "var(--accent-ruby)" : "var(--text-primary)", fontWeight: 600 }}
+              >
+                {t("documents.reviewOverdue", { count: overdue })}
+              </Link>
+              <Link
+                to="/documents?review=soon"
+                style={{ color: soon ? "var(--accent-amber)" : "var(--text-primary)", fontWeight: 600 }}
+              >
+                {t("documents.reviewSoon", { count: soon })}
+              </Link>
+            </div>
+          </div>
+          <span className={`kn-badge ${overdue || soon ? "kn-badge-ruby" : "kn-badge-emerald"}`}>
+            {overdue || soon ? t("overview.needsAttention") : t("overview.upToDate")}
           </span>
         </div>
 
