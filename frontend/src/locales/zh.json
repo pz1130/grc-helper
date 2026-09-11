@@ -326,7 +326,9 @@
     "baselineAll": "全部",
     "hasSupporting": "有支撑性映射但不足以消除差距",
     "runMapping": "运行 AI 映射",
-    "mappingQueued": "映射任务已入队（{{id}}）。"
+    "mappingQueued": "映射任务已入队（{{id}}）。",
+    "exportPackage": "导出准备包",
+    "exportFailed": "导出失败"
   },
   "mapping": {
     "strength": {

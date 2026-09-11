@@ -326,7 +326,9 @@
     "baselineAll": "All",
     "hasSupporting": "Supporting mapping exists but does not close the gap",
     "runMapping": "Run AI mapping",
-    "mappingQueued": "Mapping job queued ({{id}})."
+    "mappingQueued": "Mapping job queued ({{id}}).",
+    "exportPackage": "Export readiness package",
+    "exportFailed": "Export failed"
   },
   "mapping": {
     "strength": {

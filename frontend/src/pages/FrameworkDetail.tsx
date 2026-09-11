@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
 
-import { request } from "../api";
+import { ApiError, getToken, request, setToken } from "../api";
 import { useAuth } from "../auth";
 
 interface Framework {
@@ -19,6 +19,30 @@ interface CoverageRow {
   parent_id: number | null; requirements: number; covered: number;
 }
 interface GapRow { item_id: number; code: string; title: string; has_supporting: boolean; }
+
+function filenameFromDisposition(header: string | null): string {
+  const match = header?.match(/filename\*?=(?:UTF-8'')?["']?([^";]+)/i);
+  return match?.[1] ? decodeURIComponent(match[1]) : "readiness.zip";
+}
+
+async function downloadReadinessPackage(frameworkId: string): Promise<{ blob: Blob; filename: string }> {
+  const token = getToken();
+  const response = await fetch(`/api/frameworks/${frameworkId}/readiness-package`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (response.status === 401) {
+    setToken(null);
+    throw new ApiError(401, "unauthorized", "登录已失效，请重新登录");
+  }
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, body.code ?? "error", body.message ?? "请求失败");
+  }
+  return {
+    blob: await response.blob(),
+    filename: filenameFromDisposition(response.headers.get("Content-Disposition")),
+  };
+}
 
 export function FrameworkDetail() {
   const { t } = useTranslation();
@@ -47,6 +71,17 @@ export function FrameworkDetail() {
   const runMapping = useMutation({
     mutationFn: () => request<{ job_id: string }>(`/api/mapping/frameworks/${id}`, { method: "POST" }),
   });
+  const exportPackage = useMutation({
+    mutationFn: () => downloadReadinessPackage(id!),
+    onSuccess: ({ blob, filename }) => {
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    },
+  });
   const current = framework.data?.find((item) => String(item.id) === id);
 
   return (
@@ -70,20 +105,31 @@ export function FrameworkDetail() {
           )}
         </div>
 
-        {canWrite && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button
-            className="kn-btn-primary"
-            disabled={runMapping.isPending}
-            onClick={() => runMapping.mutate()}
+            className="kn-btn-secondary"
+            disabled={exportPackage.isPending}
+            onClick={() => exportPackage.mutate()}
           >
-            {t("frameworks.runMapping")}
+            {t("frameworks.exportPackage")}
           </button>
-        )}
+          {canWrite && (
+            <button
+              className="kn-btn-primary"
+              disabled={runMapping.isPending}
+              onClick={() => runMapping.mutate()}
+            >
+              {t("frameworks.runMapping")}
+            </button>
+          )}
+        </div>
       </div>
 
       {runMapping.isPending && <p role="status">{t("common.loading")}</p>}
       {runMapping.error && <p role="alert"><span>⚠️</span> {runMapping.error.message}</p>}
       {runMapping.data && <p role="status">{t("frameworks.mappingQueued", { id: runMapping.data.job_id })}</p>}
+      {exportPackage.isPending && <p role="status">{t("common.loading")}</p>}
+      {exportPackage.error && <p role="alert"><span>⚠️</span> {t("frameworks.exportFailed")}</p>}
 
       {/* Coverage & Gap Analysis Section */}
       <div className="kn-card" style={{ marginBottom: 24 }}>

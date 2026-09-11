@@ -217,3 +217,44 @@ test("documents without a review date are not counted as overdue", async ({ page
   // 没填日期 ≠ 逾期。填不填是人的事，系统不替他判。
   await expect(page.locator('[data-card="review-due"]').getByText("1 overdue")).toBeVisible();
 });
+
+async function mockFramework(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem("grc.token", "mock-token");
+    localStorage.setItem("grc.lang", "en");
+  });
+  await page.route("**/api/**", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === "/api/auth/me")
+      return route.fulfill({ json: { id: 1, email: "lead@example.com", name: "Lead", role: "grc_lead" } });
+    if (url.pathname === "/api/frameworks")
+      return route.fulfill({ json: [{
+        id: 7, key: "csf", name_zh: "CSF", name_en: "CSF", version: "2.0",
+        source: "nist.gov", item_count: 1, imported_at: "2026-09-09T00:00:00Z",
+      }] });
+    if (url.pathname === "/api/frameworks/7/tree")
+      return route.fulfill({ json: [] });
+    if (url.pathname === "/api/frameworks/7/coverage")
+      return route.fulfill({ json: [] });
+    if (url.pathname === "/api/frameworks/7/gaps")
+      return route.fulfill({ json: [] });
+    if (url.pathname === "/api/frameworks/7/readiness-package")
+      return route.fulfill({
+        status: 200,
+        contentType: "application/zip",
+        headers: { "Content-Disposition": 'attachment; filename="readiness-7.zip"' },
+        body: Buffer.from("PK"),
+      });
+    return route.fulfill({ status: 500, json: { message: `Unexpected API: ${url.pathname}` } });
+  });
+}
+
+test("exporting a readiness package triggers a zip download", async ({ page }) => {
+  await mockFramework(page);
+  await page.goto("/frameworks/7");
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export readiness package" }).click();
+
+  expect((await download).suggestedFilename()).toMatch(/\.zip$/);
+});
