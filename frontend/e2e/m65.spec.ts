@@ -58,3 +58,41 @@ test("nodes in the same document share a lane", async ({ page }) => {
   expect(x(first)).toBe(x(second));
   expect(x(first)).not.toBe(x(third));
 });
+
+test("grouping by function separates mapped controls from unmapped ones", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+  await page.getByRole("button", { name: "By function" }).click();
+
+  const x = async (key: string) => {
+    const transform = await page.locator(`[data-node-key="${key}"]`).getAttribute("transform");
+    return transform!.match(/translate\((-?\d+(?:\.\d+)?)/)![1];
+  };
+  // GV / PR / 未覆盖各一条泳道，三个节点两两不同列。
+  expect(new Set([await x("control:1"), await x("control:2"), await x("control:3")]).size).toBe(3);
+});
+
+test("the force layout lands on the same coordinates every time", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+
+  await page.getByRole("button", { name: "Force" }).click();
+  const first = await page.locator("[data-node-key]").evaluateAll((nodes) =>
+    nodes.map((node) => `${node.getAttribute("data-node-key")}@${node.getAttribute("transform")}`),
+  );
+
+  await page.getByRole("button", { name: "By document" }).click();
+  await page.getByRole("button", { name: "Force" }).click();
+  const second = await page.locator("[data-node-key]").evaluateAll((nodes) =>
+    nodes.map((node) => `${node.getAttribute("data-node-key")}@${node.getAttribute("transform")}`),
+  );
+
+  expect(second).toEqual(first);
+
+  await page.reload();
+  await page.getByRole("button", { name: "Force" }).click();
+  const third = await page.locator("[data-node-key]").evaluateAll((nodes) =>
+    nodes.map((node) => `${node.getAttribute("data-node-key")}@${node.getAttribute("transform")}`),
+  );
+  expect(third).toEqual(first);
+});
