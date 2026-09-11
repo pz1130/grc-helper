@@ -14,6 +14,7 @@ from arq.worker import func
 import app.models  # noqa: F401  — 注册全部模型，跨模块外键才解析得了
 from app.audit.tasks import generate_engagement_answers
 from app.config import get_settings
+from app.conflicts.tasks import detect_conflicts
 from app.extraction.tasks import extract_controls
 from app.indexing.tasks import index_document, reindex_all
 from app.ingest.tasks import parse_document
@@ -57,6 +58,7 @@ class WorkerSettings:
         func(map_framework, timeout=LONG_JOB_TIMEOUT),
         func(infer_relations, timeout=LONG_JOB_TIMEOUT),
         func(generate_engagement_answers, timeout=LONG_JOB_TIMEOUT),
+        func(detect_conflicts, timeout=LONG_JOB_TIMEOUT),
     ]
     redis_settings = _redis_settings()
     max_jobs = 4

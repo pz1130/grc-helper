@@ -22,6 +22,7 @@ def create_app() -> FastAPI:
 
     from app.audit.router import router as audit_assistant_router
     from app.clauses.router import router as clauses_router
+    from app.conflicts.router import router as conflicts_router
     from app.controls.router import router as controls_router
     from app.environment.router import router as environment_router
     from app.errors import install_error_handlers
@@ -62,6 +63,7 @@ def create_app() -> FastAPI:
     application.include_router(mapping_router)
     application.include_router(maturity_router)
     application.include_router(relations_router)
+    application.include_router(conflicts_router)
     application.include_router(environment_router)
     application.include_router(evidence_router)
 
