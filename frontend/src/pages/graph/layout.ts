@@ -4,8 +4,9 @@ import type { GraphEdgeData, GraphNodeData, LayoutOptions, Point } from "./types
 export type LayoutKind = "document" | "function" | "force" | "bipartite";
 export type { LayoutOptions, Point };
 
-const ROW_HEIGHT = 44;
-const TOP_PADDING = 48;
+export const ROW_HEIGHT = 44;
+export const TOP_PADDING = 48;
+export const MIN_CANVAS_HEIGHT = 560;
 
 /** 一个节点在某种分组口径下属于哪条泳道。没有分组信息的一律归入"未覆盖"。 */
 function laneOf(node: GraphNodeData, kind: LayoutKind): string {
@@ -34,7 +35,7 @@ function laneLayout(
   return positions;
 }
 
-/** 二部布局：左控制点、右框架项，各自按 code 升序。 */
+/** 二部布局：左控制点按 code 升序；右框架项保持传入顺序（后端已按 order_index, code 排）。 */
 function bipartiteLayout(nodes: GraphNodeData[], options: LayoutOptions): Map<string, Point> {
   const positions = new Map<string, Point>();
   const columns: [GraphNodeData["kind"], number][] = [
@@ -42,14 +43,37 @@ function bipartiteLayout(nodes: GraphNodeData[], options: LayoutOptions): Map<st
     ["framework_item", Math.round(options.width * 0.78)],
   ];
   for (const [kind, x] of columns) {
-    nodes
-      .filter((node) => node.kind === kind)
-      .sort((a, b) => a.code.localeCompare(b.code))
-      .forEach((node, index) => {
-        positions.set(node.key, { x, y: TOP_PADDING + index * ROW_HEIGHT });
-      });
+    const column = nodes.filter((node) => node.kind === kind);
+    const ordered = kind === "control" ? [...column].sort((a, b) => a.code.localeCompare(b.code)) : column;
+    ordered.forEach((node, index) => {
+      positions.set(node.key, { x, y: TOP_PADDING + index * ROW_HEIGHT });
+    });
   }
   return positions;
+}
+
+function maxLaneCount(kind: LayoutKind, nodes: GraphNodeData[]): number {
+  if (kind === "bipartite") {
+    let controls = 0;
+    let items = 0;
+    for (const node of nodes) {
+      if (node.kind === "control") controls += 1;
+      else items += 1;
+    }
+    return Math.max(controls, items);
+  }
+  const counts = new Map<string, number>();
+  for (const node of nodes) {
+    const lane = laneOf(node, kind);
+    counts.set(lane, (counts.get(lane) ?? 0) + 1);
+  }
+  return Math.max(0, ...counts.values());
+}
+
+/** 泳道/二部按内容长高，力导向保持 560，三节点夹具的 translate 断言才不会漂。 */
+export function canvasHeight(kind: LayoutKind, nodes: GraphNodeData[]): number {
+  if (kind === "force") return MIN_CANVAS_HEIGHT;
+  return Math.max(MIN_CANVAS_HEIGHT, TOP_PADDING + maxLaneCount(kind, nodes) * ROW_HEIGHT);
 }
 
 export function layout(

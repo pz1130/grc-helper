@@ -77,7 +77,15 @@ export function Drawer({ node, edge, onClose }: DrawerProps) {
           <p style={{ fontSize: "0.8125rem" }}>{edge.rationale}</p>
           {edge.confidence !== null && <p>{edge.confidence.toFixed(2)}</p>}
           {edge.proposal_id !== null && (
-            <Link to={`/review?proposal=${edge.proposal_id}`}>{t("graph.drawer.toReview")}</Link>
+            <Link
+              to={
+                edge.kind === "full" || edge.kind === "partial" || edge.kind === "supporting"
+                  ? `/review?kind=mapping#proposal-${edge.proposal_id}`
+                  : `/review?kind=relation#proposal-${edge.proposal_id}`
+              }
+            >
+              {t("graph.drawer.toReview")}
+            </Link>
           )}
         </div>
       )}

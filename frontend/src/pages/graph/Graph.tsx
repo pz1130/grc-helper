@@ -6,11 +6,10 @@ import { request } from "../../api";
 import { Canvas } from "./Canvas";
 import { Drawer } from "./Drawer";
 import { downloadGraph } from "./export";
-import type { LayoutKind } from "./layout";
+import { canvasHeight, MIN_CANVAS_HEIGHT, type LayoutKind } from "./layout";
 import type { GraphData, GraphEdgeData, GraphNodeData } from "./types";
 
 const WIDTH = 960;
-const HEIGHT = 560;
 
 export function Graph() {
   const { t } = useTranslation();
@@ -45,7 +44,7 @@ export function Graph() {
   });
   const { data: controls } = useQuery({
     queryKey: ["graph", "controls"],
-    queryFn: () => request<{ id: number; code: string; title: string }[]>("/api/controls"),
+    queryFn: () => request<{ id: number; code: string; title: string }[]>("/api/controls?limit=500"),
   });
   const { data: frameworks } = useQuery({
     queryKey: ["graph", "frameworks"],
@@ -74,14 +73,18 @@ export function Graph() {
     ? (() => {
         const edges = raw.edges.filter((edge) => edge.status === "pending");
         const kept = new Set(edges.flatMap((edge) => [edge.source, edge.target]));
+        const nodes = raw.nodes.filter((node) => kept.has(node.key));
         return {
           ...raw,
           edges,
-          nodes: raw.nodes.filter((node) => kept.has(node.key)),
-          stats: { ...raw.stats, edges: edges.length },
+          nodes,
+          stats: { ...raw.stats, nodes: nodes.length, edges: edges.length },
         };
       })()
     : raw;
+
+  const activeLayout: LayoutKind = view === "mappings" ? "bipartite" : layoutKind;
+  const height = data ? canvasHeight(activeLayout, data.nodes) : MIN_CANVAS_HEIGHT;
 
   return (
     <section>
@@ -143,7 +146,15 @@ export function Graph() {
           {t("graph.filters.pending")}
         </label>
         <label>
-          <input type="checkbox" checked={onlyUnconfirmed} onChange={(event) => setOnlyUnconfirmed(event.target.checked)} />
+          <input
+            type="checkbox"
+            checked={onlyUnconfirmed}
+            onChange={(event) => {
+              const checked = event.target.checked;
+              setOnlyUnconfirmed(checked);
+              if (checked) setIncludePending(true);
+            }}
+          />
           {t("graph.filters.onlyUnconfirmed")}
         </label>
         <label>
@@ -182,12 +193,12 @@ export function Graph() {
             </button>
           </div>
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-            <div ref={canvasWrapper} style={{ flex: 1, minWidth: 0 }}>
+            <div ref={canvasWrapper} style={{ flex: 1, minWidth: 0, overflow: "auto", maxHeight: MIN_CANVAS_HEIGHT }}>
               <Canvas
                 data={data}
-                layoutKind={view === "mappings" ? "bipartite" : layoutKind}
+                layoutKind={activeLayout}
                 width={WIDTH}
-                height={HEIGHT}
+                height={height}
                 labelLimit={thinLabels ? Math.max(1, Math.round(data.nodes.length * 0.15)) : undefined}
                 onSelectNode={(node) => {
                   setSelectedEdge(null);
