@@ -160,13 +160,12 @@ test("clicking an edge shows the model's rationale", async ({ page }) => {
   await mockGraph(page);
   await page.goto("/graph");
 
-  // 冲突边与 depends_on 共用同一对节点，hitbox 叠在上面。原生 click 会点到冲突边，
-  // 所以把 click 派到这条边自己的 <g> 上。
-  await page.locator('[data-edge-key="relation:11"]').dispatchEvent("click");
+  // relation:11 与冲突边共用端点，hitbox 重叠。点一条不重叠的边才能证明真实点击。
+  await page.locator('[data-edge-key="relation:12"]').click();
 
   const drawer = page.getByRole("complementary", { name: "Details" });
-  await expect(drawer.getByText("approval precedes rollback")).toBeVisible();
-  await expect(drawer.getByText("0.90")).toBeVisible();
+  await expect(drawer.getByText("same requirement")).toBeVisible();
+  await expect(drawer.getByText("0.95")).toBeVisible();
 });
 
 test("focus and hop count travel to the API", async ({ page }) => {
