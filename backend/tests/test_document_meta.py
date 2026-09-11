@@ -58,6 +58,9 @@ async def test_the_edit_leaves_an_audit_trail(client, db_session):
 
     rows = (await db_session.execute(select(AuditLog))).scalars().all()
     assert any("document" in (row.action or "") for row in rows)
+    audit = next(row for row in rows if row.action == "document.meta_update")
+    assert audit.before == {"review_due_date": None}
+    assert audit.after == {"review_due_date": "2027-03-31"}
 
 
 async def test_parse_output_cannot_be_edited(client, db_session):
@@ -83,6 +86,18 @@ async def test_a_viewer_cannot_edit_metadata(client, db_session):
         json={"review_due_date": "2027-03-31"}, headers=headers)
 
     assert resp.status_code == 403
+
+
+async def test_null_title_is_rejected(client, db_session):
+    document = await _document(db_session, "Password Policy", 5)
+    await _user(db_session, role=Role.GRC_LEAD, email="lead@example.com")
+    headers = await _auth(client, "lead@example.com")
+
+    resp = await client.patch(
+        f"/api/documents/{document.id}",
+        json={"title": None}, headers=headers)
+
+    assert resp.status_code == 422
 
 
 async def test_editing_an_unknown_document_is_a_404(client, db_session):

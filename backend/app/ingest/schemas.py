@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.ingest.models import DocStatus, DocType
 
@@ -59,7 +59,7 @@ class DocumentMetaIn(BaseModel):
     改它等于让库里的引用对不上原文。
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     title: str | None = Field(default=None, min_length=1, max_length=500)
     doc_type: DocType | None = None
@@ -67,3 +67,12 @@ class DocumentMetaIn(BaseModel):
     version: str | None = Field(default=None, max_length=32)
     effective_date: date | None = None
     review_due_date: date | None = None
+
+    @model_validator(mode="after")
+    def valid_patch(self) -> "DocumentMetaIn":
+        if not self.model_fields_set:
+            raise ValueError("必须提供修改字段")
+        for field in ("title", "doc_type"):
+            if field in self.model_fields_set and getattr(self, field) is None:
+                raise ValueError(f"{field} 不能为空")
+        return self

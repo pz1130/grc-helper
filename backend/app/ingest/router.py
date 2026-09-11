@@ -1,4 +1,5 @@
 import tempfile
+from datetime import date
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile, status
@@ -148,6 +149,7 @@ async def update_document_meta(
         raise NotFound("文档不存在")
 
     changes = body.model_dump(exclude_unset=True)
+    before = {field: _audit_value(getattr(document, field)) for field in changes}
     for field, value in changes.items():
         setattr(document, field, value)
     await session.flush()
@@ -157,10 +159,15 @@ async def update_document_meta(
         action="document.meta_update",
         entity_type="Document",
         entity_id=document.id,
-        after={"fields": sorted(changes)},
+        before=before,
+        after={field: _audit_value(getattr(document, field)) for field in changes},
     )
     await session.commit()
     return document
+
+
+def _audit_value(value: object) -> object:
+    return value.isoformat() if isinstance(value, date) else value
 
 
 @router.get("/{document_id}/clauses", response_model=list[ClauseTreeOut])
