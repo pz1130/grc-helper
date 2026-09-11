@@ -2,6 +2,8 @@ from types import SimpleNamespace
 
 from app.clauses.models import Clause
 from app.controls.models import Control, ControlSource, SourceRelation
+from app.evidence.models import EvidenceCadence, EvidenceItem, EvidenceStatus, EvidenceType
+from app.frameworks.models import Framework, FrameworkItem, Mapping, MappingStrength
 from app.iam.models import User
 from app.iam.permissions import Role
 from app.iam.security import hash_password
@@ -130,6 +132,29 @@ async def test_the_report_lists_controls_hanging_off_removed_clauses(client, db_
     old_doc = await _document(db_session, "Password Policy v1", 1)
     old_clause = await _clause(db_session, old_doc.id, "4.2", "Rotate every 90 days.")
     control = await _control(db_session, "C-0001", old_clause.id)
+    framework = Framework(
+        key="csf", name_zh="CSF", name_en="CSF", version="2.0", source="nist", item_count=1,
+    )
+    db_session.add(framework)
+    await db_session.flush()
+    item = FrameworkItem(
+        framework_id=framework.id, code="PR.AA-01", title="Identities",
+        description="", level=1, order_index=0,
+    )
+    evidence_type = EvidenceType(
+        name_zh="导出", name_en="Export", format="csv",
+        cadence=EvidenceCadence.QUARTERLY, typical_source="AD",
+    )
+    db_session.add_all([item, evidence_type])
+    await db_session.flush()
+    db_session.add(Mapping(
+        control_id=control.id, framework_item_id=item.id,
+        strength=MappingStrength.PARTIAL, rationale="", quote="",
+    ))
+    db_session.add(EvidenceItem(
+        evidence_type_id=evidence_type.id, control_id=control.id,
+        title="AD rotation export", status=EvidenceStatus.PLANNED,
+    ))
     new_doc = await _document(db_session, "Password Policy v2", 2, supersedes_id=old_doc.id)
     # 新版没有 4.2，只有一条新增的 4.4 —— 旧的 4.2 因此进 removed
     await _clause(db_session, new_doc.id, "4.4", "Passwords must not be reused.")
@@ -143,3 +168,7 @@ async def test_the_report_lists_controls_hanging_off_removed_clauses(client, db_
     body = resp.json()
     assert body["removed"][0]["clause_id"] == old_clause.id
     assert body["affected_controls"][0]["id"] == control.id
+    assert body["affected_controls"][0]["code"] == "C-0001"
+    assert body["affected_mappings"][0]["control_code"] == "C-0001"
+    assert body["affected_mappings"][0]["framework_item_code"] == "PR.AA-01"
+    assert body["affected_evidence"][0]["control_code"] == "C-0001"

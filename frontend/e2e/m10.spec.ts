@@ -85,8 +85,8 @@ const impact = {
   removed: [{ clause_id: 11, citation_label: "4.2", text: "Passwords rotate every 90 days." }],
   matched: [{ old_clause_id: 12, new_clause_id: 22, citation_label: "4.3" }],
   affected_controls: [{ id: 7, code: "C-0007", title: "Password rotation" }],
-  affected_mappings: [{ id: 31, control_id: 7, framework_item_code: "PR.AA-01" }],
-  affected_evidence: [{ id: 41, control_id: 7, title: "AD rotation export" }],
+  affected_mappings: [{ id: 31, control_id: 7, control_code: "C-0007", framework_item_code: "PR.AA-01" }],
+  affected_evidence: [{ id: 41, control_id: 7, control_code: "C-0007", title: "AD rotation export" }],
 };
 
 async function mockImpact(page: Page, options: { noPrevious?: boolean } = {}) {
@@ -100,7 +100,7 @@ async function mockImpact(page: Page, options: { noPrevious?: boolean } = {}) {
       return route.fulfill({ json: { id: 1, email: "lead@example.com", name: "Lead", role: "grc_lead" } });
     if (url.pathname === "/api/documents/5")
       return route.fulfill({ json: {
-        id: 5, title: "Password Policy", status: "active", version: "2.0",
+        id: 5, title: "Password Policy", doc_type: "policy", status: "active", version: "2.0",
         owner: null, parse_warnings: null, supersedes_id: options.noPrevious ? null : 3,
       } });
     if (url.pathname === "/api/documents/5/clauses")
@@ -136,7 +136,7 @@ test("the change impact page lists what the removed clauses were holding up", as
   await mockImpact(page);
   await page.goto("/documents/5/change-impact");
 
-  await expect(page.getByText("C-0007")).toBeVisible();
+  await expect(page.getByText("C-0007").first()).toBeVisible();
   await expect(page.getByText("PR.AA-01")).toBeVisible();
   await expect(page.getByText("AD rotation export")).toBeVisible();
 });

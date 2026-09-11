@@ -29,12 +29,14 @@ class AffectedControlOut(BaseModel):
 class AffectedMappingOut(BaseModel):
     id: int
     control_id: int
+    control_code: str
     framework_item_code: str
 
 
 class AffectedEvidenceOut(BaseModel):
     id: int
     control_id: int
+    control_code: str
     title: str
 
 

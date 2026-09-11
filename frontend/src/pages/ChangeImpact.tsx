@@ -32,12 +32,14 @@ interface AffectedControl {
 interface AffectedMapping {
   id: number;
   control_id: number;
+  control_code: string;
   framework_item_code: string;
 }
 
 interface AffectedEvidence {
   id: number;
   control_id: number;
+  control_code: string;
   title: string;
 }
 
@@ -171,7 +173,7 @@ export function ChangeImpact() {
                 <tbody>
                   {data.affected_mappings.map((mapping) => (
                     <tr key={mapping.id}>
-                      <td>{mapping.control_id}</td>
+                      <td><code>{mapping.control_code}</code></td>
                       <td><code>{mapping.framework_item_code}</code></td>
                     </tr>
                   ))}
@@ -193,7 +195,7 @@ export function ChangeImpact() {
                 <tbody>
                   {data.affected_evidence.map((item) => (
                     <tr key={item.id}>
-                      <td>{item.control_id}</td>
+                      <td><code>{item.control_code}</code></td>
                       <td>{item.title}</td>
                     </tr>
                   ))}

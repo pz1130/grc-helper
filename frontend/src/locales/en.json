@@ -148,6 +148,7 @@
       "control_extract": "Control extraction",
       "matrix_mapping": "Spreadsheet column mapping",
       "relation": "Control relationship",
+      "conflict": "Policy conflict",
       "answer": "Audit answer"
     },
     "strength": "Strength",

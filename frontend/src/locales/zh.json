@@ -148,6 +148,7 @@
       "control_extract": "控制点抽取",
       "matrix_mapping": "Excel 列映射",
       "relation": "控制点关系",
+      "conflict": "制度冲突",
       "answer": "审计答复"
     },
     "strength": "强度",

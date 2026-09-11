@@ -128,7 +128,8 @@ async def change_impact(session: AsyncSession, document_id: int) -> ImpactOut:
             AffectedControlOut(id=control.id, code=control.code, title=control.title)
             for control in controls
         ]
-        control_ids = [control.id for control in controls]
+        codes = {control.id: control.code for control in controls}
+        control_ids = list(codes)
         if control_ids:
             mapping_rows = await session.execute(
                 select(Mapping, FrameworkItem)
@@ -140,6 +141,7 @@ async def change_impact(session: AsyncSession, document_id: int) -> ImpactOut:
                 AffectedMappingOut(
                     id=mapping.id,
                     control_id=mapping.control_id,
+                    control_code=codes[mapping.control_id],
                     framework_item_code=item.code,
                 )
                 for mapping, item in mapping_rows
@@ -152,7 +154,12 @@ async def change_impact(session: AsyncSession, document_id: int) -> ImpactOut:
                 )
             )
             affected_evidence = [
-                AffectedEvidenceOut(id=item.id, control_id=item.control_id, title=item.title)
+                AffectedEvidenceOut(
+                    id=item.id,
+                    control_id=item.control_id,
+                    control_code=codes[item.control_id],
+                    title=item.title,
+                )
                 for item in evidence_rows
             ]
 

@@ -21,6 +21,7 @@ interface ClauseNode {
 interface Doc {
   id: number;
   title: string;
+  doc_type: string;
   status: string;
   version: string | null;
   owner: string | null;
@@ -109,10 +110,12 @@ export function DocumentDetail() {
 
   const uploadVersion = useMutation({
     mutationFn: async (file: File) => {
+      const current = doc.data;
+      if (!current) throw new Error("document not loaded");
       const body = new FormData();
       body.append("file", file);
       body.append("title", file.name.replace(/\.(pdf|docx)$/i, ""));
-      body.append("doc_type", /guideline/i.test(file.name) ? "guideline" : "procedure");
+      body.append("doc_type", current.doc_type);
       body.append("supersedes_id", String(id));
       const response = await fetch("/api/documents", {
         method: "POST",
