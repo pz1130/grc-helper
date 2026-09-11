@@ -21,6 +21,7 @@ def create_app() -> FastAPI:
         return {"status": "ok", "version": settings.app_version}
 
     from app.audit.router import router as audit_assistant_router
+    from app.clauses.router import router as clauses_router
     from app.controls.router import router as controls_router
     from app.environment.router import router as environment_router
     from app.errors import install_error_handlers
@@ -48,6 +49,7 @@ def create_app() -> FastAPI:
     application.include_router(audit_router)
     application.include_router(settings_router)
     application.include_router(documents_router)
+    application.include_router(clauses_router)
     application.include_router(search_router)
     application.include_router(index_router)
     application.include_router(controls_router)

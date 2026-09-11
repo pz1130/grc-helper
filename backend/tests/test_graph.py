@@ -608,3 +608,34 @@ async def test_mapping_graph_focus_on_an_item_keeps_its_controls(client, db_sess
     assert {n["key"] for n in body["nodes"]} == {f"item:{leaf.id}", f"control:{first.id}"}
 
 
+@pytest.mark.asyncio
+async def test_a_single_clause_can_be_read_for_the_drawer(client, db_session):
+    await _user(db_session)
+    doc = await _document(db_session, "Incident Management", 1)
+    clause = await _clause(db_session, doc.id, "3.4.2")
+    headers = await _auth(client)
+
+    resp = await client.get(f"/api/clauses/{clause.id}", headers=headers)
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "id": clause.id,
+        "document_id": doc.id,
+        "document_title": "Incident Management",
+        "number": "3.4.2",
+        "heading": "H",
+        "heading_path": "H › 3.4.2",
+        "citation_label": "3.4.2",
+        "text": "Clause 3.4.2 text.",
+        "level": 1,
+        "page_ref": None,
+    }
+
+
+@pytest.mark.asyncio
+async def test_missing_clause_is_404(client, db_session):
+    await _user(db_session)
+    headers = await _auth(client)
+    assert (await client.get("/api/clauses/999999", headers=headers)).status_code == 404
+
+
