@@ -29,6 +29,17 @@ export async function mockGraph(page: Page) {
     if (url.pathname === "/api/frameworks") return route.fulfill({ json: [{ id: 7, name_zh: "网络安全框架", name_en: "Cybersecurity Framework", version: "2.0" }] });
     if (url.pathname === "/api/documents") return route.fulfill({ json: [{ id: 3, title: "Change Management Procedure" }, { id: 4, title: "Incident Management Guideline" }] });
     if (url.pathname === "/api/controls") return route.fulfill({ json: [{ id: 1, code: "C-0001", title: "CAB approval" }, { id: 2, code: "C-0002", title: "Rollback plan" }, { id: 3, code: "C-0003", title: "Incident logging" }] });
+    if (url.pathname === "/api/controls/1") return route.fulfill({ json: {
+      id: 1, code: "C-0001", title: "CAB approval", statement: "Changes must be approved by the CAB.",
+      category: null, owner_user_id: null, status: "active", created_at: "2026-09-01T00:00:00Z",
+      sources: [{ clause_id: 91, document_id: 3, document_title: "Change Management Procedure", citation_label: "4.2", heading_path: "Change › Approval", relation: "defines" }],
+      relations: [], mappings: [], implementations: [], evidence: [],
+    } });
+    if (url.pathname === "/api/clauses/91") return route.fulfill({ json: {
+      id: 91, document_id: 3, document_title: "Change Management Procedure", number: "4.2",
+      heading: "Approval", heading_path: "Change › Approval", citation_label: "4.2",
+      text: "All normal changes are approved by the CAB before implementation.", level: 2, page_ref: 7,
+    } });
     if (url.pathname === "/api/graph/relations") return route.fulfill({ json: relationGraph });
     return route.fulfill({ status: 500, json: { message: `Unexpected API: ${url.pathname}` } });
   });
@@ -95,4 +106,35 @@ test("the force layout lands on the same coordinates every time", async ({ page 
     nodes.map((node) => `${node.getAttribute("data-node-key")}@${node.getAttribute("transform")}`),
   );
   expect(third).toEqual(first);
+});
+
+test("clicking a node opens a drawer with the source clause text", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+
+  await page.locator('[data-node-key="control:1"]').click();
+
+  const drawer = page.getByRole("complementary", { name: "Details" });
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByText("C-0001")).toBeVisible();
+  await expect(drawer.getByText("Changes must be approved by the CAB.")).toBeVisible();
+  await expect(drawer.getByText("4.2")).toBeVisible();
+  await expect(
+    drawer.getByText("All normal changes are approved by the CAB before implementation."),
+  ).toBeVisible();
+  await expect(drawer.getByRole("link", { name: "Open in document" })).toHaveAttribute(
+    "href",
+    "/documents/3#clause-91",
+  );
+});
+
+test("clicking an edge shows the model's rationale", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+
+  await page.locator('[data-edge-key="relation:11"]').click();
+
+  const drawer = page.getByRole("complementary", { name: "Details" });
+  await expect(drawer.getByText("approval precedes rollback")).toBeVisible();
+  await expect(drawer.getByText("0.90")).toBeVisible();
 });

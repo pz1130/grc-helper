@@ -37,22 +37,37 @@ export function Canvas({ data, layoutKind, width, height, onSelectNode, onSelect
         const from = positions.get(edge.source);
         const to = positions.get(edge.target);
         if (!from || !to) return null;
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const length = Math.hypot(dx, dy);
+        const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
         return (
-          <line
+          <g
             key={edge.key}
             data-edge-key={edge.key}
             data-kind={edge.kind}
             data-status={edge.status}
-            x1={from.x}
-            y1={from.y}
-            x2={to.x}
-            y2={to.y}
-            stroke={EDGE_COLOR[edge.kind] ?? "var(--text-tertiary)"}
-            strokeWidth={edge.kind === "conflicts_with" ? 3.5 : 1.5}
-            strokeDasharray={edge.status === "pending" ? "5 4" : undefined}
             style={{ cursor: "pointer" }}
             onClick={() => onSelectEdge(edge)}
-          />
+          >
+            <line
+              x1={from.x}
+              y1={from.y}
+              x2={to.x}
+              y2={to.y}
+              stroke={EDGE_COLOR[edge.kind] ?? "var(--text-tertiary)"}
+              strokeWidth={edge.kind === "conflicts_with" ? 3.5 : 1.5}
+              strokeDasharray={edge.status === "pending" ? "5 4" : undefined}
+            />
+            <rect
+              x={from.x}
+              y={from.y - 8}
+              width={length}
+              height={16}
+              transform={`rotate(${angle} ${from.x} ${from.y})`}
+              fill="transparent"
+            />
+          </g>
         );
       })}
       {data.nodes.map((node) => {

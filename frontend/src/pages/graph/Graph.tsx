@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { request } from "../../api";
 import { Canvas } from "./Canvas";
+import { Drawer } from "./Drawer";
 import type { LayoutKind } from "./layout";
 import type { GraphData, GraphEdgeData, GraphNodeData } from "./types";
 
@@ -13,8 +14,8 @@ const HEIGHT = 560;
 export function Graph() {
   const { t } = useTranslation();
   const [layoutKind, setLayoutKind] = useState<LayoutKind>("document");
-  const [, setSelectedNode] = useState<GraphNodeData | null>(null);
-  const [, setSelectedEdge] = useState<GraphEdgeData | null>(null);
+  const [selectedNode, setSelectedNode] = useState<GraphNodeData | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<GraphEdgeData | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["graph", "relations"],
@@ -43,14 +44,32 @@ export function Graph() {
           <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem" }}>
             {t("graph.stats", { nodes: data.stats.nodes, edges: data.stats.edges })}
           </p>
-          <Canvas
-            data={data}
-            layoutKind={layoutKind}
-            width={WIDTH}
-            height={HEIGHT}
-            onSelectNode={setSelectedNode}
-            onSelectEdge={setSelectedEdge}
-          />
+          <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Canvas
+                data={data}
+                layoutKind={layoutKind}
+                width={WIDTH}
+                height={HEIGHT}
+                onSelectNode={(node) => {
+                  setSelectedEdge(null);
+                  setSelectedNode(node);
+                }}
+                onSelectEdge={(edge) => {
+                  setSelectedNode(null);
+                  setSelectedEdge(edge);
+                }}
+              />
+            </div>
+            <Drawer
+              node={selectedNode}
+              edge={selectedEdge}
+              onClose={() => {
+                setSelectedNode(null);
+                setSelectedEdge(null);
+              }}
+            />
+          </div>
           <ul style={{ display: "flex", gap: 16, listStyle: "none", padding: 0, marginTop: 12 }}>
             {data.groups.map((group) => (
               <li key={group.key} style={{ color: "var(--text-secondary)", fontSize: "0.75rem" }}>
