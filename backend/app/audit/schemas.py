@@ -110,3 +110,25 @@ class SimilarHistoryOut(BaseModel):
     language: str
     finalized_at: datetime
     similarity: float
+
+
+class PreflightRowOut(BaseModel):
+    framework_item_id: int
+    code: str
+    title: str
+    likely_question: str
+    readiness: Annotated[str, Field(pattern=r"^(green|yellow|red)$")]
+    reason: str
+    control_count: int
+    implementation_count: int
+    evidence_count: int
+    valid_evidence_count: int
+    expired_evidence_count: int
+    evidence_titles: list[str]
+    tool_names: list[str]
+
+
+class PreflightOut(BaseModel):
+    engagement_id: int
+    summary: dict[str, int]
+    rows: list[PreflightRowOut]

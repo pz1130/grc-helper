@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 
 import pytest
@@ -17,7 +18,18 @@ from app.audit.models import (
 from app.audit.service import finalize_answer, generate_answer, import_questions
 from app.clauses.models import Clause
 from app.controls.models import Control
+from app.environment.models import (
+    HowEnforced,
+    Implementation,
+    ImplementationStatus,
+    TechAsset,
+    TechAssetCategory,
+    TechAssetEnvironment,
+    TechAssetStatus,
+)
 from app.errors import Conflict
+from app.evidence.models import EvidenceCadence, EvidenceItem, EvidenceStatus, EvidenceType
+from app.frameworks.models import Framework, FrameworkItem, Mapping, MappingStrength
 from app.iam.models import AuditLog, User
 from app.iam.permissions import Role
 from app.iam.security import create_access_token, hash_password
@@ -501,3 +513,103 @@ async def test_batch_generation_enqueues_pending_questions(client, db_session, m
         select(AuditLog).where(AuditLog.action == "audit_answers.batch_enqueue")
     )
     assert audit.after["question_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_preflight_computes_green_yellow_and_red_readiness(client, db_session):
+    actor = await _user(db_session)
+    framework = Framework(
+        key="preview",
+        name_zh="预演框架",
+        name_en="Preview Framework",
+        version="1",
+        source="test",
+        item_count=3,
+        imported_by=actor.id,
+    )
+    db_session.add(framework)
+    await db_session.flush()
+    engagement = await _engagement(db_session, actor)
+    engagement.framework_id = framework.id
+    items = [
+        FrameworkItem(
+            framework_id=framework.id,
+            code=f"PR-{index}",
+            title=title,
+            description="",
+            level=1,
+            order_index=index,
+        )
+        for index, title in enumerate(("Ready", "Implemented", "Gap"), 1)
+    ]
+    controls = [
+        Control(code=f"C-PRE-{index}", title=title, statement=title)
+        for index, title in enumerate(("Ready", "Implemented"), 1)
+    ]
+    db_session.add_all([*items, *controls])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            Mapping(
+                control_id=controls[index].id,
+                framework_item_id=items[index].id,
+                strength=MappingStrength.FULL,
+                confirmed_by=actor.id,
+            )
+            for index in range(2)
+        ]
+    )
+    asset = TechAsset(
+        name="VaultKeeper",
+        category=TechAssetCategory.PAM,
+        vendor="VaultKeeper",
+        environment=TechAssetEnvironment.PROD,
+        status=TechAssetStatus.ACTIVE,
+    )
+    db_session.add(asset)
+    await db_session.flush()
+    db_session.add_all(
+        [
+            Implementation(
+                control_id=control.id,
+                tech_asset_id=asset.id,
+                description="Configured",
+                how_enforced=HowEnforced.AUTOMATED,
+                status=ImplementationStatus.IMPLEMENTED,
+            )
+            for control in controls
+        ]
+    )
+    evidence_type = EvidenceType(
+        name_zh="报告",
+        name_en="Report",
+        format="PDF",
+        cadence=EvidenceCadence.QUARTERLY,
+    )
+    db_session.add(evidence_type)
+    await db_session.flush()
+    db_session.add(
+        EvidenceItem(
+            evidence_type_id=evidence_type.id,
+            control_id=controls[0].id,
+            title="Quarterly review",
+            last_collected_at=datetime.now(UTC),
+            valid_until=datetime.now(UTC) + timedelta(days=30),
+            status=EvidenceStatus.COLLECTED,
+        )
+    )
+    await db_session.flush()
+
+    response = await client.get(
+        f"/api/audit/engagements/{engagement.id}/preflight?language=en",
+        headers=_headers(actor),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["summary"] == {"green": 1, "yellow": 1, "red": 1}
+    assert [row["readiness"] for row in response.json()["rows"]] == [
+        "green",
+        "yellow",
+        "red",
+    ]
+    assert response.json()["rows"][0]["tool_names"] == ["VaultKeeper"]

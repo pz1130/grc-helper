@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { download, request } from "../api";
 import { useAuth } from "../auth";
 
-interface Engagement { id: number; name: string; audit_type: string; status: string }
+interface Engagement { id: number; name: string; audit_type: string; status: string; framework_id?: number | null }
 interface Question { id: number; seq: number; question_text: string; language: string; status: string }
 interface Answer {
   id: number; question_id: number; body: string; language: string; gap_notes: string;
@@ -18,6 +18,13 @@ interface SimilarAnswer {
   answer_id: number; question_id: number; question_text: string; engagement_name: string;
   answer: string; language: string; finalized_at: string; similarity: number;
 }
+interface PreflightRow {
+  framework_item_id: number; code: string; title: string; likely_question: string;
+  readiness: "green" | "yellow" | "red"; reason: string; control_count: number;
+  implementation_count: number; evidence_count: number; valid_evidence_count: number;
+  expired_evidence_count: number; evidence_titles: string[]; tool_names: string[];
+}
+interface Preflight { engagement_id: number; summary: Record<"green" | "yellow" | "red", number>; rows: PreflightRow[] }
 
 export function AuditAssistant() {
   const { t, i18n } = useTranslation();
@@ -34,6 +41,8 @@ export function AuditAssistant() {
   const [draft, setDraft] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [preflightOpen, setPreflightOpen] = useState(false);
+  const [readinessFilter, setReadinessFilter] = useState("all");
 
   const engagements = useQuery({
     queryKey: ["audit-engagements"],
@@ -42,6 +51,7 @@ export function AuditAssistant() {
   useEffect(() => {
     if (!engagementId && engagements.data?.length) setEngagementId(engagements.data[0].id);
   }, [engagementId, engagements.data]);
+  useEffect(() => { setPreflightOpen(false); }, [engagementId]);
 
   const questions = useQuery({
     queryKey: ["audit-questions", engagementId],
@@ -71,6 +81,12 @@ export function AuditAssistant() {
   const history = useQuery({
     queryKey: ["audit-history"],
     queryFn: () => request<HistoryAnswer[]>("/api/audit/history"),
+  });
+  const preflight = useQuery({
+    queryKey: ["audit-preflight", engagementId, i18n.language],
+    queryFn: () => request<Preflight>(`/api/audit/engagements/${engagementId}/preflight?language=${i18n.language.startsWith("zh") ? "zh" : "en"}`),
+    enabled: preflightOpen && engagementId != null,
+    retry: false,
   });
   const fail = (value: Error) => setError(value.message);
   const refresh = async () => {
@@ -154,6 +170,7 @@ export function AuditAssistant() {
           </div>}
           {engagementId && <button className="kn-btn-secondary" disabled={busy} style={{ width: "100%", marginTop: 12 }} onClick={() => exportWord.mutate()}>{t("audit.exportWord")}</button>}
           {engagementId && canDraft && <button className="kn-btn-primary" disabled={busy || !questions.data?.some((row) => row.status === "pending")} style={{ width: "100%", marginTop: 8 }} onClick={() => generateAll.mutate()}>{t("audit.generateAll")}</button>}
+          {engagementId && <button className="kn-btn-secondary" disabled={busy} style={{ width: "100%", marginTop: 8 }} onClick={() => setPreflightOpen((value) => !value)}>{t("audit.preflight")}</button>}
         </aside>
 
         <div className="kn-card">
@@ -211,6 +228,28 @@ export function AuditAssistant() {
         {history.data?.map((row) => <div key={row.id} style={{ borderTop: "1px solid var(--stage-border)", padding: "12px 0" }}><strong>{row.question_text}</strong><div style={{ color: "var(--text-tertiary)", fontSize: "0.75rem" }}>{row.engagement_name}</div><p>{row.final_body}</p></div>)}
         {history.data?.length === 0 && <p style={{ color: "var(--text-tertiary)" }}>{t("audit.noHistory")}</p>}
       </div>
+      {preflightOpen && <div className="kn-card" style={{ marginTop: 20 }}>
+        <h3>{t("audit.preflightTitle")}</h3>
+        {preflight.isLoading && <p>{t("common.loading")}</p>}
+        {preflight.error && <p role="alert">⚠️ {(preflight.error as Error).message}</p>}
+        {preflight.data && <>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+            {(["all", "green", "yellow", "red"] as const).map((value) => <button key={value} className={readinessFilter === value ? "kn-btn-primary" : "kn-btn-secondary"} onClick={() => setReadinessFilter(value)}>
+              {t(`audit.readiness.${value}`)}{value === "all" ? ` (${preflight.data!.rows.length})` : ` (${preflight.data!.summary[value]})`}
+            </button>)}
+          </div>
+          <div className="kn-table-container">
+            <table>
+              <thead><tr><th>{t("audit.readinessLabel")}</th><th>{t("audit.predictedQuestion")}</th><th>{t("audit.support")}</th></tr></thead>
+              <tbody>{preflight.data.rows.filter((row) => readinessFilter === "all" || row.readiness === readinessFilter).map((row) => <tr key={row.framework_item_id}>
+                <td><span className={`kn-badge kn-badge-${row.readiness === "green" ? "emerald" : row.readiness === "yellow" ? "amber" : "danger"}`}>{t(`audit.readiness.${row.readiness}`)}</span><div style={{ marginTop: 6, fontSize: "0.75rem", color: "var(--text-tertiary)" }}>{row.reason}</div></td>
+                <td><strong>{row.code} {row.title}</strong><p>{row.likely_question}</p></td>
+                <td>{t("audit.supportCounts", { controls: row.control_count, implementations: row.implementation_count, evidence: row.valid_evidence_count })}<div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>{row.tool_names.join("、") || "—"}</div></td>
+              </tr>)}</tbody>
+            </table>
+          </div>
+        </>}
+      </div>}
     </section>
   );
 }

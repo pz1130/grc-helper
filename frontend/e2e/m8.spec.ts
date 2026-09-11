@@ -13,6 +13,11 @@ async function mockAudit(page: Page, withAnswer = false) {
     if (url.pathname === "/api/audit/engagements/1/questions/xlsx") return route.fulfill({ status: 201, json: [{ id: 9, seq: 2, question_text: "Imported question", language: "en", status: "pending" }] });
     if (url.pathname === "/api/audit/engagements/1/export.docx") return route.fulfill({ body: "fake-docx", contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
     if (url.pathname === "/api/audit/engagements/1/generate-all") return route.fulfill({ json: { job_id: "audit-job-1", question_count: 1 } });
+    if (url.pathname === "/api/audit/engagements/1/preflight") return route.fulfill({ json: { engagement_id: 1, summary: { green: 1, yellow: 1, red: 1 }, rows: [
+      { framework_item_id: 1, code: "PR.AA-01", title: "Identity management", likely_question: "How are identities managed?", readiness: "green", reason: "Valid evidence is available", control_count: 2, implementation_count: 1, evidence_count: 1, valid_evidence_count: 1, expired_evidence_count: 0, evidence_titles: ["Review report"], tool_names: ["VaultKeeper"] },
+      { framework_item_id: 2, code: "PR.AA-02", title: "Access review", likely_question: "How is access reviewed?", readiness: "yellow", reason: "Implementation exists, but valid evidence is missing", control_count: 1, implementation_count: 1, evidence_count: 0, valid_evidence_count: 0, expired_evidence_count: 0, evidence_titles: [], tool_names: ["Entra ID"] },
+      { framework_item_id: 3, code: "PR.AA-03", title: "Authentication", likely_question: "How is authentication protected?", readiness: "red", reason: "No implementation or valid evidence is registered", control_count: 0, implementation_count: 0, evidence_count: 0, valid_evidence_count: 0, expired_evidence_count: 0, evidence_titles: [], tool_names: [] },
+    ] } });
     if (url.pathname === "/api/audit/engagements/1/questions") return route.fulfill({ json: [{ id: 2, seq: 1, question_text: "How is access reviewed?", language: "en", status: withAnswer ? "drafted" : "pending" }] });
     if (url.pathname === "/api/audit/questions/2/answer") return route.fulfill({ json: withAnswer ? { id: 3, question_id: 2, body: "Access is reviewed quarterly.", language: "en", gap_notes: "Evidence is not registered.", cited_clause_ids: [4], cited_control_ids: [5], suggested_evidence_ids: [], confidence: 0.9, final_body: null, finalized_at: null } : null });
     if (url.pathname === "/api/audit/questions/2/similar-history") return route.fulfill({ json: [{ answer_id: 8, question_id: 7, question_text: "How was access reviewed last year?", engagement_name: "Prior audit", answer: "Access was reviewed quarterly.", language: "en", finalized_at: "2026-01-01T00:00:00Z", similarity: 0.67 }] });
@@ -58,4 +63,15 @@ test("questions can be imported from Excel and finalized answers exported", asyn
   await page.getByRole("button", { name: "Export Word response package" }).click();
   const file = await downloaded;
   expect(file.suggestedFilename()).toBe("ISO audit-audit-responses.docx");
+});
+
+test("audit preflight shows and filters computed readiness", async ({ page }) => {
+  await mockAudit(page);
+  await page.goto("/audit");
+  await page.getByRole("button", { name: "Audit preflight" }).click();
+  await expect(page.getByRole("heading", { name: "Audit readiness preview" })).toBeVisible();
+  await expect(page.getByText("PR.AA-01 Identity management")).toBeVisible();
+  await page.getByRole("button", { name: "Implemented, evidence missing (1)" }).click();
+  await expect(page.getByText("PR.AA-02 Access review")).toBeVisible();
+  await expect(page.getByText("PR.AA-01 Identity management")).toBeHidden();
 });

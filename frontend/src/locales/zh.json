@@ -177,6 +177,18 @@
     "batchQueued": "已提交 {{count}} 个问题批量生成，结果将陆续进入确认队列。",
     "similarHistory": "历史相似答复",
     "noSimilarHistory": "暂无相似的已定稿答复",
+    "preflight": "审计预演",
+    "preflightTitle": "审计就绪度预演",
+    "readinessLabel": "就绪度",
+    "predictedQuestion": "可能被问",
+    "support": "现有支撑",
+    "supportCounts": "{{controls}} 个控制点 · {{implementations}} 项落地 · {{evidence}} 项有效证据",
+    "readiness": {
+      "all": "全部",
+      "green": "已就绪",
+      "yellow": "有落地、缺证据",
+      "red": "未就绪"
+    },
     "selectQuestion": "请选择一个问题",
     "noDraft": "尚无正式草稿。生成结果将先进入确认队列。",
     "generateEn": "生成英文草稿",

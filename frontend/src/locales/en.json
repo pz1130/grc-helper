@@ -177,6 +177,18 @@
     "batchQueued": "Queued {{count}} questions. Proposals will appear in the review queue as they complete.",
     "similarHistory": "Similar finalized answers",
     "noSimilarHistory": "No similar finalized answers",
+    "preflight": "Audit preflight",
+    "preflightTitle": "Audit readiness preview",
+    "readinessLabel": "Readiness",
+    "predictedQuestion": "Likely question",
+    "support": "Current support",
+    "supportCounts": "{{controls}} controls · {{implementations}} implementations · {{evidence}} valid evidence items",
+    "readiness": {
+      "all": "All",
+      "green": "Ready",
+      "yellow": "Implemented, evidence missing",
+      "red": "Not ready"
+    },
     "selectQuestion": "Select a question",
     "noDraft": "No formal draft yet. Generated answers enter the review queue first.",
     "generateEn": "Draft in English",

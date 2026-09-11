@@ -10,6 +10,7 @@ from app.audit import service
 from app.audit.export import build_docx
 from app.audit.history import similar_history
 from app.audit.models import AnswerDraft, AuditEngagement, AuditQuestion, QuestionStatus
+from app.audit.preflight import build_preflight
 from app.audit.schemas import (
     AnswerOut,
     AnswerUpdateIn,
@@ -17,6 +18,7 @@ from app.audit.schemas import (
     EngagementOut,
     GenerateAnswerIn,
     HistoryOut,
+    PreflightOut,
     QuestionOut,
     QuestionsImportIn,
     SimilarHistoryOut,
@@ -182,6 +184,20 @@ async def get_similar_history(
         exclude_question_id=question.id,
         limit=3,
     )
+
+
+@router.get("/engagements/{engagement_id}/preflight", response_model=PreflightOut)
+async def get_preflight(
+    engagement_id: Annotated[int, Path(gt=0)],
+    actor: Reader,
+    session: Session,
+    language: Annotated[str, Query(pattern=r"^(zh|en)$")] = "en",
+) -> dict:
+    service.require_engagement_scope(actor, engagement_id)
+    engagement = await session.get(AuditEngagement, engagement_id)
+    if engagement is None:
+        raise NotFound("审计项目不存在")
+    return await build_preflight(session, engagement, language=language)
 
 
 @router.get("/questions/{question_id}/answer", response_model=AnswerOut | None)
