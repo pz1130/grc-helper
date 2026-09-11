@@ -34,6 +34,7 @@ def create_app() -> FastAPI:
     from app.llm.router import router as settings_router
     from app.mapping.router import router as mapping_router
     from app.matrix.router import router as matrix_router
+    from app.maturity.router import router as maturity_router
     from app.relations.router import router as relations_router
     from app.review.router import router as review_router
     from app.search.router import router as search_router
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
     application.include_router(review_router)
     application.include_router(frameworks_router)
     application.include_router(mapping_router)
+    application.include_router(maturity_router)
     application.include_router(relations_router)
     application.include_router(environment_router)
     application.include_router(evidence_router)
