@@ -19,10 +19,27 @@ export interface CanvasProps {
   height: number;
   onSelectNode: (node: GraphNodeData) => void;
   onSelectEdge: (edge: GraphEdgeData) => void;
+  labelLimit?: number;
 }
 
-export function Canvas({ data, layoutKind, width, height, onSelectNode, onSelectEdge }: CanvasProps) {
+export function Canvas({ data, layoutKind, width, height, onSelectNode, onSelectEdge, labelLimit }: CanvasProps) {
   const positions: Map<string, Point> = layout(layoutKind, data.nodes, data.edges, { width, height });
+
+  const degree = new Map<string, number>();
+  for (const edge of data.edges) {
+    degree.set(edge.source, (degree.get(edge.source) ?? 0) + 1);
+    degree.set(edge.target, (degree.get(edge.target) ?? 0) + 1);
+  }
+  // 全景下 146 个节点全画标签就是一团糊：只给度数最高的若干个画，
+  // 并列时按 code 升序取，保证确定性。
+  const labelled = new Set(
+    labelLimit === undefined
+      ? data.nodes.map((node) => node.key)
+      : [...data.nodes]
+          .sort((a, b) => (degree.get(b.key) ?? 0) - (degree.get(a.key) ?? 0) || a.code.localeCompare(b.code))
+          .slice(0, labelLimit)
+          .map((node) => node.key),
+  );
 
   return (
     <svg
@@ -90,9 +107,11 @@ export function Canvas({ data, layoutKind, width, height, onSelectNode, onSelect
               stroke={node.is_gap ? "var(--accent-ruby)" : "var(--accent-blue)"}
               strokeWidth={1.5}
             />
-            <text x={12} y={4} fontSize={11} fill="var(--text-secondary)">
-              {node.code}
-            </text>
+            {labelled.has(node.key) && (
+              <text data-node-label={node.key} x={12} y={4} fontSize={11} fill="var(--text-secondary)">
+                {node.code}
+              </text>
+            )}
           </g>
         );
       })}

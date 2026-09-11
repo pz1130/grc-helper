@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { request } from "../../api";
 import { Canvas } from "./Canvas";
 import { Drawer } from "./Drawer";
+import { downloadGraph } from "./export";
 import type { LayoutKind } from "./layout";
 import type { GraphData, GraphEdgeData, GraphNodeData } from "./types";
 
@@ -23,6 +24,13 @@ export function Graph() {
   const [onlyUnconfirmed, setOnlyUnconfirmed] = useState(false);
   const [onlyConflicts, setOnlyConflicts] = useState(false);
   const [frameworkId, setFrameworkId] = useState<string>("");
+  const [thinLabels, setThinLabels] = useState(false);
+  const canvasWrapper = useRef<HTMLDivElement>(null);
+
+  const exportGraph = async (format: "svg" | "png") => {
+    const svg = canvasWrapper.current?.querySelector("svg");
+    if (svg) await downloadGraph(svg as SVGSVGElement, format);
+  };
 
   const params = new URLSearchParams();
   if (focus) params.set("focus", focus);
@@ -151,6 +159,10 @@ export function Graph() {
             ))}
           </select>
         </label>
+        <label>
+          <input type="checkbox" checked={thinLabels} onChange={(event) => setThinLabels(event.target.checked)} />
+          {t("graph.thinLabels")}
+        </label>
       </div>
       {isLoading && <p style={{ color: "var(--text-tertiary)" }}>{t("common.loading")}</p>}
       {data && (
@@ -161,13 +173,22 @@ export function Graph() {
             {data.stats.truncated && ` · ${t("graph.truncated")}`}
             {view === "mappings" && ` · ${t("graph.gapCount", { count: data.nodes.filter((node) => node.is_gap).length })}`}
           </p>
+          <div style={{ display: "flex", gap: 8, margin: "8px 0" }}>
+            <button type="button" className="kn-button kn-button-ghost" onClick={() => exportGraph("svg")}>
+              {t("graph.exportSvg")}
+            </button>
+            <button type="button" className="kn-button kn-button-ghost" onClick={() => exportGraph("png")}>
+              {t("graph.exportPng")}
+            </button>
+          </div>
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div ref={canvasWrapper} style={{ flex: 1, minWidth: 0 }}>
               <Canvas
                 data={data}
                 layoutKind={view === "mappings" ? "bipartite" : layoutKind}
                 width={WIDTH}
                 height={HEIGHT}
+                labelLimit={thinLabels ? Math.max(1, Math.round(data.nodes.length * 0.15)) : undefined}
                 onSelectNode={(node) => {
                   setSelectedEdge(null);
                   setSelectedNode(node);

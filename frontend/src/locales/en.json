@@ -464,6 +464,9 @@
     "truncated": "Truncated",
     "view": { "relations": "Control relations", "mappings": "Framework mapping" },
     "gapCount": "{{count}} gap",
+    "thinLabels": "Thin labels",
+    "exportSvg": "Export SVG",
+    "exportPng": "Export PNG",
     "filters": { "pending": "Show pending proposals", "onlyUnconfirmed": "Only unconfirmed", "onlyConflicts": "Only conflicts", "framework": "Framework", "allFrameworks": "All frameworks" }
   },
   "common": {

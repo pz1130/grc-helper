@@ -235,3 +235,40 @@ test("the layout buttons are gone in the mapping view", async ({ page }) => {
 
   await expect(page.getByRole("button", { name: "Force" })).toHaveCount(0);
 });
+
+test("panorama thins labels down to the busiest nodes", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+
+  // 三个节点里 control:2 度数最高（两条边），标签上限设为 1 时只剩它带标签。
+  await page.getByLabel("Thin labels").check();
+
+  await expect(page.locator("[data-node-label]")).toHaveCount(1);
+  await expect(page.locator("[data-node-label]")).toHaveText("C-0002");
+});
+
+test("exporting produces an svg file with literal colours", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export SVG" }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe("graph.svg");
+
+  const stream = await file.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(chunk as Buffer);
+  const content = Buffer.concat(chunks).toString("utf8");
+  expect(content).toContain("<svg");
+  expect(content).not.toContain("var(--");
+});
+
+test("exporting png triggers a download", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export PNG" }).click();
+  expect((await download).suggestedFilename()).toBe("graph.png");
+});

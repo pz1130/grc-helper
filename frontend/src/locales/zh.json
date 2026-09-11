@@ -464,6 +464,9 @@
     "truncated": "已截断",
     "view": { "relations": "控制点关系", "mappings": "框架映射" },
     "gapCount": "{{count}} 项差距",
+    "thinLabels": "稀释标签",
+    "exportSvg": "导出 SVG",
+    "exportPng": "导出 PNG",
     "filters": { "pending": "显示待确认提案", "onlyUnconfirmed": "只看未确认", "onlyConflicts": "只看冲突", "framework": "框架", "allFrameworks": "全部框架" }
   },
   "common": {
