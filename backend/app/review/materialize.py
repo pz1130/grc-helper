@@ -127,6 +127,56 @@ async def _materialize_relation(
     await session.flush()
 
 
+async def _materialize_conflict(
+    session: AsyncSession, proposal: Proposal, data: dict[str, Any], *, actor_id: int | None
+) -> None:
+    from app.conflicts.citations import ConflictCitationValidator
+    from app.conflicts.models import PolicyConflict, normalise_pair
+    from app.conflicts.schemas import ConflictPayload
+
+    try:
+        validated = ConflictPayload.model_validate(data)
+    except ValidationError as exc:
+        raise AppError(f"冲突内容无效：{exc}") from exc
+    if validated.clause_a_id == validated.clause_b_id:
+        raise AppError("冲突的两端不能是同一条条款")
+
+    ends = {validated.clause_a_id, validated.clause_b_id}
+    reason = await ConflictCitationValidator(session, clause_ids=ends).check(
+        {"conflicts": [data]}
+    )
+    if reason:
+        raise AppError(f"引用校验失败：{reason}")
+
+    # 冲突无方向：不规范化就会存下互为镜像的两行，唯一约束对它们无能为力。
+    low, high = normalise_pair(validated.clause_a_id, validated.clause_b_id)
+    topic = validated.topic.strip()
+
+    existing = await session.scalar(
+        select(PolicyConflict).where(
+            PolicyConflict.clause_a_id == low,
+            PolicyConflict.clause_b_id == high,
+            PolicyConflict.topic == topic,
+        )
+    )
+    if existing is not None:
+        # 同一处冲突被两条提案各确认一次是正常的（两个批次都报了），不当错误。
+        return
+
+    session.add(
+        PolicyConflict(
+            clause_a_id=low,
+            clause_b_id=high,
+            topic=topic,
+            difference=validated.difference,
+            confidence=validated.confidence,
+            confirmed_by=actor_id,
+            confirmed_at=datetime.now(UTC),
+        )
+    )
+    await session.flush()
+
+
 async def _materialize_mapping(
     session: AsyncSession, proposal: Proposal, data: dict[str, Any], *, actor_id: int | None
 ) -> None:
@@ -243,6 +293,9 @@ async def materialize(
         return
     if proposal.kind == ProposalKind.RELATION:
         await _materialize_relation(session, proposal, data, actor_id=actor_id)
+        return
+    if proposal.kind == ProposalKind.CONFLICT:
+        await _materialize_conflict(session, proposal, data, actor_id=actor_id)
         return
     if proposal.kind == ProposalKind.ANSWER:
         from app.audit.citations import AnswerCitationValidator
