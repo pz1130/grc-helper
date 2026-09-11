@@ -17,7 +17,8 @@
     "frameworks": "Frameworks",
     "techAssets": "Tech assets",
     "evidence": "Evidence",
-    "audit": "Audit assistant"
+    "audit": "Audit assistant",
+    "maturity": "Maturity"
   },
   "login": {
     "title": "Sign in",
@@ -369,6 +370,41 @@
       "framework_refs": "Framework references",
       "note": "Note"
     }
+  },
+  "maturity": {
+    "title": "Maturity assessment",
+    "subtitle": "Score documentation and implementation separately, then compare gaps by framework domain.",
+    "framework": "Framework",
+    "chooseFramework": "Choose a framework",
+    "assessmentName": "Assessment name",
+    "asOfDate": "As-of date",
+    "create": "Create assessment",
+    "assessment": "Current assessment",
+    "chooseAssessment": "Choose an assessment",
+    "finalize": "Finalize and lock",
+    "draft": "Draft",
+    "final": "Final",
+    "status": "Status",
+    "docAverage": "Documentation maturity",
+    "implAverage": "Implementation maturity",
+    "completion": "Scoring completion",
+    "radarTitle": "Domain comparison",
+    "radarLabel": "Dual-line maturity radar chart",
+    "comparison": "Maturity domain comparison",
+    "groupSummary": "Domain summary",
+    "domain": "Domain",
+    "detail": "Leaf-item scoring",
+    "item": "Framework item",
+    "docScore": "Document score",
+    "implScore": "Implementation score",
+    "rationale": "Rationale",
+    "docRationale": "Documentation rationale",
+    "implRationale": "Implementation rationale",
+    "noRationale": "No rationale recorded",
+    "action": "Action",
+    "noScores": "Score at least one domain to see a comparison.",
+    "empty": "No maturity assessments yet. Choose a framework to create the first one.",
+    "scaleHint": "Scores range from 0 to 4. Rollups include scored leaf items only; unscored items are not treated as zero."
   },
   "common": {
     "loading": "Loading…",

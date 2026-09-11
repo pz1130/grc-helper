@@ -11,8 +11,15 @@ from app.iam.audit import record
 from app.iam.deps import require
 from app.iam.models import User
 from app.iam.permissions import Permission
+from app.maturity.aggregation import build_summary
 from app.maturity.models import AssessmentStatus, MaturityAssessment, MaturityScore, ScoreSource
-from app.maturity.schemas import AssessmentCreateIn, AssessmentOut, ScoreOut, ScoreUpsertIn
+from app.maturity.schemas import (
+    AssessmentCreateIn,
+    AssessmentOut,
+    MaturitySummaryOut,
+    ScoreOut,
+    ScoreUpsertIn,
+)
 
 router = APIRouter(prefix="/api/maturity", tags=["maturity"])
 Reader = Annotated[User, Depends(require(Permission.READ))]
@@ -69,6 +76,16 @@ async def list_scores(
     )
 
 
+@router.get("/assessments/{assessment_id}/summary", response_model=MaturitySummaryOut)
+async def get_summary(
+    assessment_id: Annotated[int, Path(gt=0)], actor: Reader, session: Session
+) -> MaturitySummaryOut:
+    assessment = await session.get(MaturityAssessment, assessment_id)
+    if assessment is None:
+        raise NotFound("成熟度评估不存在")
+    return await build_summary(session, assessment)
+
+
 @router.put("/assessments/{assessment_id}/scores", response_model=ScoreOut)
 async def upsert_score(
     assessment_id: Annotated[int, Path(gt=0)],
@@ -84,6 +101,11 @@ async def upsert_score(
     item = await session.get(FrameworkItem, payload.framework_item_id)
     if item is None or item.framework_id != assessment.framework_id:
         raise NotFound("框架项不存在")
+    child_id = await session.scalar(
+        select(FrameworkItem.id).where(FrameworkItem.parent_id == item.id).limit(1)
+    )
+    if child_id is not None:
+        raise Conflict("请在末级框架项上评分")
     row = await session.scalar(
         select(MaturityScore).where(
             MaturityScore.assessment_id == assessment_id, MaturityScore.framework_item_id == item.id

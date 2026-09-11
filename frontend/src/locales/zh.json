@@ -17,7 +17,8 @@
     "frameworks": "框架管理",
     "techAssets": "技术栈台账",
     "evidence": "证据库",
-    "audit": "审计助手"
+    "audit": "审计助手",
+    "maturity": "成熟度评估"
   },
   "login": {
     "title": "登录",
@@ -369,6 +370,41 @@
       "framework_refs": "框架引用",
       "note": "备注"
     }
+  },
+  "maturity": {
+    "title": "成熟度评估",
+    "subtitle": "分别记录文档完备度与实际落地度，按框架领域查看差距。",
+    "framework": "评估框架",
+    "chooseFramework": "选择框架",
+    "assessmentName": "评估名称",
+    "asOfDate": "评估日期",
+    "create": "创建评估",
+    "assessment": "当前评估",
+    "chooseAssessment": "选择评估",
+    "finalize": "定稿并锁定",
+    "draft": "草稿",
+    "final": "已定稿",
+    "status": "状态",
+    "docAverage": "文档完备度",
+    "implAverage": "实际落地度",
+    "completion": "评分完成率",
+    "radarTitle": "领域对比",
+    "radarLabel": "成熟度双线雷达图",
+    "comparison": "成熟度领域对比",
+    "groupSummary": "领域汇总",
+    "domain": "领域",
+    "detail": "末级条目评分",
+    "item": "框架项",
+    "docScore": "文档分",
+    "implScore": "落地分",
+    "rationale": "评分依据",
+    "docRationale": "文档评分依据",
+    "implRationale": "落地评分依据",
+    "noRationale": "未填写评分依据",
+    "action": "操作",
+    "noScores": "完成至少一个领域的评分后显示对比。",
+    "empty": "还没有成熟度评估。选择框架创建第一份评估。",
+    "scaleHint": "评分范围 0–4。汇总只计算已评分的末级条目，未评分项不按零分处理。"
   },
   "common": {
     "loading": "加载中…",

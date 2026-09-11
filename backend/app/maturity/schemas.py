@@ -39,3 +39,38 @@ class ScoreOut(ScoreUpsertIn):
     impl_score_source: ScoreSource
     scored_by: int | None
     scored_at: datetime
+
+
+class MaturityAggregateOut(BaseModel):
+    total_items: int
+    scored_items: int
+    doc_average: float | None
+    impl_average: float | None
+
+
+class MaturityGroupOut(MaturityAggregateOut):
+    framework_item_id: int
+    code: str
+    title: str
+
+
+class MaturityItemOut(BaseModel):
+    framework_item_id: int
+    parent_id: int | None
+    group_id: int
+    code: str
+    title: str
+    doc_score: int | None
+    impl_score: int | None
+    doc_rationale: str
+    impl_rationale: str
+    doc_score_source: ScoreSource | None
+    impl_score_source: ScoreSource | None
+
+
+class MaturitySummaryOut(BaseModel):
+    assessment_id: int
+    framework_id: int
+    overall: MaturityAggregateOut
+    groups: list[MaturityGroupOut]
+    items: list[MaturityItemOut]
