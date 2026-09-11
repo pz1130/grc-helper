@@ -31,6 +31,7 @@
   --accent-blue: #2997ff;
   --accent-blue-hover: #0077ed;
   --accent-blue-glow: rgba(41, 151, 255, 0.35);
+  --accent-blue-bg: rgba(41, 151, 255, 0.12);
   
   --accent-emerald: #30d158;
   --accent-emerald-bg: rgba(48, 209, 88, 0.12);
@@ -144,6 +145,7 @@
   --accent-blue: #0071e3;
   --accent-blue-hover: #0077ed;
   --accent-blue-glow: rgba(0, 113, 227, 0.25);
+  --accent-blue-bg: rgba(0, 113, 227, 0.12);
   
   --accent-emerald: #248a3d;
   --accent-emerald-bg: rgba(52, 199, 89, 0.12);
