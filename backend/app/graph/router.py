@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
@@ -17,5 +17,11 @@ Session = Annotated[AsyncSession, Depends(get_session)]
 
 
 @router.get("/relations", response_model=GraphOut)
-async def relation_graph(*, _: Reader, session: Session) -> GraphOut:
-    return await service.relation_graph(session)
+async def relation_graph(
+    *,
+    focus: str | None = None,
+    hops: int = Query(default=1, ge=1, le=2),
+    _: Reader,
+    session: Session,
+) -> GraphOut:
+    return await service.relation_graph(session, focus=focus, hops=hops)

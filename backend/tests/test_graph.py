@@ -8,6 +8,7 @@ from app.controls.models import (
     RelationType,
     SourceRelation,
 )
+from app.graph.service import control_key
 from app.iam.models import User
 from app.iam.permissions import Role
 from app.iam.security import hash_password
@@ -104,3 +105,78 @@ async def test_graph_requires_a_token(client, db_session):
     await _user(db_session)
     resp = await client.get("/api/graph/relations")
     assert resp.status_code == 401
+
+
+async def _chain(db_session) -> list[Control]:
+    """C-0001 → C-0002 → C-0003，外加一个孤立的 C-0009。"""
+    first = await _control(db_session, "C-0001")
+    second = await _control(db_session, "C-0002")
+    third = await _control(db_session, "C-0003")
+    await _control(db_session, "C-0009")
+    await _relation(db_session, first, second, RelationType.DEPENDS_ON)
+    await _relation(db_session, second, third, RelationType.DEPENDS_ON)
+    return [first, second, third]
+
+
+@pytest.mark.asyncio
+async def test_focus_on_a_control_returns_one_hop_neighbourhood(client, db_session):
+    await _user(db_session)
+    first, second, _third = await _chain(db_session)
+    headers = await _auth(client)
+
+    resp = await client.get(
+        f"/api/graph/relations?focus=control:{first.id}&hops=1", headers=headers
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert {n["key"] for n in body["nodes"]} == {control_key(first.id), control_key(second.id)}
+    assert len(body["edges"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_two_hops_reaches_further(client, db_session):
+    await _user(db_session)
+    first, second, third = await _chain(db_session)
+    headers = await _auth(client)
+
+    resp = await client.get(
+        f"/api/graph/relations?focus=control:{first.id}&hops=2", headers=headers
+    )
+
+    body = resp.json()
+    assert {n["key"] for n in body["nodes"]} == {
+        control_key(first.id),
+        control_key(second.id),
+        control_key(third.id),
+    }
+    assert len(body["edges"]) == 2
+
+
+@pytest.mark.asyncio
+async def test_focus_on_a_document_seeds_every_control_it_defines(client, db_session):
+    await _user(db_session)
+    doc = await _document(db_session, "Change Management", 1)
+    clause = await _clause(db_session, doc.id, "4.2")
+    first = await _control(db_session, "C-0001")
+    second = await _control(db_session, "C-0002")
+    db_session.add(
+        ControlSource(control_id=first.id, clause_id=clause.id, relation=SourceRelation.DEFINES)
+    )
+    await _relation(db_session, first, second, RelationType.DUPLICATES)
+    await db_session.flush()
+    headers = await _auth(client)
+
+    resp = await client.get(f"/api/graph/relations?focus=document:{doc.id}&hops=1", headers=headers)
+
+    body = resp.json()
+    assert {n["key"] for n in body["nodes"]} == {control_key(first.id), control_key(second.id)}
+
+
+@pytest.mark.asyncio
+async def test_bad_focus_is_rejected(client, db_session):
+    await _user(db_session)
+    headers = await _auth(client)
+    resp = await client.get("/api/graph/relations?focus=banana", headers=headers)
+    assert resp.status_code == 400
+
