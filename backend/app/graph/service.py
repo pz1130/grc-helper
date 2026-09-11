@@ -5,6 +5,7 @@ from app.clauses.models import Clause
 from app.controls.models import Control, ControlRelation, ControlSource, RelationType
 from app.errors import BadRequest
 from app.graph.schemas import GraphEdge, GraphNode, GraphOut, GraphStats
+from app.review.models import Proposal, ProposalKind, ProposalStatus
 
 # 全景模式的硬上限。超了按 code 升序截断——随机截断的全景图
 # 截图汇报出去两次不一样，比截断本身更糟。
@@ -45,6 +46,53 @@ def _neighbourhood(seeds: set[str], edges: list[GraphEdge], hops: int) -> set[st
         reached |= nxt
         frontier = nxt
     return reached
+
+
+def _pair_key(source: str, target: str, kind: str) -> tuple[str, str, str]:
+    """duplicates 无方向，正反两条是同一条；depends_on 有方向，不可混。"""
+    if kind == RelationType.DUPLICATES.value:
+        first, second = sorted((source, target))
+        return first, second, kind
+    return source, target, kind
+
+
+async def _pending_relation_edges(
+    session: AsyncSession, keys: set[str], types: set[RelationType] | None
+) -> list[GraphEdge]:
+    rows = (
+        await session.execute(
+            select(Proposal)
+            .where(
+                Proposal.kind == ProposalKind.RELATION,
+                Proposal.status == ProposalStatus.PENDING,
+            )
+            .order_by(Proposal.id)
+        )
+    ).scalars().all()
+
+    edges: list[GraphEdge] = []
+    for row in rows:
+        payload = row.payload or {}
+        source = control_key(payload.get("from_control_id", 0))
+        target = control_key(payload.get("to_control_id", 0))
+        kind = payload.get("relation_type", "")
+        if source not in keys or target not in keys:
+            continue
+        if types is not None and kind not in {t.value for t in types}:
+            continue
+        edges.append(
+            GraphEdge(
+                key=f"proposal:{row.id}",
+                source=source,
+                target=target,
+                kind=kind,
+                status="pending",
+                confidence=payload.get("confidence", row.confidence),
+                rationale=payload.get("rationale", ""),
+                proposal_id=row.id,
+            )
+        )
+    return edges
 
 
 async def _relation_seeds(session: AsyncSession, kind: str, target_id: int) -> set[str]:
@@ -95,6 +143,15 @@ async def relation_graph(
         if control_key(row.from_control_id) in keys and control_key(row.to_control_id) in keys
     ]
 
+    if include_pending:
+        seen = {_pair_key(e.source, e.target, e.kind) for e in edges}
+        for edge in await _pending_relation_edges(session, keys, types):
+            pair = _pair_key(edge.source, edge.target, edge.kind)
+            if pair in seen:  # 已确认的赢，不画重影
+                continue
+            seen.add(pair)
+            edges.append(edge)
+
     if focus is not None:
         kind, target_id = parse_focus(focus)
         seeds = await _relation_seeds(session, kind, target_id)
@@ -103,13 +160,22 @@ async def relation_graph(
         keys = {node.key for node in nodes}
         edges = [e for e in edges if e.source in keys and e.target in keys]
 
+    pending_count: dict[str, int] = {}
+    for edge in edges:
+        if edge.status != "pending":
+            continue
+        pending_count[edge.source] = pending_count.get(edge.source, 0) + 1
+        pending_count[edge.target] = pending_count.get(edge.target, 0) + 1
+    for node in nodes:
+        node.pending_edges = pending_count.get(node.key, 0)
+
     return GraphOut(
         nodes=nodes,
         edges=edges,
         stats=GraphStats(
             nodes=len(nodes),
             edges=len(edges),
-            pending_edges=0,
+            pending_edges=sum(1 for e in edges if e.status == "pending"),
             truncated=False,
         ),
     )

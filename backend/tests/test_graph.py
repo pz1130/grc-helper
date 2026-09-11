@@ -13,6 +13,7 @@ from app.iam.models import User
 from app.iam.permissions import Role
 from app.iam.security import hash_password
 from app.ingest.models import DocType, Document
+from app.review.models import Proposal, ProposalKind, ProposalStatus
 
 
 async def _user(db_session, role: Role = Role.VIEWER, email: str = "v@example.com") -> User:
@@ -179,4 +180,127 @@ async def test_bad_focus_is_rejected(client, db_session):
     headers = await _auth(client)
     resp = await client.get("/api/graph/relations?focus=banana", headers=headers)
     assert resp.status_code == 400
+
+
+async def _relation_proposal(
+    db_session,
+    src: Control,
+    dst: Control,
+    kind: RelationType,
+    status: ProposalStatus = ProposalStatus.PENDING,
+) -> Proposal:
+    proposal = Proposal(
+        kind=ProposalKind.RELATION,
+        status=status,
+        confidence=0.8,
+        payload={
+            "from_control_id": src.id,
+            "to_control_id": dst.id,
+            "relation_type": kind.value,
+            "rationale": "model said so",
+            "confidence": 0.8,
+        },
+        citations=[],
+    )
+    db_session.add(proposal)
+    await db_session.flush()
+    return proposal
+
+
+@pytest.mark.asyncio
+async def test_pending_proposals_are_excluded_by_default(client, db_session):
+    await _user(db_session)
+    first = await _control(db_session, "C-0001")
+    second = await _control(db_session, "C-0002")
+    await _relation_proposal(db_session, first, second, RelationType.DEPENDS_ON)
+    headers = await _auth(client)
+
+    resp = await client.get("/api/graph/relations", headers=headers)
+
+    body = resp.json()
+    assert body["edges"] == []
+    assert body["stats"]["pending_edges"] == 0
+
+
+@pytest.mark.asyncio
+async def test_pending_proposals_are_drawn_and_counted_separately(client, db_session):
+    await _user(db_session)
+    first = await _control(db_session, "C-0001")
+    second = await _control(db_session, "C-0002")
+    third = await _control(db_session, "C-0003")
+    await _relation(db_session, first, second, RelationType.DEPENDS_ON)
+    proposal = await _relation_proposal(db_session, second, third, RelationType.DUPLICATES)
+    headers = await _auth(client)
+
+    resp = await client.get("/api/graph/relations?include_pending=true", headers=headers)
+
+    body = resp.json()
+    pending = [e for e in body["edges"] if e["status"] == "pending"]
+    assert len(pending) == 1
+    assert pending[0]["key"] == f"proposal:{proposal.id}"
+    assert pending[0]["proposal_id"] == proposal.id
+    assert pending[0]["kind"] == "duplicates"
+    assert body["stats"] == {"nodes": 3, "edges": 2, "pending_edges": 1, "truncated": False}
+    by_key = {n["key"]: n for n in body["nodes"]}
+    assert by_key[control_key(second.id)]["pending_edges"] == 1
+    assert by_key[control_key(first.id)]["pending_edges"] == 0
+
+
+@pytest.mark.asyncio
+async def test_decided_proposals_never_appear(client, db_session):
+    await _user(db_session)
+    first = await _control(db_session, "C-0001")
+    second = await _control(db_session, "C-0002")
+    await _relation_proposal(
+        db_session, first, second, RelationType.DEPENDS_ON, status=ProposalStatus.ACCEPTED
+    )
+    await _relation_proposal(
+        db_session, second, first, RelationType.DEPENDS_ON, status=ProposalStatus.REJECTED
+    )
+    headers = await _auth(client)
+
+    resp = await client.get("/api/graph/relations?include_pending=true", headers=headers)
+
+    assert resp.json()["edges"] == []
+
+
+@pytest.mark.asyncio
+async def test_a_confirmed_edge_beats_a_pending_proposal_for_the_same_pair(client, db_session):
+    await _user(db_session)
+    first = await _control(db_session, "C-0001")
+    second = await _control(db_session, "C-0002")
+    await _relation(db_session, first, second, RelationType.DUPLICATES)
+    # 同一对、同一类型，只是方向相反——duplicates 无方向，不该画成两条。
+    await _relation_proposal(db_session, second, first, RelationType.DUPLICATES)
+    headers = await _auth(client)
+
+    resp = await client.get("/api/graph/relations?include_pending=true", headers=headers)
+
+    body = resp.json()
+    assert len(body["edges"]) == 1
+    assert body["edges"][0]["status"] == "confirmed"
+    assert body["stats"]["pending_edges"] == 0
+
+
+@pytest.mark.asyncio
+async def test_two_hops_may_shorten_once_pending_edges_join(client, db_session):
+    await _user(db_session)
+    first = await _control(db_session, "C-0001")
+    second = await _control(db_session, "C-0002")
+    third = await _control(db_session, "C-0003")
+    await _relation(db_session, first, second, RelationType.DEPENDS_ON)
+    await _relation(db_session, second, third, RelationType.DEPENDS_ON)
+    await _relation_proposal(db_session, first, third, RelationType.DEPENDS_ON)
+    headers = await _auth(client)
+
+    resp = await client.get(
+        f"/api/graph/relations?focus=control:{first.id}&hops=1&include_pending=true",
+        headers=headers,
+    )
+
+    assert {n["key"] for n in resp.json()["nodes"]} == {
+        control_key(first.id),
+        control_key(second.id),
+        control_key(third.id),
+    }
 

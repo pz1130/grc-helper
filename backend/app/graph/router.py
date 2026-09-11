@@ -21,7 +21,10 @@ async def relation_graph(
     *,
     focus: str | None = None,
     hops: int = Query(default=1, ge=1, le=2),
+    include_pending: bool = False,
     _: Reader,
     session: Session,
 ) -> GraphOut:
-    return await service.relation_graph(session, focus=focus, hops=hops)
+    return await service.relation_graph(
+        session, focus=focus, hops=hops, include_pending=include_pending
+    )
