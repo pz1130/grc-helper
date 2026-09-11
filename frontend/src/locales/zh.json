@@ -14,6 +14,7 @@
     "settings": "设置",
     "review": "确认队列",
     "controls": "控制点库",
+    "graph": "图谱",
     "frameworks": "框架管理",
     "techAssets": "技术栈台账",
     "evidence": "证据库",
@@ -449,6 +450,11 @@
       "accepted": "已接受",
       "closed": "已关闭"
     }
+  },
+  "graph": {
+    "title": "图谱",
+    "stats": "{{nodes}} 个节点 · {{edges}} 条边",
+    "layout": { "document": "按文件", "function": "按 Function", "force": "力导向" }
   },
   "common": {
     "loading": "加载中…",

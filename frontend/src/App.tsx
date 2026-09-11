@@ -16,6 +16,7 @@ import { Search } from "./pages/Search";
 import { ReviewQueue } from "./pages/ReviewQueue";
 import { Controls } from "./pages/Controls";
 import { ControlDetail } from "./pages/ControlDetail";
+import { Graph } from "./pages/graph/Graph";
 import { Frameworks } from "./pages/Frameworks";
 import { FrameworkDetail } from "./pages/FrameworkDetail";
 import { TechAssets } from "./pages/TechAssets";
@@ -66,6 +67,7 @@ export function App() {
         <Route path="/review" element={<ReviewQueue />} />
         <Route path="/controls" element={<Controls />} />
         <Route path="/controls/:id" element={<ControlDetail />} />
+        <Route path="/graph" element={<Graph />} />
         <Route path="/frameworks" element={<Frameworks />} />
         <Route path="/frameworks/:id" element={<FrameworkDetail />} />
         <Route path="/tech-assets" element={<TechAssets />} />
