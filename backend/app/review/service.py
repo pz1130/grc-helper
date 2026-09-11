@@ -177,6 +177,26 @@ async def create(
         )
         if reason:
             raise AppError(f"引用校验失败：{reason}")
+    elif kind == ProposalKind.ANSWER:
+        from app.audit.citations import AnswerCitationValidator
+        from app.audit.schemas import AnswerProposalPayload
+
+        try:
+            AnswerProposalPayload.model_validate(payload)
+        except ValidationError as exc:
+            raise AppError(f"审计答复提案无效：{exc}") from exc
+        if payload.get("citations") != citations:
+            raise AppError("答复提案引用与内容不一致")
+        clause_ids = {
+            citation.get("clause_id")
+            for citation in citations
+            if isinstance(citation, dict) and type(citation.get("clause_id")) is int
+        }
+        reason = await AnswerCitationValidator(
+            session, allowed_clause_ids=clause_ids
+        ).check(payload)
+        if reason:
+            raise AppError(f"引用校验失败：{reason}")
     proposal = Proposal(
         kind=kind,
         payload=deepcopy(payload),

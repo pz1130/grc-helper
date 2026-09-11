@@ -214,23 +214,24 @@ async def test_citation_validator_rejection_raises(db_session):
             return "引用的条款不存在"
 
     await _setup(db_session)
+    provider = AsyncMock(
+        complete=AsyncMock(
+            return_value=CompletionResponse(text='{"answer": "ok"}', tokens_in=1, tokens_out=1)
+        )
+    )
     with patch(
         "app.llm.runner.build_provider",
-        return_value=AsyncMock(
-            complete=AsyncMock(
-                return_value=CompletionResponse(text='{"answer": "ok"}', tokens_in=1, tokens_out=1)
-            )
-        ),
-    ):
-        with pytest.raises(ValidationFailure, match="引用的条款不存在"):
-            await run(
-                db_session,
-                task_key="answer_generation",
-                system="s",
-                prompt="p",
-                schema=SCHEMA,
-                citation_validator=_AlwaysReject(),
-            )
+        return_value=provider,
+    ), pytest.raises(ValidationFailure, match="引用的条款不存在"):
+        await run(
+            db_session,
+            task_key="answer_generation",
+            system="s",
+            prompt="p",
+            schema=SCHEMA,
+            citation_validator=_AlwaysReject(),
+        )
+    assert provider.complete.await_count == 3
 
 
 @pytest.mark.asyncio
@@ -311,9 +312,8 @@ async def test_failed_embedding_is_also_recorded(db_session):
         return_value=AsyncMock(
             embed=AsyncMock(side_effect=ProviderError("上游返回 500", retryable=True))
         ),
-    ):
-        with pytest.raises(ProviderError):
-            await embed(db_session, texts=["条款正文"])
+    ), pytest.raises(ProviderError):
+        await embed(db_session, texts=["条款正文"])
 
     call = await db_session.scalar(
         select(LLMCall).where(LLMCall.task_key == "embedding")

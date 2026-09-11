@@ -12,6 +12,7 @@ documents.uploaded_by → users.id）是**惰性解析**的：configure_mappers(
 alembic）都导入本模块，而不是各自去 import 自己碰巧需要的那几个。
 """
 
+from app.audit import models as audit_models
 from app.clauses import models as clauses_models
 from app.controls import models as controls_models
 from app.environment import models as environment_models
@@ -25,6 +26,7 @@ from app.review import models as review_models
 from app.search import models as search_models
 
 __all__ = [
+    "audit_models",
     "clauses_models",
     "controls_models",
     "environment_models",

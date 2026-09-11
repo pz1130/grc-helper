@@ -20,6 +20,7 @@ import { Frameworks } from "./pages/Frameworks";
 import { FrameworkDetail } from "./pages/FrameworkDetail";
 import { TechAssets } from "./pages/TechAssets";
 import { Evidence } from "./pages/Evidence";
+import { AuditAssistant } from "./pages/AuditAssistant";
 
 export function App() {
   const { user, loading } = useAuth();
@@ -67,6 +68,7 @@ export function App() {
         <Route path="/frameworks/:id" element={<FrameworkDetail />} />
         <Route path="/tech-assets" element={<TechAssets />} />
         <Route path="/evidence" element={<Evidence />} />
+        <Route path="/audit" element={<AuditAssistant />} />
         <Route path="/documents/:id" element={<DocumentDetail />} />
         <Route path="/settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="providers" replace />} />

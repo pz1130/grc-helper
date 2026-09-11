@@ -24,7 +24,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   const response = await fetch(path, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
+      ...(init.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init.headers ?? {}),
     },
@@ -39,4 +39,20 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     throw new ApiError(response.status, body.code ?? "error", body.message ?? "请求失败");
   }
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
+}
+
+export async function download(path: string): Promise<Blob> {
+  const token = getToken();
+  const response = await fetch(path, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (response.status === 401) {
+    setToken(null);
+    throw new ApiError(401, "unauthorized", "登录已失效，请重新登录");
+  }
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, body.code ?? "error", body.message ?? "请求失败");
+  }
+  return response.blob();
 }

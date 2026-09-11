@@ -873,6 +873,11 @@ export function ReviewQueue() {
                             {p.payload.statement}
                           </p>
                         )}
+                        {typeof p.payload.body === "string" && (
+                          <p style={{ whiteSpace: "pre-wrap", fontSize: "0.875rem", lineHeight: 1.6, color: "var(--text-secondary)" }}>
+                            {p.payload.body}
+                          </p>
+                        )}
                         <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: "0.75rem", maxHeight: 180, overflowY: "auto" }}>
                           {JSON.stringify(p.payload, null, 2)}
                         </pre>

@@ -244,6 +244,69 @@ async def materialize(
     if proposal.kind == ProposalKind.RELATION:
         await _materialize_relation(session, proposal, data, actor_id=actor_id)
         return
+    if proposal.kind == ProposalKind.ANSWER:
+        from app.audit.citations import AnswerCitationValidator
+        from app.audit.models import AnswerDraft, AuditQuestion, QuestionStatus
+        from app.audit.schemas import AnswerProposalPayload
+        from app.clauses.models import Clause
+        from app.evidence.models import EvidenceItem
+
+        try:
+            validated = AnswerProposalPayload.model_validate(data)
+        except ValidationError as exc:
+            raise AppError(f"审计答复内容无效：{exc}") from exc
+        question = await session.get(AuditQuestion, validated.question_id)
+        if question is None:
+            raise NotFound("审计问题不存在")
+        if await session.scalar(
+            select(AnswerDraft.id).where(AnswerDraft.question_id == question.id)
+        ) is not None:
+            raise Conflict("该问题已有答复草稿")
+        clause_ids = {citation.clause_id for citation in validated.citations}
+        known_clauses = set(
+            await session.scalars(select(Clause.id).where(Clause.id.in_(clause_ids)))
+        )
+        known_controls = set(
+            await session.scalars(
+                select(Control.id).where(Control.id.in_(validated.cited_control_ids))
+            )
+        )
+        known_evidence = set(
+            await session.scalars(
+                select(EvidenceItem.id).where(
+                    EvidenceItem.id.in_(validated.suggested_evidence_ids)
+                )
+            )
+        )
+        if clause_ids != known_clauses:
+            raise AppError("答复引用了不存在的条款")
+        if set(validated.cited_control_ids) != known_controls:
+            raise AppError("答复引用了不存在的控制点")
+        if set(validated.suggested_evidence_ids) != known_evidence:
+            raise AppError("答复引用了不存在的证据")
+        reason = await AnswerCitationValidator(
+            session,
+            allowed_clause_ids=clause_ids,
+            allowed_control_ids=known_controls,
+            allowed_evidence_ids=known_evidence,
+        ).check(data)
+        if reason:
+            raise AppError(f"引用校验失败：{reason}")
+        session.add(AnswerDraft(
+            question_id=question.id,
+            body=validated.body,
+            language=validated.language,
+            cited_clause_ids=sorted(clause_ids),
+            cited_control_ids=validated.cited_control_ids,
+            suggested_evidence_ids=validated.suggested_evidence_ids,
+            gap_notes=validated.gap_notes,
+            confidence=proposal.confidence,
+            generated_by_llm_call_id=proposal.llm_call_id,
+            reviewed_by=actor_id,
+        ))
+        question.status = QuestionStatus.DRAFTED
+        await session.flush()
+        return
     if proposal.kind != ProposalKind.CONTROL_EXTRACT:
         raise AppError(f"尚不支持确认 {proposal.kind.value} 提案")
 

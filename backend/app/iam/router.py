@@ -107,6 +107,11 @@ async def create_user(
     actor: User = Depends(require(Permission.USER_MANAGE)),
     session: AsyncSession = Depends(get_session),
 ) -> User:
+    if payload.engagement_scope_id is not None:
+        from app.audit.models import AuditEngagement
+
+        if await session.get(AuditEngagement, payload.engagement_scope_id) is None:
+            raise NotFound("审计项目不存在")
     user = User(
         email=payload.email,
         name=payload.name,
@@ -150,6 +155,11 @@ async def update_user(
 
     before = _snapshot(user)
     data = payload.model_dump(exclude_unset=True)
+    if data.get("engagement_scope_id") is not None:
+        from app.audit.models import AuditEngagement
+
+        if await session.get(AuditEngagement, data["engagement_scope_id"]) is None:
+            raise NotFound("审计项目不存在")
     if await _would_orphan_admin(session, user, data):
         raise Conflict("系统必须保留至少一名启用的管理员，无法执行该改动")
     if "password" in data:

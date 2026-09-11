@@ -40,7 +40,9 @@ class User(Base, TimestampMixin):
 
     # 外部审计员账号：限时 + 限某次审计范围（spec §8.1）
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    engagement_scope_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    engagement_scope_id: Mapped[int | None] = mapped_column(
+        ForeignKey("audit_engagements.id", ondelete="SET NULL"), nullable=True
+    )
 
 
 class AuditLog(Base):

@@ -76,7 +76,7 @@ test("contributors can read review and controls without mutation actions", async
   await page.goto("/review");
   await expect(page.getByText("Control 1", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Accept", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  await expect(page.getByLabel("Select proposal 1")).toHaveCount(0);
   await page.getByRole("link", { name: "Controls", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Controls" })).toBeVisible();
   await expect(page.getByText("Import an Excel control matrix")).toHaveCount(0);

@@ -16,7 +16,8 @@
     "controls": "控制点库",
     "frameworks": "框架管理",
     "techAssets": "技术栈台账",
-    "evidence": "证据库"
+    "evidence": "证据库",
+    "audit": "审计助手"
   },
   "login": {
     "title": "登录",
@@ -139,7 +140,8 @@
     "kinds": {
       "control_extract": "控制点抽取",
       "matrix_mapping": "Excel 列映射",
-      "relation": "控制点关系"
+      "relation": "控制点关系",
+      "answer": "审计答复"
     },
     "strength": "强度",
     "allStrengths": "全部强度",
@@ -156,6 +158,38 @@
     "doubtfulHint": "启发式：模型自己的理由里写了 does not / not specifically / lacks，强度却仍会消除差距。关键词匹配，不是判定。",
     "drift": "结论强于原文",
     "driftHint": "正文用了 must/shall，但被引的条款里一个情态词都没有。引用校验查不到这个——引文是逐字的，被改的是结论。表格是已知误报：它用行列表达义务，本来就不含情态词。"
+  },
+  "audit": {
+    "title": "审计答复工作台",
+    "subtitle": "录入审计问题，依据内部条款生成可追溯的答复草稿。",
+    "engagements": "审计项目",
+    "newEngagement": "新审计项目名称",
+    "questions": "问题列表",
+    "pasteQuestions": "每行粘贴一个审计问题",
+    "import": "导入问题",
+    "xlsxFile": "Excel 问题文件",
+    "xlsxHint": "第一张表需包含“审计问题”列，可选“语言”列（中文/英文或 zh/en），最多 200 行。",
+    "importXlsx": "从 Excel 导入",
+    "xlsxImported": "已从 Excel 导入 {{count}} 个问题。",
+    "exportWord": "导出 Word 答复包",
+    "exported": "Word 答复包已导出。",
+    "selectQuestion": "请选择一个问题",
+    "noDraft": "尚无正式草稿。生成结果将先进入确认队列。",
+    "generateEn": "生成英文草稿",
+    "generateZh": "生成中文草稿",
+    "reviewProposal": "前往确认 AI 答复",
+    "answer": "答复正文",
+    "finalize": "定稿",
+    "finalized": "已定稿",
+    "history": "历史问答库",
+    "noHistory": "暂无已定稿答复",
+    "created": "审计项目已创建。",
+    "imported": "已导入 {{count}} 个问题。",
+    "generated": "答复提案 #{{id}} 已生成，请在确认队列审核。",
+    "saved": "答复已保存。",
+    "references": "引用：{{clauses}} 条条款、{{controls}} 个控制点、{{evidence}} 项证据",
+    "types": { "internal": "内部审计", "external": "外部审计", "regulatory": "监管审计" },
+    "status": { "pending": "待生成", "drafted": "草稿中", "finalized": "已定稿" }
   },
   "controls": {
     "title": "控制点库",

@@ -20,6 +20,7 @@ def create_app() -> FastAPI:
     async def health() -> dict[str, str]:
         return {"status": "ok", "version": settings.app_version}
 
+    from app.audit.router import router as audit_assistant_router
     from app.controls.router import router as controls_router
     from app.environment.router import router as environment_router
     from app.errors import install_error_handlers
@@ -39,6 +40,7 @@ def create_app() -> FastAPI:
 
     install_error_handlers(application)
     application.include_router(iam_router)
+    application.include_router(audit_assistant_router)
     application.include_router(users_router)
     application.include_router(audit_router)
     application.include_router(settings_router)

@@ -152,8 +152,17 @@ async def run(
 
             reason = await (citation_validator or NullCitationValidator()).check(payload)
             if reason is not None:
-                error_text = f"citation: {reason}"
-                raise ValidationFailure(reason)
+                if attempt == MAX_CORRECTION_RETRIES:
+                    error_text = f"citation: {reason}"
+                    raise ValidationFailure(reason)
+                # Citation repair still needs the original source text; the generic
+                # schema repair prompt alone only contains the invalid response.
+                current_prompt = (
+                    redacted_prompt_text
+                    + "\n\n"
+                    + correction_prompt(response.text, reason)
+                )
+                continue
 
             confidence = payload.get("confidence")
             break
