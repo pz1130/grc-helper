@@ -26,6 +26,8 @@ class GraphEdge(BaseModel):
     confidence: float | None = None
     rationale: str = ""
     proposal_id: int | None = None
+    # 一条冲突边底下可能压着多处冲突点（同两份制度在两处打架）。
+    conflict_count: int = 0
 
 
 class GraphGroup(BaseModel):

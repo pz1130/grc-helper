@@ -103,6 +103,78 @@ async def _pending_relation_edges(
     return edges
 
 
+async def _conflict_edges(
+    session: AsyncSession, keys: set[str], include_pending: bool
+) -> list[GraphEdge]:
+    """冲突边不落库，从 PolicyConflict 与待确认提案现算。
+
+    同一对控制点的多处冲突聚成一条边并带计数；两条冲突条款同属一个控制点时
+    是自环，跳过——当前语料里没有一个控制点跨文件，但派生逻辑不得因此崩。
+    """
+    from app.conflicts.models import PolicyConflict, normalise_pair
+
+    owners: dict[int, set[int]] = {}
+    rows = await session.execute(
+        select(ControlSource.clause_id, ControlSource.control_id)
+    )
+    for clause_id, control_id in rows:
+        owners.setdefault(clause_id, set()).add(control_id)
+
+    # (source_key, target_key, status) → 冲突处数
+    tally: dict[tuple[str, str, str], int] = {}
+
+    def add(clause_a: int, clause_b: int, status: str) -> None:
+        for left in sorted(owners.get(clause_a, set())):
+            for right in sorted(owners.get(clause_b, set())):
+                if left == right:
+                    continue  # 自环
+                low, high = normalise_pair(left, right)
+                pair = (control_key(low), control_key(high), status)
+                if pair[0] in keys and pair[1] in keys:
+                    tally[pair] = tally.get(pair, 0) + 1
+
+    for row in (await session.execute(select(PolicyConflict).order_by(PolicyConflict.id))).scalars():
+        add(row.clause_a_id, row.clause_b_id, "confirmed")
+
+    if include_pending:
+        proposals = (
+            await session.execute(
+                select(Proposal)
+                .where(
+                    Proposal.kind == ProposalKind.CONFLICT,
+                    Proposal.status == ProposalStatus.PENDING,
+                )
+                .order_by(Proposal.id)
+            )
+        ).scalars().all()
+        confirmed_pairs = {(s, t) for s, t, status in tally if status == "confirmed"}
+        for row in proposals:
+            payload = row.payload or {}
+            a, b = payload.get("clause_a_id"), payload.get("clause_b_id")
+            if not isinstance(a, int) or not isinstance(b, int) or a == b:
+                continue
+            before = set(tally)
+            add(a, b, "pending")
+            # 已确认的那对不再重复画一条虚线。
+            for key in set(tally) - before:
+                if (key[0], key[1]) in confirmed_pairs:
+                    tally.pop(key, None)
+
+    return [
+        GraphEdge(
+            key=f"conflict:{source}:{target}:{status}",
+            source=source,
+            target=target,
+            kind="conflicts_with",
+            status=status,
+            rationale="",
+            conflict_count=count,
+        )
+        # 行序定死，两次请求的边顺序必须一致。
+        for (source, target, status), count in sorted(tally.items())
+    ]
+
+
 async def _relation_seeds(session: AsyncSession, kind: str, target_id: int) -> set[str]:
     if kind == "control":
         return {control_key(target_id)}
@@ -256,6 +328,10 @@ async def relation_graph(
                 continue
             seen.add(pair)
             edges.append(edge)
+
+    # 冲突边只在没有按类型筛选、或明确要 conflicts_with 时才画。
+    if types is None or RelationType.CONFLICTS_WITH in types:
+        edges.extend(await _conflict_edges(session, keys, include_pending))
 
     if focus is not None:
         kind, target_id = parse_focus(focus)

@@ -75,6 +75,11 @@ export function Drawer({ node, edge, onClose }: DrawerProps) {
         <div style={{ marginTop: 12 }}>
           <h2 style={{ fontSize: "0.9375rem" }}>{t(`graph.edgeKind.${edge.kind}`, edge.kind)}</h2>
           <p style={{ fontSize: "0.8125rem" }}>{edge.rationale}</p>
+          {edge.conflict_count > 0 && (
+            <p style={{ fontSize: "0.8125rem", color: "var(--accent-ruby)" }}>
+              {t("graph.conflictPoints", { count: edge.conflict_count })}
+            </p>
+          )}
           {edge.confidence !== null && <p>{edge.confidence.toFixed(2)}</p>}
           {edge.proposal_id !== null && (
             <Link

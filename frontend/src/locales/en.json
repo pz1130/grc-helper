@@ -466,6 +466,8 @@
     "view": { "relations": "Control relations", "mappings": "Framework mapping" },
     "gapCount_one": "{{count}} gap",
     "gapCount_other": "{{count}} gaps",
+    "conflictPoints_one": "{{count}} conflict point",
+    "conflictPoints_other": "{{count}} conflict points",
     "thinLabels": "Thin labels",
     "exportSvg": "Export SVG",
     "exportPng": "Export PNG",

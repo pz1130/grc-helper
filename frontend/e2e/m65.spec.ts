@@ -10,12 +10,15 @@ const relationGraph = {
   edges: [
     { key: "relation:11", source: "control:1", target: "control:2", kind: "depends_on", status: "confirmed", confidence: 0.9, rationale: "approval precedes rollback", proposal_id: null },
     { key: "relation:12", source: "control:2", target: "control:3", kind: "duplicates", status: "confirmed", confidence: 0.95, rationale: "same requirement", proposal_id: null },
+    { key: "conflict:control:1:control:2:confirmed", source: "control:1", target: "control:2",
+      kind: "conflicts_with", status: "confirmed", confidence: null, rationale: "",
+      proposal_id: null, conflict_count: 2 },
   ],
   groups: [
     { key: "document:3", kind: "document", label: "Change Management Procedure" },
     { key: "document:4", kind: "document", label: "Incident Management Guideline" },
   ],
-  stats: { nodes: 3, edges: 2, pending_edges: 0, truncated: false },
+  stats: { nodes: 3, edges: 3, pending_edges: 0, truncated: false },
 };
 
 export async function mockGraph(page: Page) {
@@ -49,7 +52,7 @@ export async function mockGraph(page: Page) {
             ...relationGraph.edges,
             { key: "proposal:31", source: "control:1", target: "control:3", kind: "depends_on", status: "pending", confidence: 0.8, rationale: "model said so", proposal_id: 31 },
           ],
-          stats: { nodes: 3, edges: 3, pending_edges: 1, truncated: false },
+          stats: { nodes: 3, edges: 4, pending_edges: 1, truncated: false },
         } });
       }
       return route.fulfill({ json: relationGraph });
@@ -76,10 +79,10 @@ test("the relation graph renders nodes and edges grouped by document", async ({ 
 
   await expect(page.getByRole("heading", { name: "Graph" })).toBeVisible();
   await expect(page.locator("[data-node-key]")).toHaveCount(3);
-  await expect(page.locator("[data-edge-key]")).toHaveCount(2);
+  await expect(page.locator("[data-edge-key]")).toHaveCount(3);
   await expect(page.locator('[data-edge-key="relation:11"]')).toHaveAttribute("data-kind", "depends_on");
   await expect(page.locator('[data-edge-key="relation:11"]')).toHaveAttribute("data-status", "confirmed");
-  await expect(page.getByText("3 nodes · 2 edges")).toBeVisible();
+  await expect(page.getByText("3 nodes · 3 edges")).toBeVisible();
   await expect(page.getByRole("list").getByText("Change Management Procedure")).toBeVisible();
 });
 
@@ -157,7 +160,9 @@ test("clicking an edge shows the model's rationale", async ({ page }) => {
   await mockGraph(page);
   await page.goto("/graph");
 
-  await page.locator('[data-edge-key="relation:11"]').click();
+  // 冲突边与 depends_on 共用同一对节点，hitbox 叠在上面。原生 click 会点到冲突边，
+  // 所以把 click 派到这条边自己的 <g> 上。
+  await page.locator('[data-edge-key="relation:11"]').dispatchEvent("click");
 
   const drawer = page.getByRole("complementary", { name: "Details" });
   await expect(drawer.getByText("approval precedes rollback")).toBeVisible();
@@ -194,7 +199,7 @@ test("only-unconfirmed hides the confirmed edges without another request", async
   await mockGraph(page);
   await page.goto("/graph");
   await page.getByLabel("Show pending proposals").check();
-  await expect(page.locator("[data-edge-key]")).toHaveCount(3);
+  await expect(page.locator("[data-edge-key]")).toHaveCount(4);
 
   await page.getByLabel("Only unconfirmed").check();
 
@@ -429,4 +434,15 @@ test("a png export that cannot be rendered says so instead of doing nothing", as
   await page.getByRole("button", { name: "Export PNG" }).click();
 
   await expect(page.getByText("too large to export as PNG")).toBeVisible();
+});
+
+test("a conflict edge says how many conflict points it carries", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+
+  await page.locator('[data-edge-key="conflict:control:1:control:2:confirmed"]').click();
+
+  const drawer = page.getByRole("complementary", { name: "Details" });
+  await expect(drawer.getByText("Conflicts with")).toBeVisible();
+  await expect(drawer.getByText("2 conflict points")).toBeVisible();
 });

@@ -464,6 +464,7 @@
     "truncated": "已截断",
     "view": { "relations": "控制点关系", "mappings": "框架映射" },
     "gapCount_other": "{{count}} 项差距",
+    "conflictPoints_other": "{{count}} 处冲突",
     "thinLabels": "稀释标签",
     "exportSvg": "导出 SVG",
     "exportPng": "导出 PNG",

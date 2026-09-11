@@ -19,6 +19,7 @@ export interface GraphEdgeData {
   confidence: number | null;
   rationale: string;
   proposal_id: number | null;
+  conflict_count: number;
 }
 
 export interface GraphGroupData {
