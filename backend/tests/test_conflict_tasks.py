@@ -143,6 +143,14 @@ async def test_a_checkpointed_batch_is_skipped_on_retry(harness):
     assert summary["resumed_proposal_ids"] == [7]
 
 
+async def test_the_checkpoint_takes_an_advisory_lock(harness):
+    await tasks.run_detection(harness.session, run_key="t1")
+
+    stmt, params = harness.session.execute.await_args.args
+    assert "pg_advisory_xact_lock" in str(stmt)
+    assert isinstance(params["key"], int)
+
+
 def test_the_task_is_registered_with_the_long_timeout():
     # 逐批调 provider 的任务远超默认 15 分钟；裸注册等于每 15 分钟被杀一次。
     entry = next(

@@ -15,7 +15,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.conflicts.citations import ConflictCitationValidator
@@ -65,10 +65,19 @@ def fingerprint(system: str, prompt: str, run_key: str | None) -> str:
 
 
 async def _checkpoint(session: AsyncSession, key: str) -> LLMCall | None:
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(:key)"),
+        {"key": int.from_bytes(bytes.fromhex(key)[:8], "big", signed=True)},
+    )
     return await session.scalar(
-        select(LLMCall).where(
-            LLMCall.redaction_hits.contains({CHECKPOINT_KEY: {"fingerprint": key}})
+        select(LLMCall)
+        .where(
+            LLMCall.task_key == CONFLICT_TASK_KEY,
+            LLMCall.status == "ok",
+            LLMCall.redaction_hits.contains({CHECKPOINT_KEY: {"fingerprint": key}}),
         )
+        .order_by(LLMCall.id.desc())
+        .limit(1)
     )
 
 
