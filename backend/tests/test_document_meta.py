@@ -45,8 +45,9 @@ async def test_a_reviewer_can_set_the_review_due_date(client, db_session):
 
 
 async def test_the_edit_leaves_an_audit_trail(client, db_session):
-    from app.iam.models import AuditLog
     from sqlalchemy import select
+
+    from app.iam.models import AuditLog
 
     document = await _document(db_session, "Password Policy", 2)
     await _user(db_session, role=Role.GRC_LEAD, email="lead@example.com")
