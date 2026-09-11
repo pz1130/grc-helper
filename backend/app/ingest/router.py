@@ -17,6 +17,7 @@ from app.ingest.coverage import document_coverage, uncovered_clauses
 from app.ingest.models import DocStatus, DocType, Document
 from app.ingest.schemas import (
     DocumentCoverageOut,
+    DocumentMetaIn,
     DocumentOut,
     PlainTextIn,
     UncoveredClauseOut,
@@ -132,6 +133,33 @@ async def get_document(
     document = await session.get(Document, document_id)
     if document is None:
         raise NotFound("文档不存在")
+    return document
+
+
+@router.patch("/{document_id}", response_model=DocumentOut)
+async def update_document_meta(
+    document_id: int,
+    body: DocumentMetaIn,
+    actor: User = Depends(require(Permission.DOCUMENT_WRITE)),
+    session: AsyncSession = Depends(get_session),
+) -> Document:
+    document = await session.get(Document, document_id)
+    if document is None:
+        raise NotFound("文档不存在")
+
+    changes = body.model_dump(exclude_unset=True)
+    for field, value in changes.items():
+        setattr(document, field, value)
+    await session.flush()
+    await record(
+        session,
+        user=actor,
+        action="document.meta_update",
+        entity_type="Document",
+        entity_id=document.id,
+        after={"fields": sorted(changes)},
+    )
+    await session.commit()
     return document
 
 

@@ -50,3 +50,20 @@ class UncoveredClauseOut(BaseModel):
     heading_path: str | None
     text: str
     strong: bool
+
+
+class DocumentMetaIn(BaseModel):
+    """可人工编辑的文档元数据。
+
+    白名单之外一律拒绝：解析产物（条款树、file_hash、file_path）是派生数据，
+    改它等于让库里的引用对不上原文。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = Field(default=None, min_length=1, max_length=500)
+    doc_type: DocType | None = None
+    owner: str | None = Field(default=None, max_length=255)
+    version: str | None = Field(default=None, max_length=32)
+    effective_date: date | None = None
+    review_due_date: date | None = None
