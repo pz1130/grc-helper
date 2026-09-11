@@ -54,6 +54,18 @@ export async function mockGraph(page: Page) {
       }
       return route.fulfill({ json: relationGraph });
     }
+    if (url.pathname === "/api/graph/mappings") return route.fulfill({ json: {
+      nodes: [
+        { key: "control:1", kind: "control", code: "C-0001", title: "CAB approval", group: null, group_extra: [], functions: [], pending_edges: 0, is_gap: false },
+        { key: "item:100", kind: "framework_item", code: "GV.PO-01", title: "Policy", group: null, group_extra: [], functions: [], pending_edges: 0, is_gap: false },
+        { key: "item:200", kind: "framework_item", code: "PR.AA-01", title: "Access", group: null, group_extra: [], functions: [], pending_edges: 0, is_gap: true },
+      ],
+      edges: [
+        { key: "mapping:5", source: "control:1", target: "item:100", kind: "full", status: "confirmed", confidence: 0.9, rationale: "covers it", proposal_id: null },
+      ],
+      groups: [],
+      stats: { nodes: 3, edges: 1, pending_edges: 0, truncated: false },
+    } });
     return route.fulfill({ status: 500, json: { message: `Unexpected API: ${url.pathname}` } });
   });
 }
@@ -197,4 +209,29 @@ test("conflicts-only narrows the requested relation types", async ({ page }) => 
   const requested = page.waitForRequest((request) => request.url().includes("types=conflicts_with"));
   await page.getByLabel("Only conflicts").check();
   await requested;
+});
+
+test("the mapping view puts controls and framework items in two columns and flags gaps", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+
+  await page.getByRole("button", { name: "Framework mapping" }).click();
+
+  await expect(page.locator('[data-node-key="item:200"]')).toHaveAttribute("data-gap", "true");
+  await expect(page.locator('[data-node-key="item:100"]')).toHaveAttribute("data-gap", "false");
+  const x = async (key: string) => {
+    const transform = await page.locator(`[data-node-key="${key}"]`).getAttribute("transform");
+    return Number(transform!.match(/translate\((-?\d+(?:\.\d+)?)/)![1]);
+  };
+  expect(await x("control:1")).toBeLessThan(await x("item:100"));
+  expect(await x("item:100")).toBe(await x("item:200"));
+  await expect(page.getByText("1 gap")).toBeVisible();
+});
+
+test("the layout buttons are gone in the mapping view", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+  await page.getByRole("button", { name: "Framework mapping" }).click();
+
+  await expect(page.getByRole("button", { name: "Force" })).toHaveCount(0);
 });

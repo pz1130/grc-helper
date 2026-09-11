@@ -462,6 +462,8 @@
     "panorama": "Panorama",
     "pendingCount": "{{count}} pending",
     "truncated": "Truncated",
+    "view": { "relations": "Control relations", "mappings": "Framework mapping" },
+    "gapCount": "{{count}} gap",
     "filters": { "pending": "Show pending proposals", "onlyUnconfirmed": "Only unconfirmed", "onlyConflicts": "Only conflicts", "framework": "Framework", "allFrameworks": "All frameworks" }
   },
   "common": {

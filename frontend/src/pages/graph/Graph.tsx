@@ -13,6 +13,7 @@ const HEIGHT = 560;
 
 export function Graph() {
   const { t } = useTranslation();
+  const [view, setView] = useState<"relations" | "mappings">("relations");
   const [layoutKind, setLayoutKind] = useState<LayoutKind>("document");
   const [selectedNode, setSelectedNode] = useState<GraphNodeData | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<GraphEdgeData | null>(null);
@@ -30,10 +31,6 @@ export function Graph() {
   if (onlyConflicts) params.set("types", "conflicts_with");
   if (frameworkId) params.set("framework_id", frameworkId);
 
-  const { data: raw, isLoading } = useQuery({
-    queryKey: ["graph", "relations", params.toString()],
-    queryFn: () => request<GraphData>(`/api/graph/relations?${params.toString()}`),
-  });
   const { data: documents } = useQuery({
     queryKey: ["graph", "documents"],
     queryFn: () => request<{ id: number; title: string }[]>("/api/documents"),
@@ -45,6 +42,24 @@ export function Graph() {
   const { data: frameworks } = useQuery({
     queryKey: ["graph", "frameworks"],
     queryFn: () => request<{ id: number; name_en: string }[]>("/api/frameworks"),
+  });
+
+  const activeFrameworkId = frameworkId || (frameworks?.[0]?.id ? String(frameworks[0].id) : "");
+  const mappingParams = new URLSearchParams();
+  mappingParams.set("framework_id", activeFrameworkId);
+  if (focus) mappingParams.set("focus", focus);
+  mappingParams.set("hops", String(hops));
+  if (includePending) mappingParams.set("include_pending", "true");
+
+  const { data: raw, isLoading } = useQuery({
+    queryKey: ["graph", view, view === "relations" ? params.toString() : mappingParams.toString()],
+    queryFn: () =>
+      request<GraphData>(
+        view === "relations"
+          ? `/api/graph/relations?${params.toString()}`
+          : `/api/graph/mappings?${mappingParams.toString()}`,
+      ),
+    enabled: view === "relations" || activeFrameworkId !== "",
   });
 
   const data: GraphData | undefined = raw && onlyUnconfirmed
@@ -64,18 +79,33 @@ export function Graph() {
     <section>
       <h1>{t("graph.title")}</h1>
       <div style={{ display: "flex", gap: 8, margin: "12px 0" }}>
-        {(["document", "function", "force"] as LayoutKind[]).map((kind) => (
+        {(["relations", "mappings"] as const).map((kind) => (
           <button
             key={kind}
             type="button"
-            className={layoutKind === kind ? "kn-button" : "kn-button kn-button-ghost"}
-            aria-pressed={layoutKind === kind}
-            onClick={() => setLayoutKind(kind)}
+            className={view === kind ? "kn-button" : "kn-button kn-button-ghost"}
+            aria-pressed={view === kind}
+            onClick={() => setView(kind)}
           >
-            {t(`graph.layout.${kind}`)}
+            {t(`graph.view.${kind}`)}
           </button>
         ))}
       </div>
+      {view === "relations" && (
+        <div style={{ display: "flex", gap: 8, margin: "12px 0" }}>
+          {(["document", "function", "force"] as LayoutKind[]).map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              className={layoutKind === kind ? "kn-button" : "kn-button kn-button-ghost"}
+              aria-pressed={layoutKind === kind}
+              onClick={() => setLayoutKind(kind)}
+            >
+              {t(`graph.layout.${kind}`)}
+            </button>
+          ))}
+        </div>
+      )}
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center", margin: "12px 0" }}>
         <label>
           {t("graph.focus")}
@@ -129,12 +159,13 @@ export function Graph() {
             {t("graph.stats", { nodes: data.stats.nodes, edges: data.stats.edges })}
             {data.stats.pending_edges > 0 && ` · ${t("graph.pendingCount", { count: data.stats.pending_edges })}`}
             {data.stats.truncated && ` · ${t("graph.truncated")}`}
+            {view === "mappings" && ` · ${t("graph.gapCount", { count: data.nodes.filter((node) => node.is_gap).length })}`}
           </p>
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <Canvas
                 data={data}
-                layoutKind={layoutKind}
+                layoutKind={view === "mappings" ? "bipartite" : layoutKind}
                 width={WIDTH}
                 height={HEIGHT}
                 onSelectNode={(node) => {

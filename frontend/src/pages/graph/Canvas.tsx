@@ -79,6 +79,7 @@ export function Canvas({ data, layoutKind, width, height, onSelectNode, onSelect
             key={node.key}
             data-node-key={node.key}
             data-kind={node.kind}
+            data-gap={node.is_gap ? "true" : "false"}
             transform={`translate(${point.x},${point.y})`}
             style={{ cursor: "pointer" }}
             onClick={() => onSelectNode(node)}
