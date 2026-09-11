@@ -7,6 +7,7 @@
 """
 
 from collections.abc import Mapping
+from typing import NamedTuple
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,13 @@ from app.clauses.models import Clause
 from app.controls.models import ControlSource
 from app.relations.clustering import Pair
 from app.relations.models import ControlEmbedding
+
+
+class ClauseRef(NamedTuple):
+    clause_id: int
+    document_title: str
+    citation_label: str
+    text: str
 
 TOP_K_NEIGHBOURS = 8
 # 起步值。当前语料实测：≥0.90 有 731 对（跨文件 438），≥0.85 有 1,286 对
@@ -103,3 +111,37 @@ async def cross_document_pairs(
         for (low, high), score in sorted(best.items(), key=lambda kv: (-kv[1], kv[0]))
     ]
     return keep_cross_document(ordered, await documents_of(session))
+
+
+async def clause_bundles(
+    session: AsyncSession, pairs: list[Pair]
+) -> dict[int, list[ClauseRef]]:
+    """候选对涉及的每个控制点 → 它的全部支撑条款原文。
+
+    一次查完再按控制点分组，不在循环里查库——候选可达上千对。
+    """
+    from app.ingest.models import Document
+
+    wanted = {control_id for pair in pairs for control_id in (pair.low, pair.high)}
+    if not wanted:
+        return {}
+    rows = await session.execute(
+        select(
+            ControlSource.control_id,
+            Clause.id,
+            Document.title,
+            Clause.citation_label,
+            Clause.text,
+        )
+        .join(Clause, Clause.id == ControlSource.clause_id)
+        .join(Document, Document.id == Clause.document_id)
+        .where(ControlSource.control_id.in_(wanted))
+        # 行序定死：批次指纹对 prompt 取，顺序一变检查点全落空。
+        .order_by(ControlSource.control_id, Clause.id)
+    )
+    bundles: dict[int, list[ClauseRef]] = {}
+    for control_id, clause_id, title, label, text in rows:
+        bundles.setdefault(control_id, []).append(
+            ClauseRef(clause_id, title, label, text or "")
+        )
+    return bundles
