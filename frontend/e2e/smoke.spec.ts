@@ -106,3 +106,14 @@ test("GRC Lead 看不到也进不去 AI 配置页", async ({ page, request }) =>
   });
   expect(denied.status()).toBe(403);
 });
+
+test("侧栏导航再长，退出按钮也留在视口里", async ({ page }) => {
+  await signIn(page);
+
+  // 导航项每加一个就把底部的退出/主题/语言往下顶。侧栏本身必须能滚，
+  // 否则 720 高的屏幕上这些控件直接够不着——2026-09-11 图谱项就顶出去过一次。
+  const box = await page.getByRole("button", { name: "退出" }).boundingBox();
+  const viewport = page.viewportSize()!;
+  expect(box).not.toBeNull();
+  expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height);
+});

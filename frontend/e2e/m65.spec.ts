@@ -272,3 +272,161 @@ test("exporting png triggers a download", async ({ page }) => {
   await page.getByRole("button", { name: "Export PNG" }).click();
   expect((await download).suggestedFilename()).toBe("graph.png");
 });
+
+// ---------------------------------------------------------------------------
+// 大图夹具。三节点夹具撑不开力导向，也撑不出超高的画布——
+// 两个真实数据上暴露的缺陷都只有在节点够多时才出得来。
+// ---------------------------------------------------------------------------
+
+const BIG_CONTROLS = 120;
+const BIG_ITEMS = 800;
+
+async function mockBigGraph(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem("grc.token", "mock-token");
+    localStorage.setItem("grc.lang", "en");
+  });
+  const controls = Array.from({ length: BIG_CONTROLS }, (_, index) => ({
+    key: `control:${index + 1}`,
+    kind: "control",
+    code: `C-${String(index + 1).padStart(4, "0")}`,
+    title: `Control ${index + 1}`,
+    group: `document:${(index % 4) + 1}`,
+    group_extra: [],
+    functions: [],
+    pending_edges: 0,
+    is_gap: false,
+  }));
+  const relationEdges = Array.from({ length: 40 }, (_, index) => ({
+    key: `relation:${index + 1}`,
+    source: `control:${index + 1}`,
+    target: `control:${index + 41}`,
+    kind: "depends_on",
+    status: "confirmed",
+    confidence: 0.9,
+    rationale: "r",
+    proposal_id: null,
+  }));
+  const items = Array.from({ length: BIG_ITEMS }, (_, index) => ({
+    key: `item:${index + 1}`,
+    kind: "framework_item",
+    code: `GV.PO-${String(index + 1).padStart(3, "0")}`,
+    title: `Item ${index + 1}`,
+    group: null,
+    group_extra: [],
+    functions: [],
+    pending_edges: 0,
+    // 前三项有覆盖，其余全是差距——差距数 > 1，复数形式才测得到。
+    is_gap: index >= 3,
+  }));
+
+  await page.route("**/api/**", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === "/api/auth/me") return route.fulfill({ json: { id: 1, email: "lead@example.com", name: "Lead", role: "grc_lead" } });
+    if (url.pathname === "/api/frameworks") return route.fulfill({ json: [{ id: 7, name_zh: "网络安全框架", name_en: "Cybersecurity Framework", version: "2.0" }] });
+    if (url.pathname === "/api/documents") return route.fulfill({ json: [] });
+    if (url.pathname === "/api/controls") return route.fulfill({ json: [] });
+    if (url.pathname === "/api/graph/relations") return route.fulfill({ json: {
+      nodes: controls,
+      edges: relationEdges,
+      groups: [],
+      stats: { nodes: controls.length, edges: relationEdges.length, pending_edges: 0, truncated: false },
+    } });
+    if (url.pathname === "/api/graph/mappings") return route.fulfill({ json: {
+      nodes: [controls[0], ...items],
+      edges: [],
+      groups: [],
+      stats: { nodes: items.length + 1, edges: 0, pending_edges: 0, truncated: false },
+    } });
+    return route.fulfill({ status: 500, json: { message: `Unexpected API: ${url.pathname}` } });
+  });
+}
+
+async function nodeBoxes(page: Page) {
+  return page.locator("[data-node-key]").evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const match = node.getAttribute("transform")!.match(/translate\((-?[\d.]+),(-?[\d.]+)\)/)!;
+      return { x: Number(match[1]), y: Number(match[2]) };
+    }),
+  );
+}
+
+test("the force layout keeps every node inside the canvas", async ({ page }) => {
+  await mockBigGraph(page);
+  await page.goto("/graph");
+
+  await page.getByRole("button", { name: "Force" }).click();
+  await expect(page.locator("[data-node-key]")).toHaveCount(BIG_CONTROLS);
+
+  const viewBox = (await page.locator("#graph-canvas").getAttribute("viewBox"))!.split(" ").map(Number);
+  const outside = (await nodeBoxes(page)).filter(
+    (point) => point.x < 0 || point.y < 0 || point.x > viewBox[2] || point.y > viewBox[3],
+  );
+  expect(outside).toEqual([]);
+});
+
+test("the force layout still spreads nodes apart after being fitted", async ({ page }) => {
+  await mockBigGraph(page);
+  await page.goto("/graph");
+
+  await page.getByRole("button", { name: "Force" }).click();
+  await expect(page.locator("[data-node-key]")).toHaveCount(BIG_CONTROLS);
+
+  // 夹进画布不等于压成一团：横竖都得铺开到画布的一半以上。
+  const points = await nodeBoxes(page);
+  const spanX = Math.max(...points.map((p) => p.x)) - Math.min(...points.map((p) => p.x));
+  const spanY = Math.max(...points.map((p) => p.y)) - Math.min(...points.map((p) => p.y));
+  expect(spanX).toBeGreaterThan(480);
+  expect(spanY).toBeGreaterThan(280);
+});
+
+test("exporting png works on a canvas too tall for a 2x bitmap", async ({ page }) => {
+  await mockBigGraph(page);
+  await page.goto("/graph");
+
+  await page.getByRole("button", { name: "Framework mapping" }).click();
+  await expect(page.locator('[data-kind="framework_item"]')).toHaveCount(BIG_ITEMS);
+  const viewBox = (await page.locator("#graph-canvas").getAttribute("viewBox"))!.split(" ").map(Number);
+  expect(viewBox[3]).toBeGreaterThan(16384); // 2 倍图会撞上浏览器的画布上限
+
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export PNG" }).click();
+  expect((await download).suggestedFilename()).toBe("graph.png");
+});
+
+test("the gap count reads as a plural when there is more than one gap", async ({ page }) => {
+  await mockBigGraph(page);
+  await page.goto("/graph");
+
+  await page.getByRole("button", { name: "Framework mapping" }).click();
+  await expect(page.getByText(`${BIG_ITEMS - 3} gaps`)).toBeVisible();
+});
+
+test("clicking a framework item shows it in the drawer instead of an empty panel", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+  await page.getByRole("button", { name: "Framework mapping" }).click();
+
+  await page.locator('[data-node-key="item:200"]').click();
+
+  const drawer = page.getByRole("complementary", { name: "Details" });
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByText("PR.AA-01")).toBeVisible();
+  await expect(drawer.getByText("Access")).toBeVisible();
+  await expect(drawer.getByText("Not covered")).toBeVisible();
+});
+
+test("a png export that cannot be rendered says so instead of doing nothing", async ({ page }) => {
+  await mockGraph(page);
+  // 逼出失败路径：让 toBlob 一律给 null，等价于画布大到浏览器开不出来。
+  await page.addInitScript(() => {
+    HTMLCanvasElement.prototype.toBlob = function (callback: BlobCallback) {
+      callback(null);
+    };
+  });
+  await page.goto("/graph");
+
+  await page.getByRole("button", { name: "Export PNG" }).click();
+
+  await expect(page.getByText("too large to export as PNG")).toBeVisible();
+});

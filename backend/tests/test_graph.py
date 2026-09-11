@@ -90,12 +90,12 @@ async def test_panorama_returns_controls_and_confirmed_relations(client, db_sess
 
     assert resp.status_code == 200
     body = resp.json()
-    assert [n["key"] for n in body["nodes"]] == ["control:%d" % first.id, "control:%d" % second.id]
+    assert [n["key"] for n in body["nodes"]] == [f"control:{first.id}", f"control:{second.id}"]
     assert body["nodes"][0]["kind"] == "control"
     assert body["nodes"][0]["code"] == "C-0001"
     assert len(body["edges"]) == 1
-    assert body["edges"][0]["source"] == "control:%d" % first.id
-    assert body["edges"][0]["target"] == "control:%d" % second.id
+    assert body["edges"][0]["source"] == f"control:{first.id}"
+    assert body["edges"][0]["target"] == f"control:{second.id}"
     assert body["edges"][0]["kind"] == "depends_on"
     assert body["edges"][0]["status"] == "confirmed"
     assert body["edges"][0]["proposal_id"] is None

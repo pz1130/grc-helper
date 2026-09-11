@@ -85,10 +85,56 @@ export function forceLayout(
     }
   }
 
+  return fitToBox(points, options);
+}
+
+const PADDING = 28;
+// 标签画在节点右侧，右边多留一点，导出的图才不会把 code 切一半。
+const LABEL_ROOM = 64;
+
+/**
+ * 把跑完的点云整体平移缩放进画布。
+ *
+ * 少了这一步，节点数一多斥力就把点推到 viewBox 外——146 个控制点时有 81 个
+ * 落在框外，屏幕上和导出的 PNG/SVG 里都被裁掉。等比缩放而不是横竖分别拉伸：
+ * 力导向表达的就是距离关系，拉伸会把它扭掉。只缩不放，小图保持原样。
+ */
+function fitToBox(
+  points: { key: string; x: number; y: number }[],
+  options: LayoutOptions,
+): Map<string, Point> {
+  const round = (value: number) => Math.round(value * 100) / 100;
+  if (points.length === 0) return new Map();
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const point of points) {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+  }
+
+  const boxWidth = Math.max(options.width - PADDING - LABEL_ROOM, 1);
+  const boxHeight = Math.max(options.height - PADDING * 2, 1);
+  const spanX = maxX - minX;
+  const spanY = maxY - minY;
+  const scale = Math.min(
+    spanX > 0 ? boxWidth / spanX : Number.POSITIVE_INFINITY,
+    spanY > 0 ? boxHeight / spanY : Number.POSITIVE_INFINITY,
+    1,
+  );
+
+  // 缩放后居中：把点云的中心对到可用区域的中心。
+  const offsetX = PADDING + (boxWidth - spanX * scale) / 2 - minX * scale;
+  const offsetY = PADDING + (boxHeight - spanY * scale) / 2 - minY * scale;
+
   return new Map(
     points.map((point) => [
       point.key,
-      { x: Math.round(point.x * 100) / 100, y: Math.round(point.y * 100) / 100 },
+      { x: round(point.x * scale + offsetX), y: round(point.y * scale + offsetY) },
     ]),
   );
 }

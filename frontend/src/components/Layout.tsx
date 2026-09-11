@@ -193,7 +193,18 @@ export function Layout() {
         </div>
 
         {/* Nav Links */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+        {/* minHeight: 0 是 flex 子项能收缩的前提，没有它 overflow 不生效。
+            导航项只会越加越多，让这一段自己滚，底部的退出/主题/语言永远留在视口里。 */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+          }}
+        >
           {navItems.map((item) => (
             <NavLink
               key={item.to}

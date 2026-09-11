@@ -2,7 +2,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clauses.models import Clause
-from app.controls.models import Control, ControlRelation, ControlSource, RelationType, SourceRelation
+from app.controls.models import (
+    Control,
+    ControlRelation,
+    ControlSource,
+    RelationType,
+    SourceRelation,
+)
 from app.errors import BadRequest
 from app.frameworks.models import FrameworkItem, Mapping
 from app.graph.schemas import GraphEdge, GraphGroup, GraphNode, GraphOut, GraphStats

@@ -24,11 +24,19 @@ export function Graph() {
   const [onlyConflicts, setOnlyConflicts] = useState(false);
   const [frameworkId, setFrameworkId] = useState<string>("");
   const [thinLabels, setThinLabels] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const canvasWrapper = useRef<HTMLDivElement>(null);
 
   const exportGraph = async (format: "svg" | "png") => {
     const svg = canvasWrapper.current?.querySelector("svg");
-    if (svg) await downloadGraph(svg as SVGSVGElement, format);
+    if (!svg) return;
+    setExportError(null);
+    try {
+      await downloadGraph(svg as SVGSVGElement, format);
+    } catch (error) {
+      // 导出失败必须说出来。从前这里什么都不做，用户看到的就是点了没反应。
+      setExportError(error instanceof Error ? error.message : "graph.exportFailed");
+    }
   };
 
   const params = new URLSearchParams();
@@ -191,6 +199,11 @@ export function Graph() {
             <button type="button" className="kn-button kn-button-ghost" onClick={() => exportGraph("png")}>
               {t("graph.exportPng")}
             </button>
+            {exportError && (
+              <p role="alert" style={{ margin: 0, alignSelf: "center", color: "var(--accent-ruby)", fontSize: "0.8125rem" }}>
+                {t(exportError, { defaultValue: t("graph.exportFailed") })}
+              </p>
+            )}
           </div>
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
             <div ref={canvasWrapper} style={{ flex: 1, minWidth: 0, overflow: "auto", maxHeight: MIN_CANVAS_HEIGHT }}>

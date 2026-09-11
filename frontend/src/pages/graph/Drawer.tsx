@@ -89,6 +89,19 @@ export function Drawer({ node, edge, onClose }: DrawerProps) {
           )}
         </div>
       )}
+      {/* 框架项没有 control 可拉。不单独渲染的话抽屉里只剩一个关闭按钮，
+          而映射视图里差距节点恰恰是最想点开看的那个。 */}
+      {node && node.kind === "framework_item" && (
+        <div style={{ marginTop: 12 }}>
+          <h2 style={{ fontSize: "0.9375rem" }}>{node.code}</h2>
+          <p style={{ fontWeight: 600 }}>{node.title}</p>
+          {node.is_gap && (
+            <p style={{ fontSize: "0.8125rem", color: "var(--accent-ruby)" }}>
+              {t("graph.drawer.notCovered")}
+            </p>
+          )}
+        </div>
+      )}
       {node && control && (
         <div style={{ marginTop: 12 }}>
           <h2 style={{ fontSize: "0.9375rem" }}>{control.code}</h2>

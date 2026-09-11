@@ -4,6 +4,9 @@
  */
 const COLOR_ATTRIBUTES = ["fill", "stroke"] as const;
 
+/** 抛出去的是 i18n 键，翻译留给调用方——这里没有 t()。 */
+export const EXPORT_TOO_LARGE = "graph.exportTooLarge";
+
 export function serializeSvg(svg: SVGSVGElement): string {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   const originals = [svg, ...Array.from(svg.querySelectorAll("*"))];
@@ -17,9 +20,16 @@ export function serializeSvg(svg: SVGSVGElement): string {
         node.setAttribute(attribute, computed.getPropertyValue(attribute));
       }
     }
+    // 内联样式里的 var() 同样要换成算出来的值。早先这里一律换成 transparent，
+    // 等于把颜色丢掉——只是当时唯一的内联 var 是根节点背景、随后又被覆盖，才没露馅。
     const inline = (node as HTMLElement).getAttribute("style");
     if (inline && inline.includes("var(")) {
-      (node as HTMLElement).setAttribute("style", inline.replace(/var\([^)]*\)/g, "transparent"));
+      const resolved = inline.replace(
+        /([-a-zA-Z]+)\s*:\s*[^;]*var\([^;]*/g,
+        (declaration, property: string) =>
+          `${property}: ${computed.getPropertyValue(property) || "transparent"}`,
+      );
+      (node as HTMLElement).setAttribute("style", resolved);
     }
   });
 
@@ -58,16 +68,52 @@ export async function downloadGraph(svg: SVGSVGElement, format: "svg" | "png"): 
       image.onerror = () => reject(new Error("SVG 渲染失败"));
       image.src = source;
     });
-    const canvas = document.createElement("canvas");
-    canvas.width = width * 2; // 2 倍图，截图进幻灯片不糊
-    canvas.height = height * 2;
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("canvas 不可用");
-    context.scale(2, 2);
-    context.drawImage(image, 0, 0, width, height);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
-    if (blob) triggerDownload(blob, "graph.png");
+    for (let scale = bitmapScale(width, height); scale >= MIN_SCALE; scale /= 2) {
+      const blob = await renderToBlob(image, width, height, scale);
+      if (blob) {
+        triggerDownload(blob, "graph.png");
+        return;
+      }
+      // toBlob 给 null 只意味着这块画布浏览器开不出来，缩一半再试。
+    }
+    throw new Error(EXPORT_TOO_LARGE);
   } finally {
     URL.revokeObjectURL(source);
+  }
+}
+
+// 画布的硬限制：单边上限各家浏览器不同，面积上限 Chrome 是 2^28。
+// 超了 toBlob 直接返回 null，从前这里 `if (blob)` 一吞，用户看到的就是点了没反应。
+const MAX_DIMENSION = 16384;
+const MAX_AREA = 268_435_456;
+const MIN_SCALE = 0.05;
+
+/** 先按 2 倍图算，再让单边与面积都压到上限之内。 */
+function bitmapScale(width: number, height: number): number {
+  return Math.min(
+    2, // 2 倍图，截图进幻灯片不糊
+    MAX_DIMENSION / width,
+    MAX_DIMENSION / height,
+    Math.sqrt(MAX_AREA / (width * height)),
+  );
+}
+
+async function renderToBlob(
+  image: HTMLImageElement,
+  width: number,
+  height: number,
+  scale: number,
+): Promise<Blob | null> {
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.floor(width * scale));
+  canvas.height = Math.max(1, Math.floor(height * scale));
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("canvas 不可用");
+  context.scale(scale, scale);
+  context.drawImage(image, 0, 0, width, height);
+  try {
+    return await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+  } catch {
+    return null; // 某些浏览器是抛异常而不是给 null
   }
 }
