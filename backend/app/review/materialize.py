@@ -5,10 +5,11 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
+from app.controls.merge import MergePlan
 from app.controls.models import (
     Control,
     ControlRelation,
@@ -559,3 +560,99 @@ async def update_control(
     )
     await session.flush()
     return control
+
+
+async def merge_controls(
+    session: AsyncSession, *, loser_id: int, winner_id: int, actor: User
+) -> MergePlan:
+    """把输家的关联转挂到赢家；输家留行，只改标记。不改赢家的标题/正文/分类/负责人。"""
+    from dataclasses import asdict
+
+    from app.controls.merge import plan_merge
+    from app.environment.models import Implementation
+    from app.evidence.models import EvidenceItem
+    from app.iam.audit import record
+    from app.iam.permissions import Permission
+    from app.relations.models import ControlEmbedding
+    from app.review.service import require_actor
+    from app.risk.models import RiskEntry
+
+    require_actor(actor, Permission.CONTROL_WRITE)
+    await lock_control_writes(session)
+    # 预览与执行之间库可能已经变了，必须重算，不信客户端送来的计划。
+    plan = await plan_merge(session, loser_id=loser_id, winner_id=winner_id)
+    if plan.blockers:
+        raise AppError("；".join(plan.blockers))
+
+    loser = await session.get(Control, loser_id)
+    winner = await session.get(Control, winner_id)
+    if loser is None or winner is None:
+        raise AppError("控制点不存在")
+
+    before = {
+        "code": loser.code,
+        "title": loser.title,
+        "statement": loser.statement,
+        "status": loser.status,
+    }
+
+    discard_models = {
+        "control_embeddings": ControlEmbedding,
+        "control_relations": ControlRelation,
+        "control_sources": ControlSource,
+        "evidence_items": EvidenceItem,
+        "implementations": Implementation,
+        "mappings": Mapping,
+        "risk_entries": RiskEntry,
+    }
+    # 先删重复行再转挂，否则 mappings / control_sources 等唯一约束会先炸。
+    for discarded in plan.discards:
+        row = await session.get(discard_models[discarded.table], discarded.id)
+        if row is not None:
+            await session.delete(row)
+    await session.flush()
+
+    for model in (
+        ControlEmbedding,
+        ControlSource,
+        EvidenceItem,
+        Implementation,
+        Mapping,
+        RiskEntry,
+    ):
+        for row in list(await session.scalars(select(model).where(model.control_id == loser.id))):
+            row.control_id = winner.id
+
+    for row in list(
+        await session.scalars(
+            select(ControlRelation).where(
+                or_(
+                    ControlRelation.from_control_id == loser.id,
+                    ControlRelation.to_control_id == loser.id,
+                )
+            )
+        )
+    ):
+        if row.from_control_id == loser.id:
+            row.from_control_id = winner.id
+        if row.to_control_id == loser.id:
+            row.to_control_id = winner.id
+
+    loser.status = "merged"
+    loser.merged_into_id = winner.id
+
+    await record(
+        session,
+        user=actor,
+        action="control.merge",
+        entity_type="Control",
+        entity_id=loser.id,
+        before=before,
+        after={
+            "merged_into": winner.code,
+            "moves": plan.moves,
+            "discards": [asdict(item) for item in plan.discards],
+        },
+    )
+    await session.flush()
+    return plan
