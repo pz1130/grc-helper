@@ -90,7 +90,8 @@ def test_numbers_that_all_have_children_are_headings():
 
 def test_a_minority_with_children_still_reads_as_list_items():
     """EBA：234 个单段编号里只有 5 个带子号，真正的标题在别处。"""
-    labels = [str(n) for n in range(1, 21)] + ["1.1", "2.1"]
+    # 真实文档里这 234 个编号是**带重复**的：正文列表在每一节里各起一遍。
+    labels = [str(n) for n in range(1, 21)] + ["1", "2", "3"] + ["1.1", "2.1"]
     assert parenthood_ratio(labels) == 0.1
     assert acts_as_headings(labels) is False
 
@@ -105,3 +106,18 @@ def test_a_clear_majority_with_children_reads_as_headings():
 def test_no_single_part_numbers_at_all_is_not_headings():
     assert parenthood_ratio(["3.1", "4.2"]) == 0.0
     assert acts_as_headings([]) is False
+
+
+def test_a_flat_document_that_numbers_its_sections_once_reads_as_headings():
+    """委员会章程：1. Purpose / 2. Composition / 3. Reporting，没有子节。
+    靠"有没有子号"判不出来——它本来就没有。但它只升一次、不重复。"""
+    assert acts_as_headings(["1", "2", "3", "4", "5"]) is True
+
+
+def test_list_items_that_restart_in_each_section_are_still_list_items():
+    """正文列表在每一节里各起一遍，这是它和扁平章节的区别。"""
+    assert acts_as_headings(["1", "2", "3", "1", "2", "1", "2", "3"]) is False
+
+
+def test_two_numbers_are_too_few_to_call_it_a_run():
+    assert acts_as_headings(["1", "2"]) is False

@@ -96,6 +96,38 @@ def _numbered_heading(text: str, dotted_are_headings: bool):
     return len(found.parts), ".".join(str(part) for part in found.parts), found.title
 
 
+# 标题总是短的。80 字符是形状判断：再长就是强调段落，不是标题。
+_HEADING_MAX_CHARS = 80
+
+
+def _body_point_size(paragraphs) -> float | None:
+    """这份文档的正文字号——取出现次数最多的那个。"""
+    sizes: dict[float, int] = {}
+    for paragraph in paragraphs:
+        runs = [run for run in paragraph.runs if run.text.strip()]
+        points = [run.font.size.pt for run in runs if run.font.size]
+        if points:
+            sizes[max(points)] = sizes.get(max(points), 0) + 1
+    return max(sizes, key=lambda size: sizes[size]) if sizes else None
+
+
+def _looks_like_heading(paragraph, body_point: float | None) -> bool:
+    """既无样式也无编号时的兜底：整段加粗、或字号比正文大，且短。
+
+    判据一律**相对于这份文档**——写死 12pt / 14pt 就又变成一份文档的特征了。
+    """
+    text = _paragraph_text(paragraph).strip()
+    if not text or len(text) > _HEADING_MAX_CHARS:
+        return False
+    runs = [run for run in paragraph.runs if run.text.strip()]
+    if not runs:
+        return False
+    if all(run.bold for run in runs):
+        return True
+    points = [run.font.size.pt for run in runs if run.font.size]
+    return bool(points) and body_point is not None and max(points) > body_point
+
+
 class DocxParser:
     def parse(self, path: Path) -> ParsedDocument:
         try:
@@ -119,6 +151,22 @@ class DocxParser:
                 if (found := parse_label(_paragraph_text(paragraph).strip()))
             ]
             dotted_are_headings = acts_as_headings(survey)
+
+        # 三级取舍：样式 > 编号 > 格式。样式最可靠，编号能给出层级，
+        # 格式只说得出"这是个标题"，给不出层级也给不出编号——所以只在
+        # 前两者都无所获时才用它。
+        by_format = False
+        body_point = None
+        if not styled:
+            numbered_candidates = sum(
+                1
+                for paragraph in document.paragraphs
+                if _noise(_paragraph_text(paragraph).strip()) is None
+                and _numbered_heading(_paragraph_text(paragraph).strip(), dotted_are_headings)
+            )
+            if numbered_candidates == 0:
+                by_format = True
+                body_point = _body_point_size(document.paragraphs)
         numbered = 0
         roots: list[ClauseNode] = []
         stack: list[ClauseNode] = []
@@ -196,6 +244,13 @@ class DocxParser:
                     stack.pop()
                 node = ClauseNode(heading=title, text="", level=level, number=number)
                 (stack[-1].children if stack else roots).append(node)
+                stack.append(node)
+                continue
+
+            if by_format and _looks_like_heading(paragraph, body_point):
+                node = ClauseNode(heading=text, text="", level=1, kind="section")
+                stack.clear()
+                roots.append(node)
                 stack.append(node)
                 continue
 

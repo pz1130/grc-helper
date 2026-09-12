@@ -174,7 +174,9 @@ def test_dotted_numbers_without_children_are_still_list_items():
         "1. Boards should approve the strategy",
         "2. Boards should oversee implementation",
         "3. Boards should review outcomes",
-        "4. Senior management should be qualified",
+        "Some other paragraph opening a new section",
+        "1. Senior management should be qualified",
+        "2. Senior management should be accountable",
     ])
 
     assert headings == []

@@ -243,11 +243,15 @@ def test_a_document_without_heading_styles_gets_its_tree_from_the_numbering(tmp_
 
 def test_body_list_items_do_not_become_sections(tmp_path: Path):
     """BCBS 的写法：`1.` `2.` `3.` 是正文列表，没有任何子号挂上去。"""
+    # 关键是**重复**：正文列表在每一节里各起一遍，扁平章节编号只升一次。
     path = _normal_docx(tmp_path, [
         "Principles",
         "1. Boards should approve the strategy.",
         "2. Boards should oversee implementation.",
         "3. Boards should review outcomes.",
+        "Responsibilities",
+        "1. Management should implement the strategy.",
+        "2. Management should report on it.",
     ])
 
     parsed = DocxParser().parse(path)
@@ -318,3 +322,77 @@ def test_a_numbered_child_hangs_under_its_own_parent_not_whatever_came_before(
     assert [node.number for node in parsed.clauses] == ["3", "4"]
     for root in parsed.clauses:
         check(root)
+
+
+# ── 既无样式也无编号时，从格式认标题 ──────────────────────────
+# 剩下的委员会章程类文档既不套 Heading 样式，也不给章节编号——标题是
+# "整段加粗" 或 "字号比正文大" 做出来的。实测候选数都很合理：
+# 03 有 4 个 / 47 段，07 有 7 / 28，13 有 5 / 42，15 有 29 / 336。
+#
+# 判据一律是**相对**的：比这份文档的正文字号大、整段加粗且短。
+# 不写死 12pt / 14pt——那又会变成一份文档的特征。
+
+
+def _formatted_docx(tmp_path: Path, blocks: list[tuple[str, bool]], name="fmt.docx") -> Path:
+    """blocks 里每项是 (文本, 是否整段加粗)。全部 Normal 样式，无编号。"""
+    doc = DocxDocument()
+    for text, bold in blocks:
+        paragraph = doc.add_paragraph()
+        run = paragraph.add_run(text)
+        run.bold = bold
+    path = tmp_path / name
+    doc.save(path)
+    return path
+
+
+def test_bold_short_lines_become_sections_when_nothing_else_marks_them(tmp_path: Path):
+    path = _formatted_docx(tmp_path, [
+        ("Purpose", True),
+        ("The Committee assists the Board in overseeing technology.", False),
+        ("Composition", True),
+        ("The Committee shall consist of at least three directors.", False),
+    ])
+
+    parsed = DocxParser().parse(path)
+
+    assert [node.heading for node in parsed.clauses] == ["Purpose", "Composition"]
+    assert "assists the Board" in parsed.clauses[0].text
+    assert "at least three directors" in parsed.clauses[1].text
+
+
+def test_a_long_bold_paragraph_is_not_a_heading(tmp_path: Path):
+    """整段加粗的强调段落不是标题——标题短。"""
+    path = _formatted_docx(tmp_path, [
+        ("Purpose", True),
+        ("The Committee assists the Board in overseeing technology strategy, "
+         "cyber risk, data governance and the technology investment portfolio, "
+         "and reports to the Board after each meeting.", True),
+    ])
+
+    parsed = DocxParser().parse(path)
+
+    assert [node.heading for node in parsed.clauses] == ["Purpose"]
+
+
+def test_numbering_wins_over_formatting(tmp_path: Path):
+    """有编号就用编号——它能给出层级，格式给不出。"""
+    doc = DocxDocument()
+    for text, bold in [("1. Purpose", False), ("Some bold emphasis", True),
+                       ("2. Composition", False), ("3. Reporting", False)]:
+        paragraph = doc.add_paragraph()
+        paragraph.add_run(text).bold = bold
+    path = tmp_path / "numbered-wins.docx"
+    doc.save(path)
+
+    parsed = DocxParser().parse(path)
+
+    assert [node.number for node in parsed.clauses] == ["1", "2", "3"]
+
+
+def test_formatting_headings_carry_no_number(tmp_path: Path):
+    """认不出编号就别编一个——citation_label 会退化成标题路径，那是诚实的。"""
+    path = _formatted_docx(tmp_path, [("Reporting", True), ("Body text here.", False)])
+
+    parsed = DocxParser().parse(path)
+
+    assert parsed.clauses[0].number is None

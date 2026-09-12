@@ -96,10 +96,15 @@ export function Graph() {
 
   return (
     <section>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
-        <h1>{t("graph.title")}</h1>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-          <div className="kn-segmented">
+      <h1>{t("graph.title")}</h1>
+
+      {/* 视图与布局切换区：独立醒目行 */}
+      <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", margin: "16px 0 14px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            {t("graph.view.relations").includes("关系") ? "视图" : "View"}:
+          </span>
+          <div className="kn-segmented" style={{ padding: "4px" }}>
             {(["relations", "mappings"] as const).map((kind) => (
               <button
                 key={kind}
@@ -107,13 +112,20 @@ export function Graph() {
                 className={`kn-segmented-item ${view === kind ? "active" : ""}`}
                 aria-pressed={view === kind}
                 onClick={() => setView(kind)}
+                style={{ padding: "6px 18px", fontSize: "0.875rem" }}
               >
                 {t(`graph.view.${kind}`)}
               </button>
             ))}
           </div>
-          {view === "relations" && (
-            <div className="kn-segmented">
+        </div>
+
+        {view === "relations" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              {t("graph.layout.document").includes("文件") ? "布局" : "Layout"}:
+            </span>
+            <div className="kn-segmented" style={{ padding: "4px" }}>
               {(["document", "function", "force"] as LayoutKind[]).map((kind) => (
                 <button
                   key={kind}
@@ -121,15 +133,17 @@ export function Graph() {
                   className={`kn-segmented-item ${layoutKind === kind ? "active" : ""}`}
                   aria-pressed={layoutKind === kind}
                   onClick={() => setLayoutKind(kind)}
+                  style={{ padding: "6px 16px", fontSize: "0.875rem" }}
                 >
                   {t(`graph.layout.${kind}`)}
                 </button>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
+      {/* 过滤器与控制台 */}
       <div className="kn-graph-toolbar">
         <label style={{ display: "inline-flex", flexDirection: "row", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", fontWeight: 500 }}>{t("graph.focus")}</span>
@@ -193,19 +207,19 @@ export function Graph() {
       {data && (
         <>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, margin: "14px 0 12px" }}>
-            <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", margin: 0, fontWeight: 500 }}>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", margin: 0, fontWeight: 500 }}>
               {t("graph.stats", { nodes: data.stats.nodes, edges: data.stats.edges })}
               {data.stats.pending_edges > 0 && ` · ${t("graph.pendingCount", { count: data.stats.pending_edges })}`}
               {data.stats.truncated && ` · ${t("graph.truncated")}`}
               {view === "mappings" && ` · ${t("graph.gapCount", { count: data.nodes.filter((node) => node.is_gap).length })}`}
             </p>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <button type="button" className="kn-btn-secondary kn-btn-sm" onClick={() => exportGraph("svg")}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 2 }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <button type="button" className="kn-btn-secondary" style={{ padding: "6px 14px", fontSize: "0.8125rem" }} onClick={() => exportGraph("svg")}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4 }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 {t("graph.exportSvg")}
               </button>
-              <button type="button" className="kn-btn-secondary kn-btn-sm" onClick={() => exportGraph("png")}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 2 }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <button type="button" className="kn-btn-secondary" style={{ padding: "6px 14px", fontSize: "0.8125rem" }} onClick={() => exportGraph("png")}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 4 }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 {t("graph.exportPng")}
               </button>
               {exportError && (

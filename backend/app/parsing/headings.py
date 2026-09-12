@@ -128,6 +128,18 @@ def parenthood_ratio(labels: Sequence[Label]) -> float:
     return sum(1 for single in singles if single in parents) / len(singles)
 
 
+def _is_one_ascending_run(labels: Sequence[Label]) -> bool:
+    """单段编号只出现一次、并且从 1 开始逐个递增。
+
+    扁平编号的文档（`1. Purpose` / `2. Composition` / `3. Reporting`，没有子节）
+    靠"有没有子号"判不出来——它本来就没有子号。区分它和正文列表项的是另一件事：
+    正文列表在每一节里各起一遍（1,2,3,1,2,1,2,3…），扁平章节从头到尾只升一次。
+    """
+    singles = [_parts(label) for label in labels]
+    singles = [part[0] for part in singles if len(part) == 1]
+    return len(singles) >= 3 and singles == list(range(1, len(singles) + 1))
+
+
 def acts_as_headings(labels: Sequence[Label]) -> bool:
     """这批单段编号该当成章节标题，还是正文列表项。"""
-    return parenthood_ratio(labels) >= PARENTHOOD_THRESHOLD
+    return parenthood_ratio(labels) >= PARENTHOOD_THRESHOLD or _is_one_ascending_run(labels)
