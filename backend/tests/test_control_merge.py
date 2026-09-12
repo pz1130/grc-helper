@@ -248,3 +248,96 @@ async def test_a_contributor_cannot_merge(db_session):
         await merge_controls(
             db_session, loser_id=loser.id, winner_id=winner.id, actor=contributor
         )
+
+
+async def _seed(db_session, role: Role, email: str) -> User:
+    return await _user(db_session, role, email)
+
+
+async def _auth(client, email: str) -> dict[str, str]:
+    resp = await client.post("/api/auth/login", json={"email": email, "password": "pw123456"})
+    return {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+
+async def test_preview_lists_moves_and_discards_without_writing(client, db_session):
+    await _seed(db_session, Role.GRC_LEAD, "l@example.com")
+    winner = await _control(db_session, "C-0001")
+    loser = await _control(db_session, "C-0002")
+    shared = await _framework_item(db_session, "PR.AA-00")
+    unique = await _framework_item(db_session, "PR.AA-01")
+    await _mapping(db_session, winner.id, shared.id, MappingStrength.FULL)
+    discarded = await _mapping(db_session, loser.id, shared.id, MappingStrength.PARTIAL)
+    await _mapping(db_session, loser.id, unique.id, MappingStrength.FULL)
+    headers = await _auth(client, "l@example.com")
+    before = await _snapshot(db_session)
+
+    resp = await client.get(
+        f"/api/controls/{loser.id}/merge-preview",
+        params={"into": winner.id},
+        headers=headers,
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["loser_code"] == "C-0002"
+    assert body["winner_code"] == "C-0001"
+    assert body["moves"]["mappings"] == 1
+    assert any(d["table"] == "mappings" and d["id"] == discarded.id for d in body["discards"])
+    assert body["blockers"] == []
+    assert await _snapshot(db_session) == before
+
+
+async def test_preview_is_readable_by_a_viewer(client, db_session):
+    await _seed(db_session, Role.VIEWER, "v@example.com")
+    winner = await _control(db_session, "C-0001")
+    loser = await _control(db_session, "C-0002")
+    headers = await _auth(client, "v@example.com")
+
+    resp = await client.get(
+        f"/api/controls/{loser.id}/merge-preview",
+        params={"into": winner.id},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+
+
+async def test_a_contributor_cannot_execute_a_merge(client, db_session):
+    await _seed(db_session, Role.CONTRIBUTOR, "c@example.com")
+    winner = await _control(db_session, "C-0001")
+    loser = await _control(db_session, "C-0002")
+    headers = await _auth(client, "c@example.com")
+
+    resp = await client.post(
+        f"/api/controls/{loser.id}/merge",
+        json={"into_control_id": winner.id},
+        headers=headers,
+    )
+    assert resp.status_code == 403
+
+
+async def test_a_blocked_merge_is_a_400_with_the_reason(client, db_session):
+    await _seed(db_session, Role.GRC_LEAD, "l@example.com")
+    control = await _control(db_session, "C-0001")
+    headers = await _auth(client, "l@example.com")
+
+    resp = await client.post(
+        f"/api/controls/{control.id}/merge",
+        json={"into_control_id": control.id},
+        headers=headers,
+    )
+    assert resp.status_code == 400
+    assert "不能把控制点并入它自己" in resp.json()["message"]
+
+
+async def test_merging_a_missing_control_is_a_404(client, db_session):
+    await _seed(db_session, Role.GRC_LEAD, "l@example.com")
+    winner = await _control(db_session, "C-0001")
+    headers = await _auth(client, "l@example.com")
+
+    resp = await client.post(
+        "/api/controls/999999/merge",
+        json={"into_control_id": winner.id},
+        headers=headers,
+    )
+    assert resp.status_code == 404
+    assert resp.json()["message"] == "控制点不存在"

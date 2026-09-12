@@ -76,3 +76,23 @@ class ControlUpdateIn(BaseModel):
             if field in self.model_fields_set and getattr(self, field) is None:
                 raise ValueError(f"{field} 不能为空")
         return self
+
+
+class DiscardOut(BaseModel):
+    table: str
+    id: int
+    detail: str
+
+
+class MergePlanOut(BaseModel):
+    loser_code: str
+    winner_code: str
+    moves: dict[str, int]
+    discards: list[DiscardOut]
+    blockers: list[str]
+
+
+class MergeIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    into_control_id: Annotated[int, Field(strict=True, gt=0)]
