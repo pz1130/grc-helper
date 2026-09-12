@@ -362,15 +362,12 @@ def test_bold_short_lines_become_sections_when_nothing_else_marks_them(tmp_path:
 
 def test_a_long_bold_paragraph_is_not_a_heading(tmp_path: Path):
     """整段加粗的强调段落不是标题——标题短。"""
-    path = _formatted_docx(tmp_path, [
-        ("Purpose", True),
-        (
-            "The Committee assists the Board in overseeing technology strategy, "
-            "cyber risk, data governance and the technology investment portfolio, "
-            "and reports to the Board after each meeting.",
-            True,
-        ),
-    ])
+    emphasis = (
+        "The Committee assists the Board in overseeing technology strategy, "
+        "cyber risk, data governance and the technology investment portfolio, "
+        "and reports to the Board after each meeting."
+    )
+    path = _formatted_docx(tmp_path, [("Purpose", True), (emphasis, True)])
 
     parsed = DocxParser().parse(path)
 
