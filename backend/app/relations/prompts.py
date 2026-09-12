@@ -27,7 +27,10 @@ DUPLICATE_SYSTEM = (
     "You are given pairs of internal controls from a bank's IT procedures. "
     "For each pair, decide whether the two controls state the same requirement — "
     "the same obligation expressed in different documents or different wording. "
-    "Different aspects of one topic are NOT the same requirement. "
+    "Different aspects of one topic are NOT the same requirement, and neither are two "
+    "settings of one requirement: controls that differ only in a parameter — a priority "
+    "tier, a severity level, a time target, a threshold — are separate requirements "
+    "however alike their wording, because meeting one does not meet the other. "
     + _SHARED
     + " If no pair states the same requirement, return relations: [] and "
     "insufficient_evidence: true."

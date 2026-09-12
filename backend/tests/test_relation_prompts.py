@@ -47,6 +47,13 @@ def test_neither_prompt_asks_the_model_to_choose_a_relation_type():
         assert "integers inside the square brackets" in system
 
 
+def test_parallel_tiers_of_one_requirement_are_not_duplicates():
+    # P1/P2/P3/P4 那四条 SLA 措辞逐字相同、相似度 0.99，只有档位和时限不同。
+    # 阈值动不了它们——它们本来就在最顶端，只能靠判定这一级说清楚（OQ-7）。
+    assert "priority" in DUPLICATE_SYSTEM and "threshold" in DUPLICATE_SYSTEM
+    assert "meeting one does not meet the other" in DUPLICATE_SYSTEM
+
+
 def test_the_two_prompts_ask_different_questions():
     assert "same requirement" in DUPLICATE_SYSTEM
     assert "depends on" in DEPENDS_SYSTEM

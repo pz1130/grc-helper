@@ -14,6 +14,11 @@ EXTRACT_SYSTEM = (
     "'should'; if it merely describes what is done ('is arranged', 'are stored'), say so "
     "with the same force — never upgrade it to 'must' or 'shall'. A control that is "
     "stronger than the document it came from is a liability in an audit. "
+    "CITE WHERE THE REQUIREMENT IS IMPOSED: when the same requirement appears both in a "
+    "normative clause and restated inside a definition, glossary entry or scope statement, "
+    "cite the normative clause. Cite a definition only when it is the only place the "
+    "requirement is stated. A reviewer following the citation must land where the "
+    "obligation is set, not where the term is explained. "
     "confidence measures how explicitly the source supports the requirement. "
     "If there are no auditable requirements return controls: [] and insufficient_evidence: true."
 )
