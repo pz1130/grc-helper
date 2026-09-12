@@ -18,6 +18,8 @@ class MatchedClauseOut(BaseModel):
     new_clause_id: int
     citation_label: str
     text: str
+    old_text: str
+    changed: bool
 
 
 class AffectedControlOut(BaseModel):
@@ -42,6 +44,7 @@ class AffectedEvidenceOut(BaseModel):
 
 class ImpactOut(BaseModel):
     previous_document: PreviousDocumentOut
+    parser_generation_mismatch: bool
     added: list[ClauseChangeOut]
     removed: list[ClauseChangeOut]
     matched: list[MatchedClauseOut]

@@ -81,9 +81,14 @@ test("conflict cards offer no bulk accept checkbox", async ({ page }) => {
 
 const impact = {
   previous_document: { id: 3, title: "Password Policy", version: "1.0" },
+  parser_generation_mismatch: false,
   added: [{ clause_id: 21, citation_label: "4.4", text: "Passwords must not be reused." }],
   removed: [{ clause_id: 11, citation_label: "4.2", text: "Passwords rotate every 90 days." }],
-  matched: [{ old_clause_id: 12, new_clause_id: 22, citation_label: "4.3" }],
+  matched: [{
+    old_clause_id: 12, new_clause_id: 22, citation_label: "4.3",
+    old_text: "Passwords may be at least 8 characters.",
+    text: "Passwords shall be at least 12 characters.", changed: true,
+  }],
   affected_controls: [{ id: 7, code: "C-0007", title: "Password rotation" }],
   affected_mappings: [{ id: 31, control_id: 7, control_code: "C-0007", framework_item_code: "PR.AA-01" }],
   affected_evidence: [{ id: 41, control_id: 7, control_code: "C-0007", title: "AD rotation export" }],
@@ -130,6 +135,10 @@ test("the change impact page shows added, removed and matched clauses", async ({
   await expect(page.locator('[data-impact-section="added"] li')).toHaveCount(1);
   await expect(page.locator('[data-impact-section="removed"] li')).toHaveCount(1);
   await expect(page.locator('[data-impact-section="matched"] li')).toHaveCount(1);
+  await expect(page.getByText("Text changed")).toBeVisible();
+  await page.getByText("Text changed").click();
+  await expect(page.getByText("Passwords may be at least 8 characters.")).toBeVisible();
+  await expect(page.getByText("Passwords shall be at least 12 characters.")).toBeVisible();
 });
 
 test("the change impact page lists what the removed clauses were holding up", async ({ page }) => {
@@ -139,6 +148,16 @@ test("the change impact page lists what the removed clauses were holding up", as
   await expect(page.getByText("C-0007").first()).toBeVisible();
   await expect(page.getByText("PR.AA-01")).toBeVisible();
   await expect(page.getByText("AD rotation export")).toBeVisible();
+});
+
+test("a cross-parser comparison warns that its impact list needs review", async ({ page }) => {
+  await mockImpact(page);
+  await page.route("**/api/documents/5/change-impact", (route) => route.fulfill({
+    json: { ...impact, parser_generation_mismatch: true },
+  }));
+  await page.goto("/documents/5/change-impact");
+
+  await expect(page.getByRole("alert")).toContainText("different parser generations");
 });
 
 test("a document with no previous version says so instead of erroring", async ({ page }) => {

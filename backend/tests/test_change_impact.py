@@ -69,7 +69,7 @@ async def _two_documents_in_conflict(db_session):
     return clause_a, clause_b, control_a, control_b
 
 
-def _pair(clause_id: int, number: str, heading_path: str):
+def _pair(clause_id: int, number: str | None, heading_path: str):
     return SimpleNamespace(id=clause_id, number=number, heading_path=heading_path)
 
 
@@ -114,6 +114,46 @@ def test_pairing_is_deterministic_regardless_of_input_order():
     new = [_pair(12, "4.3", "P › B"), _pair(11, "4.2", "P › A")]
 
     assert pair_clauses(old, new).matched == [(1, 11), (2, 12)]
+
+
+def test_missing_legacy_numbers_fall_back_to_the_same_heading_path():
+    old = [_pair(1, None, "Password › Rotation")]
+    new = [_pair(11, "4.2", "Password › Rotation")]
+
+    result = pair_clauses(old, new)
+
+    assert result.matched == [(1, 11)]
+    assert result.removed == [] and result.added == []
+
+
+def test_changed_numbers_do_not_fall_back_when_both_sides_have_numbers():
+    old = [_pair(1, "4.2", "Password › Rotation")]
+    new = [_pair(11, "4.3", "Password › Rotation")]
+
+    result = pair_clauses(old, new)
+
+    assert result.matched == []
+    assert result.removed == [1] and result.added == [11]
+
+
+def test_legacy_path_can_gain_a_parent_when_its_leaf_heading_is_unique():
+    old = [_pair(1, None, "Roles › Incident Handling")]
+    new = [_pair(11, "3.4.2", "Incident Process › Reporting › Incident Handling")]
+
+    assert pair_clauses(old, new).matched == [(1, 11)]
+
+
+def test_duplicate_leaf_headings_are_not_guessed():
+    old = [
+        _pair(1, None, "Access › Approval"),
+        _pair(2, None, "Change › Approval"),
+    ]
+    new = [_pair(11, "3.1", "Process › Approval")]
+
+    result = pair_clauses(old, new)
+
+    assert result.matched == []
+    assert result.removed == [1, 2] and result.added == [11]
 
 
 async def test_a_document_without_a_previous_version_is_a_400(client, db_session):
@@ -172,3 +212,43 @@ async def test_the_report_lists_controls_hanging_off_removed_clauses(client, db_
     assert body["affected_mappings"][0]["control_code"] == "C-0001"
     assert body["affected_mappings"][0]["framework_item_code"] == "PR.AA-01"
     assert body["affected_evidence"][0]["control_code"] == "C-0001"
+
+
+async def test_changed_matched_text_is_visible_and_marks_its_controls_affected(
+    client, db_session
+):
+    old_doc = await _document(db_session, "Password Policy v1", 1)
+    old_clause = await _clause(db_session, old_doc.id, "4.2", "Rotate every 90 days.")
+    control = await _control(db_session, "C-0001", old_clause.id)
+    new_doc = await _document(db_session, "Password Policy v2", 2, supersedes_id=old_doc.id)
+    await _clause(db_session, new_doc.id, "4.2", "Rotate every 180 days.")
+    await _user(db_session)
+    headers = await _auth(client)
+    await db_session.flush()
+
+    resp = await client.get(f"/api/documents/{new_doc.id}/change-impact", headers=headers)
+
+    body = resp.json()
+    assert body["matched"][0]["changed"] is True
+    assert body["matched"][0]["old_text"] == "Rotate every 90 days."
+    assert body["matched"][0]["text"] == "Rotate every 180 days."
+    assert body["affected_controls"] == [
+        {"id": control.id, "code": "C-0001", "title": "Control C-0001"}
+    ]
+
+
+async def test_report_warns_when_only_the_new_parser_found_clause_numbers(
+    client, db_session
+):
+    old_doc = await _document(db_session, "Legacy", 1)
+    old = await _clause(db_session, old_doc.id, "", "Old text")
+    old.number = None
+    new_doc = await _document(db_session, "Current", 2, supersedes_id=old_doc.id)
+    await _clause(db_session, new_doc.id, "1", "New text")
+    await _user(db_session)
+    headers = await _auth(client)
+    await db_session.flush()
+
+    resp = await client.get(f"/api/documents/{new_doc.id}/change-impact", headers=headers)
+
+    assert resp.json()["parser_generation_mismatch"] is True

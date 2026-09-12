@@ -20,7 +20,9 @@ interface MatchedClause {
   old_clause_id: number;
   new_clause_id: number;
   citation_label: string;
-  text?: string;
+  text: string;
+  old_text: string;
+  changed: boolean;
 }
 
 interface AffectedControl {
@@ -45,6 +47,7 @@ interface AffectedEvidence {
 
 interface Impact {
   previous_document: PreviousDocument;
+  parser_generation_mismatch: boolean;
   added: ClauseChange[];
   removed: ClauseChange[];
   matched: MatchedClause[];
@@ -102,6 +105,11 @@ export function ChangeImpact() {
 
       {data && (
         <>
+          {data.parser_generation_mismatch && (
+            <p role="alert" className="kn-card" style={{ borderColor: "var(--accent-amber)" }}>
+              {t("impact.parserGenerationMismatch")}
+            </p>
+          )}
           <div style={{ display: "grid", gap: 20, marginBottom: 24 }}>
             <section data-impact-section="added" className="kn-card">
               <h3 style={{ marginTop: 0 }}>{t("impact.added")}</h3>
@@ -131,7 +139,15 @@ export function ChangeImpact() {
                 {data.matched.map((clause) => (
                   <li key={`${clause.old_clause_id}-${clause.new_clause_id}`}>
                     <code>{clause.citation_label}</code>
-                    {clause.text ? ` ${clause.text}` : ""}
+                    {clause.changed ? (
+                      <details style={{ marginTop: 6 }}>
+                        <summary>{t("impact.textChanged")}</summary>
+                        <div style={{ marginTop: 6 }}>
+                          <div><strong>{t("impact.before")}</strong> {clause.old_text}</div>
+                          <div><strong>{t("impact.after")}</strong> {clause.text}</div>
+                        </div>
+                      </details>
+                    ) : clause.text ? ` ${clause.text}` : ""}
                   </li>
                 ))}
               </ul>
