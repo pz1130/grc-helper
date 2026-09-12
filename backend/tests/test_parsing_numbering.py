@@ -48,14 +48,25 @@ def test_extract_drops_toc_and_version_rows():
     assert len(warnings) >= 1
 
 
-def test_orphan_number_is_rejected():
-    headings, _ = extract_headings(["1.0 Start version of the Procedure"])
-    assert headings == []
+def test_a_lone_child_gets_its_missing_parent_synthesised():
+    """原本是直接丢弃。实测 05_TD 一份文档丢掉 **165 条孤儿编号**、条款数归零，
+    16_KBC 丢掉 244 条只剩 4 条——丢的不是噪声，是整棵树。
 
-
-def test_child_requires_its_parent():
+    补出来的父节点用编号本身当标题：没有正文可依据，但空标题下游更难处理。
+    """
     headings, _ = extract_headings(["4.1.1 Change Request"])
-    assert headings == []
+
+    assert [heading.number for heading in headings] == ["4", "4.1", "4.1.1"]
+    assert headings[0].title == "4"
+    assert headings[-1].title == "Change Request"
+
+
+def test_a_synthesised_parent_does_not_displace_a_real_one_later():
+    """真标题随后出现时，不能被先补出来的占位顶掉。"""
+    headings, _ = extract_headings(["4.1 Detail", "4 Scope"])
+
+    by_number = {heading.number: heading.title for heading in headings}
+    assert by_number["4"] == "Scope"
 
 
 def test_duplicate_number_keeps_the_first_occurrence():
@@ -133,11 +144,40 @@ def test_detects_page_footers():
 
 
 def test_numbered_list_items_are_not_clauses():
-    """'1. Click Add Account' 是操作步骤，实测 41 条，全部单段带点。"""
+    """'1. Click Add Account' 是操作步骤。
+
+    这条规则**本身没变**，变的是它什么时候生效：由 headings.acts_as_headings
+    按整篇文档判断，不再是全局常量。见下面两条。
+    """
     assert is_list_item("1", ".")
     assert is_list_item("6", ".")
     assert not is_list_item("4", ""), "真标题不带点"
     assert not is_list_item("4.1", "."), "多段带点仍按标题处理，留余地"
+
+
+def test_dotted_top_level_numbers_survive_when_they_have_children():
+    """HKMA / KBC / AlRayan 的写法：标题编号一律带点，而且各有下级。
+
+    旧规则把这类顶层标题整批丢掉，子标题跟着变孤儿——HKMA 10 页最后只剩 1 条。
+    """
+    headings, _ = extract_headings([
+        "1. Introduction", "1.1. Background", "1.2. Application",
+        "2. Supervisory approach", "2.1. Risk-based", "2.2. Assessment",
+    ])
+
+    assert [heading.number for heading in headings] == ["1", "1.1", "1.2", "2", "2.1", "2.2"]
+
+
+def test_dotted_numbers_without_children_are_still_list_items():
+    """BCBS 的写法：147 个 `N.`，没有一个带子号——那是正文列表，不是章节。"""
+    headings, _ = extract_headings([
+        "1. Boards should approve the strategy",
+        "2. Boards should oversee implementation",
+        "3. Boards should review outcomes",
+        "4. Senior management should be qualified",
+    ])
+
+    assert headings == []
 
 
 def test_list_item_that_collides_with_nothing_is_still_dropped():
