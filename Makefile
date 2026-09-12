@@ -1,4 +1,4 @@
-.PHONY: up down logs test migrate revision migrate-roundtrip fmt create-admin ping-worker purge-staging e2e e2e-down corpus retrieval extraction-eval seed-frameworks mapping-eval relation-eval
+.PHONY: up down logs test verify migrate revision migrate-roundtrip fmt create-admin ping-worker purge-staging e2e e2e-down corpus retrieval extraction-eval seed-frameworks mapping-eval relation-eval
 
 up:
 	docker compose up -d --build db redis api
@@ -11,6 +11,34 @@ logs:
 
 test:
 	docker compose run --rm -e TEST_DATABASE_URL=postgresql+asyncpg://grc:grc@db:5432/grc_test api pytest -v
+
+# 一次跑完全部验证，每条单独报退出码。
+#
+# 为什么不串成一条管道：`命令 | tail` 报的是 tail 的退出码，不是命令的。
+# 2026-09-11 就这样同时藏过一次 playwright 失败和 ruff 的 126 条，两个都显示为绿。
+#
+# ruff 只报数、不判成败：main 上本来就有约 121 条既有告警，做成硬失败这个目标
+# 会永远是红的，然后就没人看了。要看的是「有没有比基线多」。
+#
+# e2e 走 make e2e 而不是直接 npx playwright test：后者跑在开发栈上，每次留下
+# 一个 provider 和一个用户（OQ-3）。慢几分钟，换的是跑完开发库一条痕迹不留。
+verify:
+	@fail=0; \
+	echo "── pytest ──"; \
+	docker compose run --rm -e TEST_DATABASE_URL=postgresql+asyncpg://grc:grc@db:5432/grc_test api pytest -q; \
+	  status=$$?; echo "   pytest exit=$$status"; [ $$status -eq 0 ] || fail=1; \
+	echo "── ruff（只报数；对比 main 基线约 121 条）──"; \
+	echo "   $$(docker compose run --rm api ruff check app tests 2>&1 | grep -E '^Found|^All checks passed' || echo '没拿到 ruff 的结论行')"; \
+	echo "── npm run build ──"; \
+	( cd frontend && npm run build >/dev/null ); \
+	  status=$$?; echo "   build exit=$$status"; [ $$status -eq 0 ] || fail=1; \
+	echo "── make e2e（隔离栈，跑完自动 down -v）──"; \
+	$(MAKE) e2e; \
+	  status=$$?; echo "   e2e exit=$$status"; [ $$status -eq 0 ] || fail=1; \
+	echo; \
+	if [ $$fail -eq 0 ]; then echo "✅ 三条硬检查都过了；ruff 的数字自己对基线"; \
+	else echo "❌ 有硬检查没过，往上翻各自的 exit"; fi; \
+	exit $$fail
 
 migrate:
 	docker compose run --rm api alembic upgrade head
@@ -61,10 +89,20 @@ e2e:
 e2e-down:
 	$(E2E_COMPOSE) down -v
 
+# 语料报告默认跑仓库自带的样本。换一批制度文档时传 CORPUS_DIR——
+# 它**只过解析层，不写任何库**，所以可以在导入之前先看条款树切不切得开：
+#   make corpus CORPUS_DIR=/Users/me/某机构制度
+# 必须是绝对路径（docker 的 bind mount 不认相对路径，也不展开 ~）。
+# 另一家机构的文风不同，「Introduction / Roles and Responsibilities」这套锚点
+# 会无谓地失败，用 CORPUS_ANCHORS 换一套，或 CORPUS_ANCHORS=none 先跳过：
+#   make corpus CORPUS_DIR=/abs/path CORPUS_ANCHORS=none
+CORPUS_DIR ?= $(PWD)/sample docs
+
 corpus:
 	docker compose run --rm --no-deps \
 	  -e TEST_DATABASE_URL=postgresql+asyncpg://grc:grc@db:5432/grc_test \
-	  -v "$(PWD)/sample docs:/samples:ro" \
+	  $(if $(CORPUS_ANCHORS),-e CORPUS_ANCHORS="$(CORPUS_ANCHORS)",) \
+	  -v "$(CORPUS_DIR):/samples:ro" \
 	  api pytest tests/test_corpus_report.py -v -s
 
 retrieval:

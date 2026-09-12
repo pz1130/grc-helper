@@ -11,6 +11,23 @@ from app.parsing.registry import SUPPORTED_EXTENSIONS, get_parser
 
 CORPUS = Path(os.environ.get("CORPUS_DIR", "/samples"))
 
+# 锚点是 **house style** 的东西，不是解析器的：换一家机构就该换一套，
+# 拿本仓库这套去量别人的文档，失败的是「文风不同」而不是「解析漏了开头」。
+# 换一套：CORPUS_ANCHORS="引言,职责分工"；不知道该填什么就 CORPUS_ANCHORS=none 跳过。
+_ANCHORS = os.environ.get("CORPUS_ANCHORS")
+ANCHORS = (
+    {piece.strip().casefold() for piece in _ANCHORS.split(",") if piece.strip()}
+    if _ANCHORS and _ANCHORS != "none"
+    else set()
+    if _ANCHORS == "none"
+    else {
+        "introduction",
+        "role and responsibility",
+        "roles and responsibilities",
+        "roles & responsibilities",
+    }
+)
+
 pytestmark = pytest.mark.skipif(
     not CORPUS.is_dir(), reason="未挂载真实语料目录，跳过（见 make corpus）"
 )
@@ -127,6 +144,7 @@ def test_no_page_footer_or_list_item_became_a_clause(path: Path):
         )
 
 
+@pytest.mark.skipif(not ANCHORS, reason="CORPUS_ANCHORS=none：这批文档的 house style 锚点未知")
 @pytest.mark.parametrize("path", _files(), ids=lambda p: p.name[:40])
 def test_house_style_anchors_are_present(path: Path):
     """这批文件都以 Introduction 或 Role/Roles and Responsibility 起头。
@@ -135,10 +153,4 @@ def test_house_style_anchors_are_present(path: Path):
     """
     parsed = get_parser(path).parse(path)
     headings = {n.heading.strip().casefold() for n in _walk(parsed.clauses)}
-    anchors = {
-        "introduction",
-        "role and responsibility",
-        "roles and responsibilities",
-        "roles & responsibilities",
-    }
-    assert headings & anchors, f"{path.name}: 一个 house style 锚点都没找到"
+    assert headings & ANCHORS, f"{path.name}: 一个 house style 锚点都没找到"
