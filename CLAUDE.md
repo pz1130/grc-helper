@@ -53,6 +53,11 @@ make corpus CORPUS_DIR=/abs/path CORPUS_ANCHORS=none             # 还不知道�
 | `docs/superpowers/plans/` | 逐里程碑的实施计划，TDD 步骤 |
 | `docs/open-questions.md` | 遗留问题。**开头那节「判定原则」先读**——它决定一条问题还算不算数 |
 
+**`docs/` 不在这个仓库里。** 它是同一个位置上的**另一个本地 git 仓库**，
+本仓库的 `.gitignore` 忽略它。原因：那些文档里有制度原文的逐字引用和机构名，
+而这个仓库要推到 GitHub。在 `docs/` 目录里 `git log` 看得到它自己完整的 49 个提交。
+改了文档要单独在 `docs/` 里提交。要给它配远端的话，配机构内部的，别配公共托管。
+
 计划里的复选框**不按习惯维护**（M1 是 0/144 但早已完成）。未勾的框不是"没做完"的证据，
 找对应的 `docs: record M<n> acceptance` 提交。
 
