@@ -154,3 +154,60 @@ def test_house_style_anchors_are_present(path: Path):
     parsed = get_parser(path).parse(path)
     headings = {n.heading.strip().casefold() for n in _walk(parsed.clauses)}
     assert headings & ANCHORS, f"{path.name}: 一个 house style 锚点都没找到"
+
+
+# ── 塌树检测 ────────────────────────────────────────────────
+# 上面的断言问的都是「已有的条款是不是真条款」，没有一条问「条款是不是太少了」。
+# 实测：KBC 的 43 页公司治理宪章切出 **4 条**、其中一条装下 70% 的正文，
+# HKMA 的 10 页模块切出 **1 条**装下全部——八条断言全绿。
+#
+# 下面两条问的是**形状**，不是文风。一份文件被压成一坨，不论出自哪家机构都是错的；
+# 反过来 6 页切出 97 条也是错的。这正是换语料时最先该知道的事。
+#
+# 阈值取自 22 份实测（15 份外部机构 PDF + 6 份样本 + 1 份新 docx）：
+#   最大块占比   正常 7–33%；样本里最高 56%（一份 2.4k 字的短文件）
+#                塌掉的是 70% / 84% / 100% / 100%
+#   条/千字      PDF 正常 0.29–0.43，docx 正常 1.31–3.73
+#                塌掉的 0.03 / 0.04 / 0.10，过切的 13.34
+MIN_CHARS_TO_JUDGE = 3000
+MAX_SINGLE_CLAUSE_SHARE = 0.60
+MIN_CLAUSES_PER_1K = 0.15
+MAX_CLAUSES_PER_1K = 8.0
+
+
+def _shape(path: Path) -> tuple[int, int, int]:
+    """返回（条款数, 正文总字数, 最大单条字数）。"""
+    nodes = list(_walk(get_parser(path).parse(path).clauses))
+    sizes = [len(node.text or "") for node in nodes]
+    return len(nodes), sum(sizes), max(sizes, default=0)
+
+
+@pytest.mark.parametrize("path", _files(), ids=lambda p: p.name[:40])
+def test_no_single_clause_swallows_the_document(path: Path):
+    """一条条款装下大半篇正文，等于条款树没切开。
+
+    下游全靠条款定位：引用指向哪一条、变更影响按条款配对、控制点出处回到哪一段。
+    一坨装下全文时这些仍然「能跑」，只是全部指向同一个地方。
+    """
+    count, total, biggest = _shape(path)
+    if total < MIN_CHARS_TO_JUDGE:
+        pytest.skip(f"{path.name}: 正文不足 {MIN_CHARS_TO_JUDGE} 字，形状判据不适用")
+    share = biggest / total
+    assert share <= MAX_SINGLE_CLAUSE_SHARE, (
+        f"{path.name}: 最大一条装下 {share:.0%} 的正文（共 {count} 条）——条款树没切开"
+    )
+
+
+@pytest.mark.parametrize("path", _files(), ids=lambda p: p.name[:40])
+def test_clause_count_is_proportionate_to_the_text(path: Path):
+    """条款数与文本量要相称：太少是塌树，太多是把正文行当成了条款。"""
+    count, total, _ = _shape(path)
+    if total < MIN_CHARS_TO_JUDGE:
+        pytest.skip(f"{path.name}: 正文不足 {MIN_CHARS_TO_JUDGE} 字，形状判据不适用")
+    per_k = count / (total / 1000)
+    assert per_k >= MIN_CLAUSES_PER_1K, (
+        f"{path.name}: 每千字只有 {per_k:.2f} 条（共 {count} 条 / {total} 字）——疑似塌树"
+    )
+    assert per_k <= MAX_CLAUSES_PER_1K, (
+        f"{path.name}: 每千字 {per_k:.2f} 条（共 {count} 条 / {total} 字）——疑似把正文行当成了条款"
+    )
