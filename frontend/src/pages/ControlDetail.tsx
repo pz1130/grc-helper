@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { request } from "../api";
 import { useAuth } from "../auth";
 import type { Control } from "./Controls";
@@ -14,6 +14,14 @@ interface Detail extends Control {
   evidence?: { id: number; evidence_type_id: number; control_id: number; tech_asset_id: number | null; title: string; owner_user_id: number | null; location_hint: string; last_collected_at: string | null; valid_until: string | null; file_path: string | null; status: string; intent_status?: string; display_status?: string; evidence_type_name?: string | null; tech_asset_name?: string | null }[];
 }
 
+interface MergePlan {
+  loser_code: string;
+  winner_code: string;
+  moves: Record<string, number>;
+  discards: { table: string; id: number; detail: string }[];
+  blockers: string[];
+}
+
 export function ControlDetail() {
   const { id } = useParams();
   return <ControlContent key={id} id={id!} />;
@@ -24,14 +32,54 @@ function ControlContent({ id }: { id: string }) {
   const { user } = useAuth();
   const canWrite = user?.role === "admin" || user?.role === "grc_lead";
   const client = useQueryClient();
+  const navigate = useNavigate();
   const [form, setForm] = useState<{ title: string; statement: string; category: string } | null>(null);
   const [saved, setSaved] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [mergeQ, setMergeQ] = useState("");
+  const [mergeSearch, setMergeSearch] = useState("");
+  const [intoId, setIntoId] = useState<number | null>(null);
+  const [preview, setPreview] = useState<MergePlan | null>(null);
   const detail = useQuery({ queryKey: ["control", id], queryFn: () => request<Detail>(`/api/controls/${id}`) });
+  const data = detail.data;
+  const winnerId = data?.status === "merged" ? data.merged_into_id : null;
+  const winner = useQuery({
+    queryKey: ["control", winnerId == null ? "" : String(winnerId)],
+    queryFn: () => request<Control>(`/api/controls/${winnerId}`),
+    enabled: winnerId != null,
+  });
+  const candidates = useQuery({
+    queryKey: ["controls", mergeSearch],
+    queryFn: () => request<Control[]>(`/api/controls?limit=100&q=${encodeURIComponent(mergeSearch)}`),
+    enabled: picking,
+  });
   const save = useMutation({
     mutationFn: () => request<Control>(`/api/controls/${id}`, { method: "PATCH", body: JSON.stringify({ ...form, category: form?.category.trim() || null }) }),
     onSuccess: async () => { setForm(null); setSaved(true); await Promise.all([client.invalidateQueries({ queryKey: ["control", id] }), client.invalidateQueries({ queryKey: ["controls"] })]); },
   });
-  const data = detail.data;
+  const loadPreview = useMutation({
+    mutationFn: (into_control_id: number) => request<MergePlan>(`/api/controls/${id}/merge-preview?into=${into_control_id}`),
+    onSuccess: (plan, into_control_id) => {
+      setIntoId(into_control_id);
+      setPreview(plan);
+      setPicking(false);
+    },
+  });
+  const applyMerge = useMutation({
+    mutationFn: (into_control_id: number) =>
+      request<MergePlan>(`/api/controls/${id}/merge`, { method: "POST", body: JSON.stringify({ into_control_id }) }),
+    onSuccess: (_plan, into_control_id) => {
+      setPreview(null);
+      void client.invalidateQueries({ queryKey: ["controls"] });
+      void client.invalidateQueries({ queryKey: ["control"] });
+      navigate(`/controls/${into_control_id}`);
+    },
+  });
+  function closePreview() {
+    setPreview(null);
+    setIntoId(null);
+    applyMerge.reset();
+  }
   return (
     <section>
       <p style={{ marginBottom: 16 }}>
@@ -50,7 +98,13 @@ function ControlContent({ id }: { id: string }) {
 
       {data && (
         <>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+          {data.status === "merged" && data.merged_into_id != null && winner.data && (
+            <p role="note" className="kn-card" style={{ marginBottom: 16 }}>
+              <Link to={`/controls/${data.merged_into_id}`}>{t("controls.mergedInto", { code: winner.data.code })}</Link>
+            </p>
+          )}
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, gap: 12 }}>
             <div>
               <h2>
                 <code style={{ fontSize: "1.25rem", marginRight: 10 }}>{data.code}</code>
@@ -65,7 +119,71 @@ function ControlContent({ id }: { id: string }) {
                 </span>
               </div>
             </div>
+            {canWrite && data.status === "active" && (
+              <button
+                type="button"
+                className="kn-btn-secondary kn-btn-sm"
+                onClick={() => {
+                  setPicking((open) => !open);
+                  setMergeQ("");
+                  setMergeSearch("");
+                  loadPreview.reset();
+                }}
+              >
+                {t("controls.mergeInto")}
+              </button>
+            )}
           </div>
+
+          {picking && canWrite && data.status === "active" && (
+            <div className="kn-card" style={{ marginBottom: 20 }}>
+              <h3 style={{ fontSize: "1.0625rem" }}>{t("controls.mergePick")}</h3>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setMergeSearch(mergeQ.trim());
+                }}
+                style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}
+              >
+                <input
+                  aria-label={t("controls.search")}
+                  placeholder={t("controls.search")}
+                  value={mergeQ}
+                  onChange={(e) => setMergeQ(e.target.value)}
+                  style={{ width: 340, maxWidth: "100%" }}
+                />
+                <button type="submit" className="kn-btn-primary kn-btn-sm">{t("search.run")}</button>
+                <button type="button" className="kn-btn-secondary kn-btn-sm" onClick={() => setPicking(false)}>{t("common.cancel")}</button>
+              </form>
+              {candidates.isPending && <p role="status">{t("common.loading")}</p>}
+              {candidates.error && (
+                <p role="alert">
+                  <span>⚠️</span> {candidates.error.message}{" "}
+                  <button type="button" className="kn-btn-sm" onClick={() => void candidates.refetch()}>{t("common.retry")}</button>
+                </p>
+              )}
+              {loadPreview.error && <p role="alert"><span>⚠️</span> {loadPreview.error.message}</p>}
+              {loadPreview.isPending && <p role="status">{t("common.loading")}</p>}
+              <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                {(candidates.data ?? []).filter((c) => c.id !== data.id).map((c) => (
+                  <li key={c.id} style={{ marginBottom: 8 }}>
+                    <button
+                      type="button"
+                      className="kn-btn-secondary"
+                      disabled={loadPreview.isPending}
+                      onClick={() => loadPreview.mutate(c.id)}
+                      style={{ width: "100%", textAlign: "left" }}
+                    >
+                      <code>{c.code}</code> {c.title}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {candidates.isSuccess && (candidates.data ?? []).filter((c) => c.id !== data.id).length === 0 && (
+                <p style={{ color: "var(--text-tertiary)" }}>{t("common.empty")}</p>
+              )}
+            </div>
+          )}
 
           {/* Statement & Edit Pane */}
           <div className="kn-card" style={{ marginBottom: 24 }}>
@@ -278,6 +396,72 @@ function ControlContent({ id }: { id: string }) {
               ))}
             </ul>
           </div>
+
+          {preview && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(0, 0, 0, 0.55)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 40,
+                padding: 24,
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="control-merge-title"
+                className="kn-card"
+                style={{ width: 560, maxWidth: "100%", maxHeight: "80vh", overflow: "auto" }}
+              >
+                <h3 id="control-merge-title" style={{ fontSize: "1.0625rem" }}>
+                  {t("controls.mergePreview", { loser: preview.loser_code, winner: preview.winner_code })}
+                </h3>
+                {preview.blockers.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <h4 style={{ margin: "0 0 8px", fontSize: "0.875rem" }}>{t("controls.mergeBlockers")}</h4>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {preview.blockers.map((reason) => (
+                        <li key={reason}>{reason}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {Object.entries(preview.moves).map(([table, count]) => (
+                  <p key={table} style={{ margin: "0 0 8px" }}>
+                    {t(`controls.mergeMoves.${table}`, { count })}
+                  </p>
+                ))}
+                {preview.discards.length > 0 && (
+                  <div style={{ margin: "12px 0" }}>
+                    <h4 style={{ margin: "0 0 8px", fontSize: "0.875rem" }}>{t("controls.mergeDiscards")}</h4>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {preview.discards.map((item) => (
+                        <li key={`${item.table}-${item.id}`}>{item.detail}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {applyMerge.error && <p role="alert"><span>⚠️</span> {applyMerge.error.message}</p>}
+                <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+                  <button
+                    type="button"
+                    className="kn-btn-primary"
+                    disabled={preview.blockers.length > 0 || applyMerge.isPending || intoId == null}
+                    onClick={() => intoId != null && applyMerge.mutate(intoId)}
+                  >
+                    {t("controls.merge")}
+                  </button>
+                  <button type="button" className="kn-btn-secondary" disabled={applyMerge.isPending} onClick={closePreview}>
+                    {t("common.cancel")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </section>

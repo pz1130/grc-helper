@@ -199,3 +199,56 @@ test("control detail links exact clauses and directed relationships; errors can 
   await expect(page.getByRole("link", { name: "#2", exact: true })).toHaveAttribute("href", "/controls/2");
   await expect(page.getByText("Procedure implements policy")).toBeVisible();
 });
+
+const controlDetail = (id: number, code: string, title: string, status = "active", merged_into_id: number | null = null) => ({
+  id, code, title, statement: title, category: "Access", status, owner_user_id: null, merged_into_id,
+  sources: [], relations: [], mappings: [], implementations: [], evidence: [],
+});
+
+test("merging a control previews what moves and what is dropped", async ({ page }) => {
+  await mockSession(page);
+  const merges: unknown[] = [];
+  await page.route("**/api/controls**", async (route) => {
+    const url = new URL(route.request().url());
+    const path = url.pathname;
+    if (path === "/api/controls/2/merge-preview") {
+      return route.fulfill({
+        json: {
+          loser_code: "C-0002",
+          winner_code: "C-0001",
+          moves: { mappings: 1 },
+          discards: [{ table: "mappings", id: 9, detail: "PR.AA-01 already mapped on the winner" }],
+          blockers: [],
+        },
+      });
+    }
+    if (path === "/api/controls/2/merge" && route.request().method() === "POST") {
+      merges.push(route.request().postDataJSON());
+      return route.fulfill({ json: { loser_code: "C-0002", winner_code: "C-0001", moves: { mappings: 1 }, discards: [], blockers: [] } });
+    }
+    if (path === "/api/controls/2") return route.fulfill({ json: controlDetail(2, "C-0002", "Duplicate access") });
+    if (path === "/api/controls/1") return route.fulfill({ json: controlDetail(1, "C-0001", "Access control") });
+    if (path === "/api/controls") return route.fulfill({ json: [controlDetail(1, "C-0001", "Access control"), controlDetail(2, "C-0002", "Duplicate access")] });
+    return route.fulfill({ status: 500, json: { message: `Unexpected API: ${url}` } });
+  });
+  await page.goto("/controls/2");
+  await page.getByRole("button", { name: /Merge into/ }).click();
+  await page.getByRole("button", { name: /C-0001/ }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("PR.AA-01");
+  await dialog.getByRole("button", { name: "Merge" }).click();
+  expect(merges[0]).toEqual({ into_control_id: 1 });
+});
+
+test("a merged control says where it went instead of offering to merge again", async ({ page }) => {
+  await mockSession(page);
+  await page.route("**/api/controls**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/controls/2") return route.fulfill({ json: controlDetail(2, "C-0002", "Duplicate access", "merged", 1) });
+    if (path === "/api/controls/1") return route.fulfill({ json: controlDetail(1, "C-0001", "Access control") });
+    return route.fulfill({ status: 500, json: { message: `Unexpected API: ${route.request().url()}` } });
+  });
+  await page.goto("/controls/2");
+  await expect(page.getByRole("note")).toContainText("Merged into C-0001");
+  await expect(page.getByRole("button", { name: /Merge into/ })).toHaveCount(0);
+});

@@ -245,6 +245,22 @@
     "noImplementations": "该控制点尚未登记落地实现。",
     "evidence": "证据",
     "noEvidence": "该控制点尚未登记证据。",
+    "mergeInto": "合并到…",
+    "merge": "合并",
+    "mergedInto": "已并入 {{code}}",
+    "mergePick": "选择要保留的控制点",
+    "mergePreview": "将 {{loser}} 并入 {{winner}}",
+    "mergeDiscards": "将丢弃",
+    "mergeBlockers": "无法合并",
+    "mergeMoves": {
+      "mappings_other": "将转挂 {{count}} 条映射",
+      "evidence_items_other": "将转挂 {{count}} 条证据",
+      "implementations_other": "将转挂 {{count}} 条落地实现",
+      "control_sources_other": "将转挂 {{count}} 条支撑条款",
+      "control_relations_other": "将转挂 {{count}} 条关联",
+      "control_embeddings_other": "将转挂 {{count}} 条向量",
+      "risk_entries_other": "将转挂 {{count}} 条风险条目"
+    },
     "relationTypes": {
       "defines": "定义",
       "elaborates": "细化",

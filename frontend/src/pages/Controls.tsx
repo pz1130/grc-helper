@@ -14,6 +14,7 @@ export interface Control {
   category: string | null;
   owner_user_id: number | null;
   status: string;
+  merged_into_id: number | null;
 }
 
 const MAPPING_FIELDS = ["code", "title", "statement", "category", "owner", "framework_refs", "note"] as const;
