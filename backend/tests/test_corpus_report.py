@@ -2,6 +2,7 @@
 
 import os
 import re
+from functools import cache
 from pathlib import Path
 
 import pytest
@@ -169,17 +170,57 @@ def test_house_style_anchors_are_present(path: Path):
 #                塌掉的是 70% / 84% / 100% / 100%
 #   条/千字      PDF 正常 0.29–0.43，docx 正常 1.31–3.73
 #                塌掉的 0.03 / 0.04 / 0.10，过切的 13.34
-MIN_CHARS_TO_JUDGE = 3000
+# **豁免按原文体量算，不按抽出来的字数算。** 第一版用的是抽出来的字数，那是循环的：
+# 塌得越彻底抽出来越少，越容易被「太短不判」放过——实测 01_Arab_Bank 是一份 22k 字的
+# 手册，只抽出 2931 字，恰好躲进豁免线以下。判据不能拿被判对象的产物当输入。
+MIN_RAW_CHARS_TO_JUDGE = 3000
 MAX_SINGLE_CLAUSE_SHARE = 0.60
 MIN_CLAUSES_PER_1K = 0.15
 MAX_CLAUSES_PER_1K = 8.0
+# 松的下限，只抓「大半篇没进来」这种灾难性丢失。实测健康的在 87%–126%
+# （超过 100% 是标题路径被重复计入，不必较真），塌掉的是 2% / 9% / 11% / 13%。
+MIN_TEXT_COVERAGE = 0.40
+
+
+@cache
+def _parsed(path: Path):
+    """一份文件在这一节里被判好几次，解析一次就够——FFIEC 那份有 27 万字。"""
+    return get_parser(path).parse(path)
+
+
+def _raw_text(path: Path) -> str:
+    """**独立于解析器**地量一遍原文有多少字。
+
+    拿解析器的产物去判解析器，循环。所以这里自己抽一次。
+    """
+    if path.suffix.lower() == ".docx":
+        from docx import Document as DocxDocument
+
+        document = DocxDocument(path)
+        parts = [paragraph.text for paragraph in document.paragraphs]
+        for table in document.tables:
+            parts += [cell.text for row in table.rows for cell in row.cells]
+        return "".join(parts)
+
+    import pdfplumber
+
+    with pdfplumber.open(path) as pdf:
+        return "".join(page.extract_text() or "" for page in pdf.pages)
 
 
 def _shape(path: Path) -> tuple[int, int, int]:
     """返回（条款数, 正文总字数, 最大单条字数）。"""
-    nodes = list(_walk(get_parser(path).parse(path).clauses))
+    nodes = list(_walk(_parsed(path).clauses))
     sizes = [len(node.text or "") for node in nodes]
     return len(nodes), sum(sizes), max(sizes, default=0)
+
+
+def _judged(path: Path) -> int:
+    """够不够大到值得判形状；不够就 skip。返回原文字数。"""
+    raw = len(_raw_text(path))
+    if raw < MIN_RAW_CHARS_TO_JUDGE:
+        pytest.skip(f"{path.name}: 原文不足 {MIN_RAW_CHARS_TO_JUDGE} 字，形状判据不适用")
+    return raw
 
 
 @pytest.mark.parametrize("path", _files(), ids=lambda p: p.name[:40])
@@ -189,10 +230,9 @@ def test_no_single_clause_swallows_the_document(path: Path):
     下游全靠条款定位：引用指向哪一条、变更影响按条款配对、控制点出处回到哪一段。
     一坨装下全文时这些仍然「能跑」，只是全部指向同一个地方。
     """
+    _judged(path)
     count, total, biggest = _shape(path)
-    if total < MIN_CHARS_TO_JUDGE:
-        pytest.skip(f"{path.name}: 正文不足 {MIN_CHARS_TO_JUDGE} 字，形状判据不适用")
-    share = biggest / total
+    share = biggest / total if total else 0
     assert share <= MAX_SINGLE_CLAUSE_SHARE, (
         f"{path.name}: 最大一条装下 {share:.0%} 的正文（共 {count} 条）——条款树没切开"
     )
@@ -201,13 +241,43 @@ def test_no_single_clause_swallows_the_document(path: Path):
 @pytest.mark.parametrize("path", _files(), ids=lambda p: p.name[:40])
 def test_clause_count_is_proportionate_to_the_text(path: Path):
     """条款数与文本量要相称：太少是塌树，太多是把正文行当成了条款。"""
+    _judged(path)
     count, total, _ = _shape(path)
-    if total < MIN_CHARS_TO_JUDGE:
-        pytest.skip(f"{path.name}: 正文不足 {MIN_CHARS_TO_JUDGE} 字，形状判据不适用")
-    per_k = count / (total / 1000)
+    per_k = count / (total / 1000) if total else 0
     assert per_k >= MIN_CLAUSES_PER_1K, (
         f"{path.name}: 每千字只有 {per_k:.2f} 条（共 {count} 条 / {total} 字）——疑似塌树"
     )
     assert per_k <= MAX_CLAUSES_PER_1K, (
         f"{path.name}: 每千字 {per_k:.2f} 条（共 {count} 条 / {total} 字）——疑似把正文行当成了条款"
+    )
+
+
+@pytest.mark.parametrize("path", _files(), ids=lambda p: p.name[:40])
+def test_a_document_yields_at_least_one_section_clause(path: Path):
+    """全是表格、一条章节都没有，等于没有条款树。
+
+    实测 14 份外部机构的 .docx **全部**如此：它们的段落样式 100% 是 `Normal`，
+    视觉上的标题是加粗和字号做出来的，不是套 Heading 样式——而 docx 的标题识别
+    只认样式。于是一条章节也找不到，产出的每一条"条款"都是被单独捞出来的表格。
+
+    这条是分类判断不是阈值：占比和密度那两条会放过其中 9 份，因为几十张表格
+    看起来"不多不少"。
+    """
+    _judged(path)
+    nodes = list(_walk(_parsed(path).clauses))
+    sections = [node for node in nodes if node.kind == "section"]
+    assert sections, (
+        f"{path.name}: 产出 {len(nodes)} 条，全部是表格，没有任何章节条款"
+        f"（解析告警：{_parsed(path).warnings or '无'}）"
+    )
+
+
+@pytest.mark.parametrize("path", _files(), ids=lambda p: p.name[:40])
+def test_most_of_the_text_survives_into_clauses(path: Path):
+    """抽出来的正文不该比原文少太多——少掉的部分下游永远看不见。"""
+    raw = _judged(path)
+    _, total, _ = _shape(path)
+    coverage = total / raw
+    assert coverage >= MIN_TEXT_COVERAGE, (
+        f"{path.name}: 只有 {coverage:.0%} 的正文进了条款（{total} / {raw} 字）"
     )
