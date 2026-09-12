@@ -26,6 +26,8 @@ class ProposalOut(BaseModel):
     ocr_quality_flag: bool = False
     # 正文用了 must/shall，而被引原文里一个情态词都没有——结论强于出处。
     normative_drift: bool = False
+    # 已有某条控制点的正文与本提案逐字相同。是事实不是判断，由审核者当场选并入还是另建。
+    duplicate_of: dict[str, Any] | None = None
     mapping_context: dict[str, Any] | None = None
     relation_context: dict[str, Any] | None = None
     review_tier: ReviewTier = ReviewTier.MANUAL
@@ -37,6 +39,8 @@ class DecideIn(BaseModel):
     decision: Decision
     payload: dict[str, Any] | None = None
     reason: str | None = None
+    # 选了就把引用挂到这条已有控制点上；不选就是原来的行为，另建一条。
+    merge_into_control_id: Annotated[int, Field(strict=True, gt=0)] | None = None
 
     @model_validator(mode="after")
     def _check(self) -> "DecideIn":
@@ -49,6 +53,8 @@ class DecideIn(BaseModel):
             raise ValueError("仅修改后接受允许提供内容")
         if self.decision is not Decision.REJECT and self.reason is not None:
             raise ValueError("仅拒绝允许提供原因")
+        if self.decision is Decision.REJECT and self.merge_into_control_id is not None:
+            raise ValueError("拒绝的提案没有可并入的去处")
         return self
 
 

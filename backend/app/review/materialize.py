@@ -5,8 +5,9 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.controls.models import (
     Control,
@@ -230,6 +231,37 @@ def _normalise_title(title: str) -> str:
     return re.sub(r"\s+", " ", title).strip().casefold()
 
 
+def normalise_statement(statement: str) -> str:
+    """判重用的正文归一化：折叠空白 + 转小写。
+
+    用 `lower()` 而不是 `casefold()`，是为了和 `sql_normalised_statement()` 逐字对齐——
+    过滤在 SQL 里做、比对在 Python 里做，两边规则一旦分叉，后果是**静默的**：
+    队列该标的没标，页面看起来一切正常。tests/test_review_duplicates.py 守着这一致性。
+    """
+    return " ".join((statement or "").split()).lower()
+
+
+def sql_normalised_statement() -> ColumnElement[str]:
+    """`normalise_statement` 的 SQL 版本，用来把比对压进一次查询。"""
+    return func.lower(func.btrim(func.regexp_replace(Control.statement, r"\s+", " ", "g")))
+
+
+async def find_statement_duplicate(session: AsyncSession, statement: str) -> Control | None:
+    """返回正文与之逐字相同的**已生效**控制点。
+
+    这是个**可证的事实**，不是判断——所以摆给审核者看，而不是替他们并掉。
+    """
+    normalised = normalise_statement(statement)
+    if not normalised:
+        return None
+    return await session.scalar(
+        select(Control)
+        .where(sql_normalised_statement() == normalised, Control.status == "active")
+        .order_by(Control.id)
+        .limit(1)
+    )
+
+
 async def _matrix_origin(session: AsyncSession, proposal: Proposal, data: dict[str, Any]) -> bool:
     original = proposal.payload
     if original.get("origin") != "matrix":
@@ -274,10 +306,17 @@ async def _matrix_origin(session: AsyncSession, proposal: Proposal, data: dict[s
 
 
 async def materialize(
-    session: AsyncSession, proposal: Proposal, data: dict[str, Any], *, actor_id: int | None
+    session: AsyncSession,
+    proposal: Proposal,
+    data: dict[str, Any],
+    *,
+    actor_id: int | None,
+    merge_into_control_id: int | None = None,
 ) -> None:
     if not isinstance(data, dict):
         raise AppError("提案内容必须是对象")
+    if merge_into_control_id is not None and proposal.kind != ProposalKind.CONTROL_EXTRACT:
+        raise AppError("只有控制点提案可以并入已有控制点")
     if proposal.kind == ProposalKind.MATRIX_MAPPING:
         from app.matrix.importer import validate_mapping_proposal
 
@@ -383,6 +422,14 @@ async def materialize(
             raise AppError(f"引用校验失败：{reason}")
 
     await lock_control_writes(session)
+    if merge_into_control_id is not None:
+        if matrix:
+            raise AppError("Excel 导入的控制点不走合并")
+        await _merge_into(
+            session, merge_into_control_id, validated, proposal, actor_id=actor_id
+        )
+        return
+
     controls = list(await session.scalars(select(Control).order_by(Control.id)))
     if matrix:
         control = next((c for c in controls if c.code == validated.code), None)
@@ -412,6 +459,17 @@ async def materialize(
         session.add(control)
         await session.flush()
 
+    await _attach_sources(session, control, validated, proposal, actor_id=actor_id)
+
+
+async def _attach_sources(
+    session: AsyncSession,
+    control: Control,
+    validated: Any,
+    proposal: Proposal,
+    *,
+    actor_id: int | None,
+) -> None:
     existing = set(
         await session.scalars(
             select(ControlSource.clause_id).where(ControlSource.control_id == control.id)
@@ -433,6 +491,30 @@ async def materialize(
         )
         existing.add(citation.clause_id)
     await session.flush()
+
+
+async def _merge_into(
+    session: AsyncSession,
+    control_id: int,
+    validated: Any,
+    proposal: Proposal,
+    *,
+    actor_id: int | None,
+) -> None:
+    """审核者选择「并入已有控制点」：只把引用挂过去，不改那条控制点的正文。
+
+    队列可能是几分钟前渲染的，那条控制点这期间可能已被人编辑过——所以这里
+    **再验一次正文相同**，而不是信前端送来的 id。赢家保留自己的标题与正文，
+    与既有的「标题相同则并入」一条路走法一致。
+    """
+    control = await session.get(Control, control_id)
+    if control is None:
+        raise NotFound("要并入的控制点不存在")
+    if control.status != "active":
+        raise AppError("要并入的控制点已不再生效")
+    if normalise_statement(control.statement) != normalise_statement(validated.statement):
+        raise AppError(f"{control.code} 的正文已与本提案不同，无法并入；请刷新确认队列")
+    await _attach_sources(session, control, validated, proposal, actor_id=actor_id)
 
 
 async def update_control(

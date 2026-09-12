@@ -21,7 +21,12 @@ from app.iam.models import User
 from app.iam.permissions import Permission, has_permission
 from app.ingest.models import Document
 from app.review import thresholds as thresholds_module
-from app.review.materialize import ControlPayload, lock_control_writes, materialize
+from app.review.materialize import (
+    ControlPayload,
+    find_statement_duplicate,
+    lock_control_writes,
+    materialize,
+)
 from app.review.models import Proposal, ProposalKind, ProposalStatus
 
 # 模型在 rationale 里自己写了否定表述，却仍把强度标成 full/partial 的那批。
@@ -402,15 +407,23 @@ async def ocr_flags(
 
 
 def eligible(
-    proposal: Proposal, limits: thresholds_module.Thresholds, *, ocr_flag: bool
+    proposal: Proposal,
+    limits: thresholds_module.Thresholds,
+    *,
+    ocr_flag: bool,
+    statement_duplicate: bool = False,
 ) -> bool:
     """纯函数：给定 OCR 标记，这条提案能否批量接受。
 
     拆出来是为了让整页判定可以先批量查标记、再在内存里逐条判，
     不必每条提案都往库里跑一次。
+
+    正文与已有控制点逐字相同的，一律禁止批量——理由与 OCR 存疑那条相同：
+    它需要一个逐条的选择（并入还是另建），批量按钮给不了。
     """
     return (
-        proposal.status == ProposalStatus.PENDING
+        not statement_duplicate
+        and proposal.status == ProposalStatus.PENDING
         and proposal.kind == ProposalKind.CONTROL_EXTRACT
         and proposal.payload.get("origin") != "matrix"
         and thresholds_module.bulk_acceptable(proposal, limits, ocr_flag=ocr_flag)
@@ -421,7 +434,15 @@ async def eligibility(
     session: AsyncSession, proposal: Proposal, limits: thresholds_module.Thresholds
 ) -> tuple[bool, bool]:
     flag = await ocr_flag(session, proposal)
-    return eligible(proposal, limits, ocr_flag=flag), flag
+    duplicate = None
+    if proposal.kind == ProposalKind.CONTROL_EXTRACT:
+        duplicate = await find_statement_duplicate(
+            session, str((proposal.payload or {}).get("statement") or "")
+        )
+    return (
+        eligible(proposal, limits, ocr_flag=flag, statement_duplicate=duplicate is not None),
+        flag,
+    )
 
 
 async def decide(
@@ -432,6 +453,7 @@ async def decide(
     decision: Decision,
     payload: dict[str, Any] | None = None,
     reason: str | None = None,
+    merge_into_control_id: int | None = None,
 ) -> Proposal:
     require_actor(actor)
     try:
@@ -450,7 +472,13 @@ async def decide(
             before = {"status": proposal.status.value}
             if decision != Decision.REJECT:
                 data = deepcopy(payload if decision == Decision.MODIFY else proposal.payload)
-                await materialize(session, proposal, data, actor_id=actor.id)
+                await materialize(
+                    session,
+                    proposal,
+                    data,
+                    actor_id=actor.id,
+                    merge_into_control_id=merge_into_control_id,
+                )
                 # Snapshot precisely what was approved; raw AI payload stays immutable.
                 proposal.decided_payload = data
             proposal.status = _STATUS[decision]
@@ -469,6 +497,7 @@ async def decide(
                     "status": proposal.status.value,
                     "decided_payload": proposal.decided_payload,
                     "reject_reason": proposal.reject_reason,
+                    "merged_into_control_id": merge_into_control_id,
                 },
             )
             await session.flush()

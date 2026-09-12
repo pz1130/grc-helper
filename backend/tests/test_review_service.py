@@ -41,12 +41,15 @@ async def _setup(db_session, *, ocr_flag: bool = False):
     return actor, doc, clause
 
 
-async def _proposal(db_session, doc, clause, *, confidence=0.9, title="Dual approval"):
+async def _proposal(
+    db_session, doc, clause, *, confidence=0.9, title="Dual approval",
+    statement="Two approvers.",
+):
     proposal = Proposal(
         kind=ProposalKind.CONTROL_EXTRACT,
         payload={
             "title": title,
-            "statement": "Two approvers.",
+            "statement": statement,
             "confidence": confidence,
             "citations": [{"clause_id": clause.id, "quote": "Two approvers"}],
         },
@@ -281,7 +284,9 @@ async def test_bulk_rolls_back_prior_accepts_on_invalid_content(db_session):
 
     actor, doc, clause = await _setup(db_session)
     good = await _proposal(db_session, doc, clause, title="Good")
-    bad = await _proposal(db_session, doc, clause, title="Bad")
+    # 正文必须与 good 不同：正文逐字相同的提案现在会被判为待人工选择而跳过，
+    # 那样就走不到「内容非法」这条路，测的东西就变了（OQ-8）。
+    bad = await _proposal(db_session, doc, clause, title="Bad", statement="Three approvers.")
     bad.payload = {**bad.payload, "citations": []}
     await db_session.flush()
     good_id, bad_id = good.id, bad.id

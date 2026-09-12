@@ -69,6 +69,34 @@ test("review honors server eligibility, edits payload, requires rejection reason
   await expect(page.getByText("No pending proposals in this view")).toBeVisible();
 });
 
+test("a proposal whose statement already exists offers merge or a separate control", async ({ page }) => {
+  await mockSession(page);
+  const twin = { ...proposal(4), duplicate_of: { id: 19, code: "C-0019", title: "Business continuity requirements" } };
+  let pending = [twin];
+  const decisions: unknown[] = [];
+  await page.route("**/api/proposals**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/proposals/stats") return route.fulfill({ json: { pending: pending.length, by_kind: { control_extract: pending.length } } });
+    if (path.endsWith("/decide")) {
+      decisions.push(route.request().postDataJSON());
+      pending = [];
+      return route.fulfill({ json: { ...twin, status: "accepted" } });
+    }
+    return route.fulfill({ json: pending });
+  });
+  await page.goto("/review");
+
+  const card = page.locator("#proposal-4");
+  await expect(card).toContainText("C-0019 already says exactly this");
+  // 需要逐条选择的东西，批量按钮给不了。
+  await expect(page.getByLabel("Select proposal 4")).toBeDisabled();
+  await expect(card.getByRole("button", { name: "Create a separate control" })).toBeVisible();
+
+  await card.getByRole("button", { name: "Merge into C-0019" }).click();
+  await expect(card).toHaveCount(0);
+  expect(decisions[0]).toEqual({ decision: "accept", merge_into_control_id: 19 });
+});
+
 test("contributors can read review and controls without mutation actions", async ({ page }) => {
   await mockSession(page, "contributor");
   await page.route("**/api/proposals**", (route) => route.fulfill({ json: route.request().url().includes("stats") ? { pending: 1, by_kind: {} } : [proposal(1, true)] }));

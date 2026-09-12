@@ -35,6 +35,8 @@ export interface Proposal {
   ocr_quality_flag?: boolean;
   /** 正文用了 must/shall，而被引原文里一个情态词都没有——结论强于出处。 */
   normative_drift?: boolean;
+  /** 已有控制点的正文与本提案逐字相同。是事实不是判断——并入还是另建由审核者选。 */
+  duplicate_of?: { id: number; code: string; title: string } | null;
   mapping_context?: {
     framework_item: { id: number; code: string; title: string; description: string };
     control: ControlView;
@@ -551,7 +553,7 @@ export function ReviewQueue() {
   }
 
   const decide = useMutation({
-    mutationFn: ({ id, ...body }: { id: number; decision: "accept" | "modify" | "reject"; payload?: Record<string, unknown>; reason?: string }) =>
+    mutationFn: ({ id, ...body }: { id: number; decision: "accept" | "modify" | "reject"; payload?: Record<string, unknown>; reason?: string; merge_into_control_id?: number }) =>
       request<Proposal>(`/api/proposals/${id}/decide`, { method: "POST", body: JSON.stringify(body) }),
     onMutate: () => { setError(""); setNotice(""); },
     onError: (e: Error) => setError(e.message),
@@ -925,6 +927,17 @@ export function ReviewQueue() {
                 </p>
               )}
 
+              {p.duplicate_of && (
+                <p
+                  role="note"
+                  data-duplicate-of={p.duplicate_of.code}
+                  title={t("review.duplicateHint")}
+                  style={{ marginTop: 10, color: "var(--accent-amber)", fontSize: "0.8125rem" }}
+                >
+                  ⚠️ {t("review.duplicateOf", { code: p.duplicate_of.code, title: p.duplicate_of.title })}
+                </p>
+              )}
+
               {p.ocr_quality_flag && (
                 <div style={{ marginTop: 10 }}>
                   <span className="kn-badge kn-badge-amber">
@@ -1070,13 +1083,32 @@ export function ReviewQueue() {
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--stage-border)" }}>
                   {editing !== p.id && rejecting !== p.id && (
                     <>
-                      <button
-                        className="kn-btn-primary"
-                        disabled={busy}
-                        onClick={() => decide.mutate({ id: p.id, decision: "accept" })}
-                      >
-                        {t("review.accept")}
-                      </button>
+                      {p.duplicate_of ? (
+                        <>
+                          <button
+                            className="kn-btn-primary"
+                            disabled={busy}
+                            onClick={() => decide.mutate({ id: p.id, decision: "accept", merge_into_control_id: p.duplicate_of!.id })}
+                          >
+                            {t("review.mergeInto", { code: p.duplicate_of.code })}
+                          </button>
+                          <button
+                            className="kn-btn-secondary"
+                            disabled={busy}
+                            onClick={() => decide.mutate({ id: p.id, decision: "accept" })}
+                          >
+                            {t("review.createSeparate")}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          className="kn-btn-primary"
+                          disabled={busy}
+                          onClick={() => decide.mutate({ id: p.id, decision: "accept" })}
+                        >
+                          {t("review.accept")}
+                        </button>
+                      )}
                       <button
                         className="kn-btn-secondary"
                         disabled={busy}

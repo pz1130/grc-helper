@@ -16,6 +16,7 @@ from app.iam.models import User
 from app.iam.permissions import Permission
 from app.ingest.models import Document
 from app.review import service
+from app.review.materialize import normalise_statement, sql_normalised_statement
 from app.review.models import Proposal, ProposalKind, ProposalStatus
 from app.review.schemas import AutoProcessIn, BulkAcceptIn, DecideIn, ProposalOut
 from app.review.thresholds import Thresholds, load
@@ -80,6 +81,8 @@ class PageContext:
     # 控制点 → 它出自哪几条内部条款。控制点是抽取产物，审核者要能回到原文：
     # OQ-5 记着有 28 条已接受的控制点建立在残缺文本上，看不到出处就发现不了。
     control_sources: dict[int, list[dict[str, Any]]] = field(default_factory=dict)
+    # 提案 id → 正文与它逐字相同的已有控制点。摆给审核者看，不替他们并（OQ-8）。
+    statement_duplicates: dict[int, Control] = field(default_factory=dict)
 
 
 def _int(value: Any) -> int | None:
@@ -153,6 +156,25 @@ async def page_context(session: AsyncSession, proposals: list[Proposal]) -> Page
                 "document_title": title,
             })
 
+    # 一次查完整页：按归一化正文建索引，比对规则与 materialize 共用同一个函数。
+    wanted: dict[str, list[int]] = {}
+    for proposal in proposals:
+        if proposal.kind != ProposalKind.CONTROL_EXTRACT:
+            continue
+        key = normalise_statement(str((proposal.payload or {}).get("statement") or ""))
+        if key:
+            wanted.setdefault(key, []).append(proposal.id)
+    statement_duplicates: dict[int, Control] = {}
+    if wanted:
+        rows = await session.execute(
+            select(sql_normalised_statement().label("key"), Control)
+            .where(sql_normalised_statement().in_(list(wanted)), Control.status == "active")
+            .order_by(Control.id)
+        )
+        for key, control in rows:
+            for proposal_id in wanted.get(key, []):
+                statement_duplicates.setdefault(proposal_id, control)
+
     return PageContext(
         clauses=await clause_context(session, proposals),
         items=items,
@@ -160,6 +182,7 @@ async def page_context(session: AsyncSession, proposals: list[Proposal]) -> Page
         ocr_flagged=await service.ocr_flags(session, proposals),
         item_mappings=item_mappings,
         control_sources=control_sources,
+        statement_duplicates=statement_duplicates,
     )
 
 
@@ -199,7 +222,10 @@ def present(proposal: Proposal, limits: Thresholds, context: PageContext) -> Pro
     """纯渲染，不查库——旁路数据全部来自 PageContext。"""
     payload = proposal.payload or {}
     flag = proposal.id in context.ocr_flagged
-    acceptable = service.eligible(proposal, limits, ocr_flag=flag)
+    twin = context.statement_duplicates.get(proposal.id)
+    acceptable = service.eligible(
+        proposal, limits, ocr_flag=flag, statement_duplicate=twin is not None
+    )
 
     mapping: dict[str, Any] | None = None
     if proposal.kind == ProposalKind.MAPPING:
@@ -271,6 +297,10 @@ def present(proposal: Proposal, limits: Thresholds, context: PageContext) -> Pro
         update={
             "bulk_acceptable": acceptable,
             "normative_drift": drift,
+            "duplicate_of": (
+                {"id": twin.id, "code": twin.code, "title": twin.title}
+                if twin is not None else None
+            ),
             "ocr_quality_flag": flag,
             "mapping_context": mapping,
             "relation_context": relation,
@@ -466,6 +496,7 @@ async def decide(
             decision=payload.decision,
             payload=payload.payload,
             reason=payload.reason,
+            merge_into_control_id=payload.merge_into_control_id,
         )
         output = present(
             proposal, await load(session), await page_context(session, [proposal])
