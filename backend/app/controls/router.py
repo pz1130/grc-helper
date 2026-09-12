@@ -21,10 +21,8 @@ from app.evidence import service as evidence_service
 from app.iam.deps import require
 from app.iam.models import User
 from app.iam.permissions import Permission
-from app.review.materialize import (
-    merge_controls as apply_control_merge,
-    update_control as apply_control_update,
-)
+from app.review.materialize import merge_controls as apply_control_merge
+from app.review.materialize import update_control as apply_control_update
 
 router = APIRouter(prefix="/api/controls", tags=["controls"])
 
