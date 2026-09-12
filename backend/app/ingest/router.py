@@ -1,6 +1,7 @@
 import tempfile
 from datetime import date
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile, status
 from sqlalchemy import select
@@ -28,6 +29,11 @@ from app.ingest.storage import ALLOWED_EXTENSIONS, sha256_of
 from app.worker import enqueue
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
+
+# Annotated 形式的依赖别名。本文件其余端点沿用旧的 `= Depends(...)` 默认值写法
+# （ruff 的 B008 对它们都有告警），新写的端点用这两个别名，不再添新的告警。
+MetaWriter = Annotated[User, Depends(require(Permission.DOCUMENT_WRITE))]
+Session = Annotated[AsyncSession, Depends(get_session)]
 
 
 @router.post("", response_model=DocumentOut, status_code=status.HTTP_201_CREATED)
@@ -141,8 +147,8 @@ async def get_document(
 async def update_document_meta(
     document_id: int,
     body: DocumentMetaIn,
-    actor: User = Depends(require(Permission.DOCUMENT_WRITE)),
-    session: AsyncSession = Depends(get_session),
+    actor: MetaWriter,
+    session: Session,
 ) -> Document:
     document = await session.get(Document, document_id)
     if document is None:
