@@ -16,6 +16,7 @@ from app.controls.models import (
     ControlSource,
     RelationType,
     SourceRelation,
+    active_controls,
 )
 from app.errors import AppError, Conflict, NotFound
 from app.frameworks.models import FrameworkItem, Mapping, MappingStrength
@@ -431,9 +432,10 @@ async def materialize(
         )
         return
 
-    controls = list(await session.scalars(select(Control).order_by(Control.id)))
+    # 判重只看生效行：命中已合并的会把新提案挂到一条死控制点上。
+    live = list(await session.scalars(active_controls().order_by(Control.id)))
     if matrix:
-        control = next((c for c in controls if c.code == validated.code), None)
+        control = next((c for c in live if c.code == validated.code), None)
         if control is not None and (
             _normalise_title(control.title) != _normalise_title(validated.title)
             or control.statement != validated.statement
@@ -442,13 +444,14 @@ async def materialize(
             raise Conflict("已有控制点编号对应不同内容")
     else:
         control = next(
-            (c for c in controls if _normalise_title(c.title) == _normalise_title(validated.title)),
+            (c for c in live if _normalise_title(c.title) == _normalise_title(validated.title)),
             None,
         )
     if control is None:
-        # max numeric suffix, rather than row count, handles deletions and imported codes.
+        # 编号分配看全部行，含已合并的——否则 C-0002 会被发第二次。
+        allocated = list(await session.scalars(select(Control).order_by(Control.id)))
         maximum = max(
-            (int(c.code[2:]) for c in controls if re.fullmatch(r"C-\d+", c.code)),
+            (int(c.code[2:]) for c in allocated if re.fullmatch(r"C-\d+", c.code)),
             default=0,
         )
         control = Control(

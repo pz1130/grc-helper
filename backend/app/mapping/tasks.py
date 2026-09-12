@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.controls.models import Control
+from app.controls.models import Control, active_controls
 from app.db import session_factory
 from app.errors import AppError, NotFound
 from app.frameworks.models import Framework, FrameworkItem
@@ -59,7 +59,7 @@ async def run_mapping(
     if framework is None:
         raise NotFound("框架不存在")
 
-    controls = list(await session.scalars(select(Control).order_by(Control.id)))
+    controls = list(await session.scalars(active_controls().order_by(Control.id)))
     if not controls:
         raise AppError("控制点库为空，无法映射；请先在确认队列中确认控制点")
     controls_text = render_controls(controls)

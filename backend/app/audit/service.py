@@ -8,7 +8,7 @@ from app.audit.citations import AnswerCitationValidator, ground_answer_citations
 from app.audit.history import similar_history
 from app.audit.models import AnswerDraft, AuditEngagement, AuditQuestion, QuestionStatus
 from app.audit.prompts import ANSWER_SCHEMA, ANSWER_SYSTEM, ANSWER_TASK_KEY
-from app.controls.models import Control, ControlSource
+from app.controls.models import ControlSource, active_controls
 from app.errors import AppError, Conflict, Forbidden, NotFound
 from app.evidence.models import EvidenceItem
 from app.frameworks.models import Framework
@@ -132,7 +132,7 @@ async def generate_answer(session: AsyncSession, question_id: int, language: str
     clause_ids = {hit.clause_id for hit in result_set.hits}
     controls = list(
         await session.scalars(
-            select(Control)
+            active_controls()
             .join(ControlSource)
             .where(ControlSource.clause_id.in_(clause_ids))
             .distinct()

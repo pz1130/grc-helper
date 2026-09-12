@@ -14,7 +14,7 @@ from typing import Any
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.controls.models import Control, RelationType
+from app.controls.models import Control, RelationType, active_controls
 from app.db import session_factory
 from app.errors import AppError
 from app.llm.models import LLMCall
@@ -84,7 +84,7 @@ async def _checkpoint(session: AsyncSession, key: str) -> LLMCall | None:
 
 
 async def _build_batches(session: AsyncSession) -> list[Batch]:
-    controls = {c.id: c for c in await session.scalars(select(Control).order_by(Control.id))}
+    controls = {c.id: c for c in await session.scalars(active_controls().order_by(Control.id))}
     if not controls:
         raise AppError("控制点库为空，无法推断关系；请先在确认队列中确认控制点")
 

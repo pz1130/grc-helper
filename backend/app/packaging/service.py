@@ -56,7 +56,7 @@ async def mapping_rows(session: AsyncSession, framework_id: int) -> list[list]:
         select(Mapping, Control, FrameworkItem)
         .join(Control, Control.id == Mapping.control_id)
         .join(FrameworkItem, FrameworkItem.id == Mapping.framework_item_id)
-        .where(FrameworkItem.framework_id == framework_id)
+        .where(FrameworkItem.framework_id == framework_id, Control.status != "merged")
         .order_by(Control.code, FrameworkItem.order_index, Mapping.id)
     )
     return [

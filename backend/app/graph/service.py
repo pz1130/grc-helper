@@ -8,6 +8,7 @@ from app.controls.models import (
     ControlSource,
     RelationType,
     SourceRelation,
+    active_controls,
 )
 from app.errors import BadRequest
 from app.frameworks.models import FrameworkItem, Mapping
@@ -276,7 +277,7 @@ async def relation_graph(
     types: set[RelationType] | None = None,
     framework_id: int | None = None,
 ) -> GraphOut:
-    controls = (await session.execute(select(Control).order_by(Control.code))).scalars().all()
+    controls = (await session.execute(active_controls().order_by(Control.code))).scalars().all()
     primary, extra, labels = await _document_groups(session)
     functions, frameworks = await _control_functions(session)
 

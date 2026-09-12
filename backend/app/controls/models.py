@@ -9,6 +9,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    select,
 )
 from sqlalchemy import (
     Enum as SAEnum,
@@ -69,6 +70,11 @@ class Control(Base, TimestampMixin):
     merged_into_id: Mapped[int | None] = mapped_column(
         ForeignKey("controls.id", ondelete="RESTRICT"), nullable=True, index=True
     )
+
+
+def active_controls():
+    """枚举控制点的统一起点。按 id 取的路径不要用它——历史引用要解析得出去向。"""
+    return select(Control).where(Control.status != "merged")
 
 
 class ControlSource(Base):

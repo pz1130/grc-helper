@@ -9,7 +9,7 @@ from typing import Any
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.controls.models import Control
+from app.controls.models import Control, active_controls
 from app.db import session_factory
 from app.indexing.embedder import current_model
 from app.llm.runner import embed
@@ -48,7 +48,7 @@ async def embed_pending(
     """给尚无向量、或向量出自旧模型的控制点补算。幂等，可重复调用。"""
     model = await current_model(session)
     stale = (
-        select(Control)
+        active_controls()
         .outerjoin(ControlEmbedding, ControlEmbedding.control_id == Control.id)
         .where(
             or_(

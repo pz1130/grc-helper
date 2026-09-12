@@ -2,14 +2,14 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clauses.models import Clause
-from app.controls.models import Control, ControlRelation, ControlSource
+from app.controls.models import Control, ControlRelation, ControlSource, active_controls
 from app.controls.schemas import FrameworkMappingOut, RelationOut, SourceOut
 from app.frameworks.models import Framework, FrameworkItem, Mapping
 from app.ingest.models import Document
 
 
 async def search(session: AsyncSession, *, q: str | None, limit: int) -> list[Control]:
-    stmt = select(Control).order_by(Control.code).limit(limit)
+    stmt = active_controls().order_by(Control.code).limit(limit)
     if q:
         stmt = stmt.where(
             or_(

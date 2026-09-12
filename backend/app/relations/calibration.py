@@ -24,7 +24,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.controls.models import Control
+from app.controls.models import active_controls
 from app.relations.models import ControlEmbedding
 
 # 词集重叠到这个程度就认为「在说同一件事」。0.8 是紧的：更松会混进大量
@@ -101,7 +101,7 @@ async def _candidates(
     区分开，而不是合并成一句「找不到」。
     """
     controls = [
-        c for c in await session.scalars(select(Control))
+        c for c in await session.scalars(active_controls())
         if c.statement and len(c.statement.strip()) > MIN_STATEMENT_CHARS
     ]
     vectors = {
