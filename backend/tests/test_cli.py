@@ -5,6 +5,7 @@ import sys
 import pytest
 from sqlalchemy import select
 
+from app import cli
 from app.cli import create_admin
 from app.iam.models import User
 from app.iam.permissions import Role
@@ -25,6 +26,23 @@ def test_cli_entrypoint_registers_cross_module_foreign_key_tables():
         check=False,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_purge_staging_is_reachable_from_the_command_line(monkeypatch, capsys):
+    # `python -c` 里现拼一句是 OQ-16 那个坑的复刻：入口不 import app.models 就炸。
+    # 所以清理暂存区也走 app.cli，而不是再开一个裸入口。
+    from app.ingest import staging
+
+    async def fake_purge(ctx):
+        assert ctx == {}
+        return {"removed": 3, "bytes": 9, "referenced": 1, "recent": 0}
+
+    monkeypatch.setattr(staging, "purge_staging", fake_purge)
+    monkeypatch.setattr(sys, "argv", ["app.cli", "purge-staging"])
+
+    cli.main()
+
+    assert "'removed': 3" in capsys.readouterr().out
 
 
 @pytest.mark.asyncio

@@ -20,6 +20,12 @@ def test_worker_registers_control_embedding_backfill():
     assert "embed_controls" in names
 
 
+def test_worker_sweeps_the_staging_volume_on_a_schedule():
+    # /tmp 只进不出的唯一出口（OQ-4）：没人排这个队，它就只能靠人手工清。
+    names = {job.coroutine.__name__ for job in WorkerSettings.cron_jobs}
+    assert "purge_staging" in names
+
+
 def test_worker_settings_points_at_configured_redis():
     parsed = urlparse(get_settings().redis_url)
     assert WorkerSettings.redis_settings.host == parsed.hostname

@@ -3,6 +3,7 @@
 用法（容器内）：
     python -m app.cli create-admin admin@example.com "Admin" 's3cret-pw'
     python -m app.cli import-framework seeds/nist-csf-2.0.csv nist-csf-2.0 "NIST CSF 2.0" "NIST CSF 2.0" 2.0 nist.gov
+    python -m app.cli purge-staging
 """
 
 import asyncio
@@ -95,7 +96,8 @@ def main() -> None:
         "用法:\n"
         "  python -m app.cli create-admin <email> <name> <password>\n"
         "  python -m app.cli import-framework <path> <key> <name_zh> <name_en> "
-        "<version> <source>"
+        "<version> <source>\n"
+        "  python -m app.cli purge-staging"
     )
     match sys.argv[1:]:
         case ["create-admin", email, name, password]:
@@ -103,6 +105,11 @@ def main() -> None:
             print(f"管理员已就绪: {email}")
         case ["import-framework", path, key, name_zh, name_en, version, source]:
             asyncio.run(import_framework_cli(path, key, name_zh, name_en, version, source))
+        case ["purge-staging"]:
+            # 平时由 worker 的 cron 跑；这里是「现在就跑一次」的入口。
+            from app.ingest import staging
+
+            print(asyncio.run(staging.purge_staging({})))
         case _:
             print(usage, file=sys.stderr)
             raise SystemExit(2)

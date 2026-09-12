@@ -1,4 +1,4 @@
-.PHONY: up down logs test migrate revision migrate-roundtrip fmt create-admin ping-worker e2e corpus retrieval extraction-eval seed-frameworks mapping-eval relation-eval
+.PHONY: up down logs test migrate revision migrate-roundtrip fmt create-admin ping-worker purge-staging e2e e2e-down corpus retrieval extraction-eval seed-frameworks mapping-eval relation-eval
 
 up:
 	docker compose up -d --build db redis api
@@ -38,11 +38,28 @@ create-admin:
 ping-worker:
 	docker compose run --rm api python -c "import asyncio; from app.worker import enqueue; print(asyncio.run(enqueue('ping')))"
 
+# 暂存卷的定时清理平时由 worker 的 cron 跑；这个入口用来立刻跑一次。
+purge-staging:
+	docker compose run --rm worker python -m app.cli purge-staging
+
+# 冒烟用例会建 provider、建用户、往暂存卷写文件，而 provider 和用户都没有删除
+# 接口（审计留痕要求如此）。所以 e2e 不跑在开发栈上，而是另起一个 compose 项目：
+# 项目名不同 → 容器、网络、数据卷（pgdata/docstore/staging）全部另开一套，
+# 跑完 down -v 一次性扔掉，开发库一条痕迹都不留（OQ-3）。端口也要错开，
+# 否则和正在跑的开发栈抢 5432/6379/8000/5173。
+E2E_COMPOSE = COMPOSE_PROJECT_NAME=grc-e2e DB_PORT=5433 REDIS_PORT=6380 API_PORT=8001 WEB_PORT=5174 docker compose
+
 e2e:
-	docker compose up -d --build
-	docker compose run --rm api alembic upgrade head
-	docker compose run --rm api python -m app.cli create-admin admin@example.com Admin pw123456
-	cd frontend && npm install --silent && npx playwright install --with-deps chromium && npm run test:e2e
+	$(E2E_COMPOSE) up -d --build
+	$(E2E_COMPOSE) run --rm api alembic upgrade head
+	$(E2E_COMPOSE) run --rm api python -m app.cli create-admin admin@example.com Admin pw123456
+	cd frontend && npm install --silent && npx playwright install --with-deps chromium
+	(cd frontend && E2E_BASE_URL=http://localhost:5174 E2E_API_BASE=http://localhost:8001 npm run test:e2e); \
+	  status=$$?; $(MAKE) e2e-down || status=1; exit $$status
+
+# 单独留一个出口：e2e 中途被 Ctrl-C 打断时，那套栈还在后台占着端口。
+e2e-down:
+	$(E2E_COMPOSE) down -v
 
 corpus:
 	docker compose run --rm --no-deps \

@@ -7,7 +7,7 @@
 
 from typing import Any, ClassVar
 
-from arq import create_pool
+from arq import create_pool, cron
 from arq.connections import RedisSettings
 from arq.worker import func
 
@@ -17,6 +17,7 @@ from app.config import get_settings
 from app.conflicts.tasks import detect_conflicts
 from app.extraction.tasks import extract_controls
 from app.indexing.tasks import index_document, reindex_all
+from app.ingest.staging import purge_staging
 from app.ingest.tasks import parse_document
 from app.mapping.tasks import map_framework
 from app.relations.indexing import embed_controls
@@ -62,6 +63,8 @@ class WorkerSettings:
         func(generate_engagement_answers, timeout=LONG_JOB_TIMEOUT),
         func(detect_conflicts, timeout=LONG_JOB_TIMEOUT),
     ]
+    # 暂存卷的唯一出口。挑凌晨是因为它会删文件，别和白天的上传挤在一起。
+    cron_jobs: ClassVar[list[Any]] = [cron(purge_staging, hour=3, minute=17)]
     redis_settings = _redis_settings()
     max_jobs = 4
     job_timeout = 900  # 15 分钟：够一份大 PDF 走完 OCR + 抽取
