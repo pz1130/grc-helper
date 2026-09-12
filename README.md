@@ -1,0 +1,125 @@
+# GRC Helper
+
+把制度文件变成可审计的控制点库。导入 → 解析成条款树 → AI 抽取控制点 → 人工确认 →
+映射到合规框架 → 关系图谱、制度冲突、变更影响、审计答复与准备包。
+
+**两条贯穿始终的规矩**：
+
+1. **系统内不存在未经人工确认的正式数据。** AI 只产出提案（`proposals`），
+   人在确认队列里逐条裁定之后才写进 `controls` / `mappings` / `control_relations` /
+   `policy_conflicts`。
+2. **每条结论都要指得回原文。** 控制点记录它出自哪几条条款，引文必须逐字出现在
+   那些条款里（自动校验），审计引用给出 `3.4.2` 这样的条款号。
+
+---
+
+## 现在能用到什么程度
+
+**说实话的那一栏更重要。**
+
+| | 状态 |
+|---|---|
+| 功能范围 | 设计文档划的 L0–L7 加增值能力**全部交付** |
+| 解析层 | 样本语料 6/6；**外部机构文档 29 份里 12 份**能切出可用的条款树 |
+| 上层六层（检索/抽取/映射/关系/冲突/准备包） | 在一份外部监管文档上端到端验证过一次，结果可用 |
+| 真实审计场景 | **从未验证过**——这是设计文档四条成功标准里唯一没验的一条 |
+| 中文制度文档 | **完全不支持**：编号识别只认阿拉伯数字，`第五条` / `一、` 匹配不上 |
+| 扫描件（无文本层） | OCR 回退分支**从未在真实扫描件上跑过** |
+
+**导入之前先跑一遍解析检查**（见下），别指望任何文风都能吃下去。
+
+---
+
+## 快速开始（开发）
+
+需要 Docker 与 Docker Compose。
+
+```bash
+cp .env.example .env
+# 生成两个密钥填进 .env：
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"  # APP_SECRET_KEY
+python -c "import secrets; print(secrets.token_urlsafe(48))"                                # JWT_SECRET
+
+make up                 # db / redis / api
+docker compose up -d    # 再加上 worker 与前端开发服务器
+make migrate
+make create-admin email=you@example.com name=You password='至少八位'
+```
+
+打开 http://localhost:5173 登录。
+
+**还差一步才有 AI 能力**：进「设置 → AI Provider」加一个 provider（填 base_url 与
+API key），再到「任务路由」把八个任务键各绑一个 provider。不绑的话抽取、映射、
+冲突检测会直接报路由错误——这是有意的，不会偷偷用默认值。
+
+---
+
+## 部署
+
+```bash
+cp .env.example .env
+# 填好 APP_SECRET_KEY、JWT_SECRET，并把 POSTGRES_PASSWORD 设成真的口令
+# ——它必须和 DATABASE_URL 里那一段口令一致，一个建账号、一个连库。
+
+make prod-up
+make prod-migrate
+make prod-create-admin email=you@org.com name=You password='...'
+```
+
+默认监听 `8080`（`WEB_PORT` 可改）。生产栈与开发栈的区别不是参数，是**形态**：
+
+- 前端是构建好的静态产物 + nginx，不是 vite 开发服务器
+- 后端没有 `--reload`，源码不挂进容器——镜像里是什么就跑什么
+- **只有 web 暴露端口**，db / redis / api 都只在内部网络里
+- 全部 `restart: unless-stopped`
+
+**没做的事，部署前你得自己补**：HTTPS（前面加一层反代或负载均衡）、
+把 `8080` 限制在内网、日志收集、以及下面这条备份的定时任务。
+
+---
+
+## 备份与恢复
+
+```bash
+make backup                                          # 库 + 制度原文卷，落在 backups/
+make restore db=backups/db-....sql docs=backups/docstore-....tar.gz
+```
+
+**两样缺一不可**：只备库，原文没了、引用就指向空气；只备原文，人工裁定的结果全丢。
+`backups/` 已在 `.gitignore` 里——里面有加密后的 provider 密钥，别提交也别外传。
+
+---
+
+## 换一批制度文档时
+
+```bash
+make corpus CORPUS_DIR=/绝对路径/某机构制度
+```
+
+**只过解析层，不写任何库**。它会报告每份文件切出多少条款、有没有塌树（一坨吞掉
+大半正文）、有没有把正文行当成条款、标题是不是一段正文、编号唯不唯一。
+导入之前先跑这个，比导完再发现问题便宜得多。
+
+文风不同导致锚点检查误报时：`CORPUS_ANCHORS="引言,职责分工"` 换一套，
+或 `CORPUS_ANCHORS=none` 先跳过。
+
+---
+
+## 验证
+
+```bash
+make verify   # pytest / ruff / npm build / make e2e，每条单独报退出码
+make test     # 只跑后端，写代码时用这个
+```
+
+`ruff` 在 main 上本来就有约 121 条既有告警，`make verify` 只报数不判成败——
+看的是有没有比基线多。e2e 跑在隔离的 compose 项目上，跑完自动清理，
+不会往开发库里留数据。
+
+---
+
+## 文档
+
+设计文档、实施计划与遗留问题清单在 `docs/`（**独立的本地 git 仓库，不在本仓库里**）。
+`docs/open-questions.md` 是这个项目最该先读的一份——它记着每一个已知缺陷、
+为什么还没修、以及什么条件下该修。

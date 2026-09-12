@@ -1,4 +1,4 @@
-.PHONY: up down logs test verify migrate revision migrate-roundtrip fmt create-admin ping-worker purge-staging e2e e2e-down corpus retrieval extraction-eval seed-frameworks mapping-eval relation-eval
+.PHONY: up down logs test verify prod-up prod-down prod-logs prod-migrate prod-create-admin backup restore migrate revision migrate-roundtrip fmt create-admin ping-worker purge-staging e2e e2e-down corpus retrieval extraction-eval seed-frameworks mapping-eval relation-eval
 
 up:
 	docker compose up -d --build db redis api
@@ -39,6 +39,46 @@ verify:
 	if [ $$fail -eq 0 ]; then echo "✅ 三条硬检查都过了；ruff 的数字自己对基线"; \
 	else echo "❌ 有硬检查没过，往上翻各自的 exit"; fi; \
 	exit $$fail
+
+# ── 生产 ─────────────────────────────────────────────────────
+# 与开发栈的区别不是参数，是**形态**：前端是 nginx + 构建产物（不是 vite 开发
+# 服务器），后端没有 --reload、源码不挂进容器，只有 web 对外暴露端口。
+# 首次部署：cp .env.example .env → 填两个密钥和 POSTGRES_PASSWORD →
+#           make prod-up → make prod-migrate → make prod-create-admin ...
+# 项目名必须与开发栈分开：同名会让 compose 把两者当成同一套，
+# 在开发机上跑 prod-up 会直接顶掉正在用的开发容器。
+PROD = COMPOSE_PROJECT_NAME=grc-prod docker compose -f docker-compose.prod.yml
+
+prod-up:
+	$(PROD) up -d --build
+
+prod-down:
+	$(PROD) down
+
+prod-logs:
+	$(PROD) logs -f api worker web
+
+prod-migrate:
+	$(PROD) run --rm api alembic upgrade head
+
+prod-create-admin:
+	$(PROD) run --rm api python -m app.cli create-admin "$(email)" "$(name)" "$(password)"
+
+# 备份：数据库 + 制度原文卷。两样缺一不可——只备库，原文没了引用就指向空气；
+# 只备原文，人工裁定的结果全丢。恢复前请先 make prod-down。
+backup:
+	@mkdir -p backups
+	$(PROD) exec -T db pg_dump -U $${POSTGRES_USER:-grc} -d $${POSTGRES_DB:-grc} \
+	  > backups/db-$$(date +%Y%m%d-%H%M%S).sql
+	$(PROD) run --rm -v "$(PWD)/backups:/backup" worker \
+	  tar czf /backup/docstore-$$(date +%Y%m%d-%H%M%S).tar.gz -C /data documents
+	@ls -lh backups | tail -3
+
+restore:
+	@test -n "$(db)" || (echo "用法: make restore db=backups/db-....sql docs=backups/docstore-....tar.gz"; exit 1)
+	$(PROD) exec -T db psql -U $${POSTGRES_USER:-grc} -d $${POSTGRES_DB:-grc} < "$(db)"
+	@test -z "$(docs)" || $(PROD) run --rm -v "$(PWD)/$(dir $(docs)):/backup" worker \
+	  tar xzf "/backup/$(notdir $(docs))" -C /data
 
 migrate:
 	docker compose run --rm api alembic upgrade head
