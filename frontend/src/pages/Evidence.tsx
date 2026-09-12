@@ -220,7 +220,15 @@ export function Evidence() {
             {t("evidence.dueBefore")}
             <input type="date" value={dueBefore} onChange={(e) => setDateFilter("due_before", e.target.value)} />
           </label>
-          {(statusFilter || ownerFilter || dueBefore || dueAfter) && <button className="kn-btn-secondary kn-btn-sm" onClick={() => setParams(new URLSearchParams())}>{t("evidence.clearFilters")}</button>}
+          {(statusFilter || ownerFilter || dueBefore || dueAfter) && (
+            <button
+              className="kn-btn-secondary kn-btn-sm"
+              style={{ height: 40, alignSelf: "end" }}
+              onClick={() => setParams(new URLSearchParams())}
+            >
+              {t("evidence.clearFilters")}
+            </button>
+          )}
         </div>
       </div>
 

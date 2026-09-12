@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FormEvent, useState } from "react";
+import { FormEvent, Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { request } from "../api";
@@ -211,8 +211,8 @@ export function TechAssets() {
             </thead>
             <tbody>
               {assets.data.map((asset) => (
-                <>
-                  <tr key={asset.id}>
+                <Fragment key={asset.id}>
+                  <tr>
                     <td>
                       <strong>{asset.name}</strong>
                       {asset.scope_note && <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>{asset.scope_note}</div>}
@@ -241,7 +241,7 @@ export function TechAssets() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>

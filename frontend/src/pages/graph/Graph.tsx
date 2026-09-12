@@ -96,39 +96,44 @@ export function Graph() {
 
   return (
     <section>
-      <h1>{t("graph.title")}</h1>
-      <div style={{ display: "flex", gap: 8, margin: "12px 0" }}>
-        {(["relations", "mappings"] as const).map((kind) => (
-          <button
-            key={kind}
-            type="button"
-            className={view === kind ? "kn-button" : "kn-button kn-button-ghost"}
-            aria-pressed={view === kind}
-            onClick={() => setView(kind)}
-          >
-            {t(`graph.view.${kind}`)}
-          </button>
-        ))}
-      </div>
-      {view === "relations" && (
-        <div style={{ display: "flex", gap: 8, margin: "12px 0" }}>
-          {(["document", "function", "force"] as LayoutKind[]).map((kind) => (
-            <button
-              key={kind}
-              type="button"
-              className={layoutKind === kind ? "kn-button" : "kn-button kn-button-ghost"}
-              aria-pressed={layoutKind === kind}
-              onClick={() => setLayoutKind(kind)}
-            >
-              {t(`graph.layout.${kind}`)}
-            </button>
-          ))}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 12, marginBottom: 8 }}>
+        <h1>{t("graph.title")}</h1>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <div className="kn-segmented">
+            {(["relations", "mappings"] as const).map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                className={`kn-segmented-item ${view === kind ? "active" : ""}`}
+                aria-pressed={view === kind}
+                onClick={() => setView(kind)}
+              >
+                {t(`graph.view.${kind}`)}
+              </button>
+            ))}
+          </div>
+          {view === "relations" && (
+            <div className="kn-segmented">
+              {(["document", "function", "force"] as LayoutKind[]).map((kind) => (
+                <button
+                  key={kind}
+                  type="button"
+                  className={`kn-segmented-item ${layoutKind === kind ? "active" : ""}`}
+                  aria-pressed={layoutKind === kind}
+                  onClick={() => setLayoutKind(kind)}
+                >
+                  {t(`graph.layout.${kind}`)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      )}
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center", margin: "12px 0" }}>
-        <label>
-          {t("graph.focus")}
-          <select value={focus} onChange={(event) => setFocus(event.target.value)}>
+      </div>
+
+      <div className="kn-graph-toolbar">
+        <label style={{ display: "inline-flex", flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", fontWeight: 500 }}>{t("graph.focus")}</span>
+          <select value={focus} onChange={(event) => setFocus(event.target.value)} style={{ padding: "6px 28px 6px 12px", fontSize: "0.8125rem" }}>
             <option value="">{t("graph.panorama")}</option>
             {documents?.map((document) => (
               <option key={`document:${document.id}`} value={`document:${document.id}`}>
@@ -142,18 +147,18 @@ export function Graph() {
             ))}
           </select>
         </label>
-        <label>
-          {t("graph.hops")}
-          <select value={hops} onChange={(event) => setHops(Number(event.target.value))}>
+        <label style={{ display: "inline-flex", flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", fontWeight: 500 }}>{t("graph.hops")}</span>
+          <select value={hops} onChange={(event) => setHops(Number(event.target.value))} style={{ padding: "6px 28px 6px 12px", fontSize: "0.8125rem" }}>
             <option value={1}>1</option>
             <option value={2}>2</option>
           </select>
         </label>
-        <label>
+        <label className="kn-filter-chip">
           <input type="checkbox" checked={includePending} onChange={(event) => setIncludePending(event.target.checked)} />
           {t("graph.filters.pending")}
         </label>
-        <label>
+        <label className="kn-filter-chip">
           <input
             type="checkbox"
             checked={onlyUnconfirmed}
@@ -165,53 +170,61 @@ export function Graph() {
           />
           {t("graph.filters.onlyUnconfirmed")}
         </label>
-        <label>
+        <label className="kn-filter-chip">
           <input type="checkbox" checked={onlyConflicts} onChange={(event) => setOnlyConflicts(event.target.checked)} />
           {t("graph.filters.onlyConflicts")}
         </label>
-        <label>
-          {t("graph.filters.framework")}
-          <select value={frameworkId} onChange={(event) => setFrameworkId(event.target.value)}>
+        <label style={{ display: "inline-flex", flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", fontWeight: 500 }}>{t("graph.filters.framework")}</span>
+          <select value={frameworkId} onChange={(event) => setFrameworkId(event.target.value)} style={{ padding: "6px 28px 6px 12px", fontSize: "0.8125rem" }}>
             <option value="">{t("graph.filters.allFrameworks")}</option>
             {frameworks?.map((framework) => (
               <option key={framework.id} value={framework.id}>{framework.name_en}</option>
             ))}
           </select>
         </label>
-        <label>
+        <label className="kn-filter-chip">
           <input type="checkbox" checked={thinLabels} onChange={(event) => setThinLabels(event.target.checked)} />
           {t("graph.thinLabels")}
         </label>
       </div>
+
       {isLoading && <p style={{ color: "var(--text-tertiary)" }}>{t("common.loading")}</p>}
       {data && (
         <>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem" }}>
-            {t("graph.stats", { nodes: data.stats.nodes, edges: data.stats.edges })}
-            {data.stats.pending_edges > 0 && ` · ${t("graph.pendingCount", { count: data.stats.pending_edges })}`}
-            {data.stats.truncated && ` · ${t("graph.truncated")}`}
-            {view === "mappings" && ` · ${t("graph.gapCount", { count: data.nodes.filter((node) => node.is_gap).length })}`}
-          </p>
-          <div style={{ display: "flex", gap: 8, margin: "8px 0" }}>
-            <button type="button" className="kn-button kn-button-ghost" onClick={() => exportGraph("svg")}>
-              {t("graph.exportSvg")}
-            </button>
-            <button type="button" className="kn-button kn-button-ghost" onClick={() => exportGraph("png")}>
-              {t("graph.exportPng")}
-            </button>
-            {exportError && (
-              <p role="alert" style={{ margin: 0, alignSelf: "center", color: "var(--accent-ruby)", fontSize: "0.8125rem" }}>
-                {t(exportError, { defaultValue: t("graph.exportFailed") })}
-              </p>
-            )}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, margin: "14px 0 12px" }}>
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", margin: 0, fontWeight: 500 }}>
+              {t("graph.stats", { nodes: data.stats.nodes, edges: data.stats.edges })}
+              {data.stats.pending_edges > 0 && ` · ${t("graph.pendingCount", { count: data.stats.pending_edges })}`}
+              {data.stats.truncated && ` · ${t("graph.truncated")}`}
+              {view === "mappings" && ` · ${t("graph.gapCount", { count: data.nodes.filter((node) => node.is_gap).length })}`}
+            </p>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button type="button" className="kn-btn-secondary kn-btn-sm" onClick={() => exportGraph("svg")}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 2 }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                {t("graph.exportSvg")}
+              </button>
+              <button type="button" className="kn-btn-secondary kn-btn-sm" onClick={() => exportGraph("png")}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 2 }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                {t("graph.exportPng")}
+              </button>
+              {exportError && (
+                <p role="alert" style={{ margin: 0, alignSelf: "center", color: "var(--accent-ruby)", fontSize: "0.8125rem" }}>
+                  {t(exportError, { defaultValue: t("graph.exportFailed") })}
+                </p>
+              )}
+            </div>
           </div>
+
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-            <div ref={canvasWrapper} style={{ flex: 1, minWidth: 0, overflow: "auto", maxHeight: MIN_CANVAS_HEIGHT }}>
+            <div ref={canvasWrapper} className="kn-graph-canvas-box" style={{ flex: 1, minWidth: 0, overflow: "auto", maxHeight: MIN_CANVAS_HEIGHT }}>
               <Canvas
                 data={data}
                 layoutKind={activeLayout}
                 width={WIDTH}
                 height={height}
+                selectedNodeKey={selectedNode?.key}
+                selectedEdgeKey={selectedEdge?.key}
                 labelLimit={thinLabels ? Math.max(1, Math.round(data.nodes.length * 0.15)) : undefined}
                 onSelectNode={(node) => {
                   setSelectedEdge(null);
@@ -232,13 +245,55 @@ export function Graph() {
               }}
             />
           </div>
-          <ul style={{ display: "flex", gap: 16, listStyle: "none", padding: 0, marginTop: 12 }}>
-            {data.groups.map((group) => (
-              <li key={group.key} style={{ color: "var(--text-secondary)", fontSize: "0.75rem" }}>
-                {group.label}
-              </li>
-            ))}
-          </ul>
+
+          {/* 图例与分组栏 */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, marginTop: 14 }}>
+            <ul style={{ display: "flex", gap: 10, flexWrap: "wrap", listStyle: "none", padding: 0, margin: 0 }}>
+              {data.groups.map((group) => (
+                <li key={group.key} className="kn-badge" style={{ fontSize: "0.75rem", padding: "4px 12px", background: "var(--stage-card-subtle)" }}>
+                  {group.label}
+                </li>
+              ))}
+            </ul>
+
+            <div className="kn-graph-legend">
+              {view === "relations" ? (
+                <>
+                  <span className="kn-graph-legend-item">
+                    <span className="kn-graph-legend-line" style={{ background: "var(--accent-blue)" }} />
+                    {t("graph.edgeKind.depends_on")}
+                  </span>
+                  <span className="kn-graph-legend-item">
+                    <span className="kn-graph-legend-line" style={{ background: "var(--accent-purple)" }} />
+                    {t("graph.edgeKind.duplicates")}
+                  </span>
+                  <span className="kn-graph-legend-item">
+                    <span className="kn-graph-legend-line" style={{ background: "var(--accent-ruby)", height: 3 }} />
+                    {t("graph.edgeKind.conflicts_with")}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="kn-graph-legend-item">
+                    <span className="kn-graph-legend-line" style={{ background: "var(--accent-emerald)" }} />
+                    {t("graph.edgeKind.full")}
+                  </span>
+                  <span className="kn-graph-legend-item">
+                    <span className="kn-graph-legend-line" style={{ background: "var(--accent-cyan)" }} />
+                    {t("graph.edgeKind.partial")}
+                  </span>
+                  <span className="kn-graph-legend-item">
+                    <span className="kn-graph-legend-line" style={{ background: "var(--accent-amber)" }} />
+                    {t("graph.edgeKind.supporting")}
+                  </span>
+                  <span className="kn-graph-legend-item">
+                    <span className="kn-dot kn-dot-ruby" style={{ width: 8, height: 8 }} />
+                    {t("graph.drawer.notCovered")}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
         </>
       )}
     </section>

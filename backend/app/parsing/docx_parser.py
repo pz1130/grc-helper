@@ -11,6 +11,9 @@ from docx.text.paragraph import Paragraph
 
 from app.parsing.contract import ClauseNode, DocumentMeta, ParsedDocument, ParseError
 from app.parsing.docx_numbering import HeadingNumbering
+from app.parsing.headings import acts_as_headings
+from app.parsing.numbering import _noise
+from app.parsing.vocab import parse_label
 
 _HEADING = re.compile(r"^Heading (\d+)$")
 _META = re.compile(
@@ -83,6 +86,16 @@ def _table_text(table: Table) -> str:
     return "\n".join(rows)
 
 
+def _numbered_heading(text: str, dotted_are_headings: bool):
+    """没有 Heading 样式时，从编号认标题。返回 (level, number, title) 或 None。"""
+    found = parse_label(text)
+    if found is None:
+        return None
+    if not dotted_are_headings and found.trailing_dot and len(found.parts) == 1:
+        return None
+    return len(found.parts), ".".join(str(part) for part in found.parts), found.title
+
+
 class DocxParser:
     def parse(self, path: Path) -> ParsedDocument:
         try:
@@ -94,6 +107,18 @@ class DocxParser:
         # Word 的标题编号不在文字里，是渲染时按 numbering.xml 画上去的。
         # 不还原的话 citation_label 只能退化成标题路径，而审计引用要的是 3.4.2。
         numbering = HeadingNumbering(document)
+        # 样式优先：样本语料靠它，而且它比任何启发式都可靠。只有当整篇文档
+        # **一个 Heading 样式都没有**时才退到编号——实测 14 份外部 docx
+        # 全部如此，段落样式 100% 是 Normal。
+        styled = any(_heading_level(paragraph) is not None for paragraph in document.paragraphs)
+        dotted_are_headings = False
+        if not styled:
+            survey = [
+                found.parts
+                for paragraph in document.paragraphs
+                if (found := parse_label(_paragraph_text(paragraph).strip()))
+            ]
+            dotted_are_headings = acts_as_headings(survey)
         numbered = 0
         roots: list[ClauseNode] = []
         stack: list[ClauseNode] = []
@@ -138,6 +163,41 @@ class DocxParser:
             paragraph = Paragraph(element, document)
             text = _paragraph_text(paragraph).strip()
             level = _heading_level(paragraph)
+            from_number = (
+                None
+                if styled or _noise(text) is not None
+                else _numbered_heading(text, dotted_are_headings)
+            )
+            if from_number is not None:
+                level, number, title = from_number
+                numbered += 1
+                # 按**编号血统**收栈，不是按层级。层级对得上、编号对不上时，
+                # `4.1` 会挂到上一个一级节点 `3` 下面去——审计引用顺着它走
+                # 会走到别的章节。实测 01/02/06/10 四份都栽在这里。
+                #
+                # 缺的祖先要补出来，理由同 numbering.py：不补的话 `4.1` 自己
+                # 变成顶层条款，一份文档的"顶层"里混着二级三级编号。
+                for depth in range(1, len(number.split("."))):
+                    ancestor = ".".join(number.split(".")[:depth])
+                    while (
+                        stack
+                        and stack[-1].number != ancestor
+                        and not ancestor.startswith(f"{stack[-1].number}.")
+                    ):
+                        stack.pop()
+                    if stack and stack[-1].number == ancestor:
+                        continue
+                    placeholder = ClauseNode(
+                        heading=ancestor, text="", level=depth, number=ancestor
+                    )
+                    (stack[-1].children if stack else roots).append(placeholder)
+                    stack.append(placeholder)
+                while stack and not number.startswith(f"{stack[-1].number}."):
+                    stack.pop()
+                node = ClauseNode(heading=title, text="", level=level, number=number)
+                (stack[-1].children if stack else roots).append(node)
+                stack.append(node)
+                continue
 
             if level is not None:
                 # 计数器必须按文档顺序推进，空标题也要走一遍，否则后面全错位。

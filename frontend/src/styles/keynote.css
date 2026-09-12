@@ -871,3 +871,176 @@ details[open] {
   background: linear-gradient(90deg, #2997ff, #64d2ff);
   transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* ==========================================================================
+   Graph Visualization Components
+   ========================================================================== */
+
+/* Button Aliases for compatibility */
+.kn-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--btn-secondary-border);
+  background: var(--btn-secondary-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.kn-button:hover {
+  background: var(--btn-secondary-hover-bg);
+  border-color: var(--stage-border-hover);
+  transform: translateY(-1px);
+}
+.kn-button-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+.kn-button-ghost:hover {
+  background: var(--btn-secondary-bg);
+  color: var(--text-primary);
+}
+
+.kn-graph-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--stage-card);
+  backdrop-filter: var(--blur-glass);
+  -webkit-backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--stage-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  margin: 14px 0;
+}
+
+.kn-graph-toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kn-filter-chip {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 7px !important;
+  padding: 6px 13px;
+  background: var(--input-bg);
+  border: 1px solid var(--stage-border);
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: var(--transition-fast);
+}
+
+.kn-filter-chip:hover {
+  border-color: var(--stage-border-hover);
+  color: var(--text-primary);
+  background: var(--btn-secondary-hover-bg);
+}
+
+.kn-filter-chip:has(input:checked) {
+  background: var(--accent-blue-bg);
+  border-color: rgba(41, 151, 255, 0.4);
+  color: var(--accent-blue);
+  box-shadow: 0 2px 8px rgba(41, 151, 255, 0.15);
+}
+
+.kn-filter-chip input[type="checkbox"] {
+  appearance: auto;
+  accent-color: var(--accent-blue);
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.kn-graph-canvas-box {
+  background: var(--stage-card-subtle);
+  border: 1px solid var(--stage-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-glass);
+  backdrop-filter: var(--blur-glass);
+  -webkit-backdrop-filter: var(--blur-glass);
+  overflow: hidden;
+  position: relative;
+  transition: var(--transition-smooth);
+}
+
+.kn-graph-canvas-box:hover {
+  border-color: var(--stage-border-hover);
+}
+
+.kn-graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: var(--stage-card);
+  backdrop-filter: var(--blur-glass);
+  -webkit-backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--stage-border);
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.kn-graph-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.kn-graph-legend-line {
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+  display: inline-block;
+}
+
+.kn-graph-drawer {
+  width: 350px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--stage-card);
+  backdrop-filter: var(--blur-glass);
+  -webkit-backdrop-filter: var(--blur-glass);
+  border: 1px solid var(--stage-border);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  box-shadow: var(--shadow-glass);
+  animation: kn-drawer-slide-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes kn-drawer-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+

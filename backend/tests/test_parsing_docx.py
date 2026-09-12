@@ -202,3 +202,119 @@ def test_tracked_insertions_inside_tables_are_kept(tracked_changes_docx: Path):
         node.text for node in parsed.clauses
     ) + "".join(child.text for node in parsed.clauses for child in node.children)
     assert "Chief Operating Officer" in everything
+
+
+# ── 没有 Heading 样式时，从编号认标题 ──────────────────────────
+# 实测 14 份外部机构的 .docx，段落样式 **100% 是 `Normal`**（154/154、42/42、
+# 1218/1218）：视觉上的标题是加粗和字号做出来的，不套样式。而标题识别原本
+# 只认样式，于是一条章节都找不到，产出的每一条"条款"都是被单独捞出来的表格。
+# 样式仍然优先——样本语料靠它，且它比任何启发式都可靠。
+
+
+def _normal_docx(tmp_path: Path, lines: list[str], name: str = "normal.docx") -> Path:
+    """全部用 Normal 样式写一份文档，标题只靠编号区分。"""
+    doc = DocxDocument()
+    for line in lines:
+        doc.add_paragraph(line)
+    path = tmp_path / name
+    doc.save(path)
+    return path
+
+
+def test_a_document_without_heading_styles_gets_its_tree_from_the_numbering(tmp_path: Path):
+    path = _normal_docx(tmp_path, [
+        "1. Introduction",
+        "This standard applies to all systems.",
+        "1.1. Purpose",
+        "To set out the requirements.",
+        "1.2. Scope",
+        "All production environments.",
+        "2. Requirements",
+        "The following apply.",
+    ])
+
+    parsed = DocxParser().parse(path)
+
+    numbers = [node.number for node in parsed.clauses]
+    assert numbers == ["1", "2"]
+    assert [child.number for child in parsed.clauses[0].children] == ["1.1", "1.2"]
+    assert "applies to all systems" in parsed.clauses[0].text
+
+
+def test_body_list_items_do_not_become_sections(tmp_path: Path):
+    """BCBS 的写法：`1.` `2.` `3.` 是正文列表，没有任何子号挂上去。"""
+    path = _normal_docx(tmp_path, [
+        "Principles",
+        "1. Boards should approve the strategy.",
+        "2. Boards should oversee implementation.",
+        "3. Boards should review outcomes.",
+    ])
+
+    parsed = DocxParser().parse(path)
+
+    assert [node.number for node in parsed.clauses if node.kind == "section"] == []
+
+
+def test_heading_styles_still_win_when_the_document_has_them(tmp_path: Path):
+    """样本语料靠样式。有样式就不猜编号。"""
+    doc = DocxDocument()
+    doc.add_heading("Introduction", level=1)
+    doc.add_paragraph("1. This numbered line is body text, not a section.")
+    path = tmp_path / "styled.docx"
+    doc.save(path)
+
+    parsed = DocxParser().parse(path)
+
+    assert [node.heading for node in parsed.clauses] == ["Introduction"]
+    assert "1. This numbered line" in parsed.clauses[0].text
+
+
+def test_a_table_lands_under_the_numbered_section_above_it(tmp_path: Path):
+    """Task 4 与 Task 5 合起来才完整：先有章节，表格才有地方挂。"""
+    doc = DocxDocument()
+    doc.add_paragraph("4.1. End-User Passwords")
+    table = doc.add_table(rows=1, cols=2)
+    table.cell(0, 0).text = "Length"
+    table.cell(0, 1).text = "At least twelve characters"
+    doc.add_paragraph("4.2. Privileged Passwords")
+    path = tmp_path / "numbered-with-table.docx"
+    doc.save(path)
+
+    parsed = DocxParser().parse(path)
+
+    # `4` 从未出现，补出来当父节点；表格挂在真正的 `4.1` 下面
+    assert parsed.clauses[0].number == "4"
+    first = parsed.clauses[0].children[0]
+    assert first.number == "4.1"
+    assert [child.kind for child in first.children] == ["table"]
+
+
+def test_a_numbered_child_hangs_under_its_own_parent_not_whatever_came_before(
+    tmp_path: Path,
+):
+    """按层级入栈是不够的：层级对得上，编号不一定对得上。
+
+    实测 01_Arab_Bank / 02_Bank_of_Jordan / 06_OCC / 10_RCBC 四份都栽在这里——
+    条款树长出来了，但 `4.1` 挂在了 `3` 下面。审计引用顺着它走会走到别的章节去。
+    """
+    doc = DocxDocument()
+    # 关键是 `4.1` 出现时 `4` 从未出现过：按层级入栈会把它挂到上一个一级节点
+    # `3` 下面去，层级对得上、编号对不上。
+    for line in ["3. Governance", "3.1. Roles", "4.1. Passwords", "4.2. Tokens"]:
+        doc.add_paragraph(line)
+    path = tmp_path / "lineage.docx"
+    doc.save(path)
+
+    parsed = DocxParser().parse(path)
+
+    def check(parent):
+        for child in parent.children:
+            if parent.number and child.number:
+                assert child.number.startswith(f"{parent.number}."), (
+                    f"{child.number} 挂在了 {parent.number} 下面"
+                )
+            check(child)
+
+    assert [node.number for node in parsed.clauses] == ["3", "4"]
+    for root in parsed.clauses:
+        check(root)

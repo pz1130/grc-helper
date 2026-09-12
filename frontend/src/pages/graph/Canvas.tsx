@@ -21,10 +21,22 @@ export interface CanvasProps {
   height: number;
   onSelectNode: (node: GraphNodeData) => void;
   onSelectEdge: (edge: GraphEdgeData) => void;
+  selectedNodeKey?: string | null;
+  selectedEdgeKey?: string | null;
   labelLimit?: number;
 }
 
-export function Canvas({ data, layoutKind, width, height, onSelectNode, onSelectEdge, labelLimit }: CanvasProps) {
+export function Canvas({
+  data,
+  layoutKind,
+  width,
+  height,
+  onSelectNode,
+  onSelectEdge,
+  selectedNodeKey,
+  selectedEdgeKey,
+  labelLimit,
+}: CanvasProps) {
   const positions: Map<string, Point> = useMemo(
     () => layout(layoutKind, data.nodes, data.edges, { width, height }),
     [layoutKind, data.nodes, data.edges, width, height],
@@ -55,8 +67,14 @@ export function Canvas({ data, layoutKind, width, height, onSelectNode, onSelect
       viewBox={`0 0 ${width} ${height}`}
       role="img"
       aria-label="Control graph"
-      style={{ background: "var(--stage-card-subtle)", borderRadius: 12 }}
+      style={{
+        background: "var(--stage-card-subtle)",
+        borderRadius: 16,
+        display: "block",
+        transition: "var(--transition-smooth)",
+      }}
     >
+      {/* 边渲染 */}
       {data.edges.map((edge) => {
         const from = positions.get(edge.source);
         const to = positions.get(edge.target);
@@ -65,6 +83,10 @@ export function Canvas({ data, layoutKind, width, height, onSelectNode, onSelect
         const dy = to.y - from.y;
         const length = Math.hypot(dx, dy);
         const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+        const isSelected = selectedEdgeKey === edge.key;
+        const strokeColor = EDGE_COLOR[edge.kind] ?? "var(--text-tertiary)";
+        const baseWidth = edge.kind === "conflicts_with" ? 3.5 : 1.5;
+
         return (
           <g
             key={edge.key}
@@ -72,32 +94,52 @@ export function Canvas({ data, layoutKind, width, height, onSelectNode, onSelect
             data-kind={edge.kind}
             data-status={edge.status}
             strokeDasharray={edge.status === "pending" ? "5 4" : undefined}
-            style={{ cursor: "pointer" }}
+            style={{ cursor: "pointer", transition: "opacity 0.2s ease" }}
             onClick={() => onSelectEdge(edge)}
           >
+            {/* 选中高亮外发光 */}
+            {isSelected && (
+              <line
+                x1={from.x}
+                y1={from.y}
+                x2={to.x}
+                y2={to.y}
+                stroke={strokeColor}
+                strokeWidth={baseWidth + 5}
+                opacity={0.38}
+              />
+            )}
             <line
               x1={from.x}
               y1={from.y}
               x2={to.x}
               y2={to.y}
-              stroke={EDGE_COLOR[edge.kind] ?? "var(--text-tertiary)"}
-              strokeWidth={edge.kind === "conflicts_with" ? 3.5 : 1.5}
+              stroke={strokeColor}
+              strokeWidth={isSelected ? baseWidth + 1 : baseWidth}
               strokeDasharray={edge.status === "pending" ? "5 4" : undefined}
             />
+            {/* 易点击透明区域 */}
             <rect
               x={from.x}
-              y={from.y - 8}
+              y={from.y - 10}
               width={length}
-              height={16}
+              height={20}
               transform={`rotate(${angle} ${from.x} ${from.y})`}
               fill="transparent"
             />
           </g>
         );
       })}
+
+      {/* 节点渲染 */}
       {data.nodes.map((node) => {
         const point = positions.get(node.key);
         if (!point) return null;
+        const isSelected = selectedNodeKey === node.key;
+        const radius = node.kind === "framework_item" ? 6 : 8;
+        const strokeColor = node.is_gap ? "var(--accent-ruby)" : "var(--accent-blue)";
+        const fillColor = node.is_gap ? "var(--accent-ruby-bg)" : "var(--accent-blue-bg)";
+
         return (
           <g
             key={node.key}
@@ -105,17 +147,45 @@ export function Canvas({ data, layoutKind, width, height, onSelectNode, onSelect
             data-kind={node.kind}
             data-gap={node.is_gap ? "true" : "false"}
             transform={`translate(${point.x},${point.y})`}
-            style={{ cursor: "pointer" }}
+            style={{ cursor: "pointer", transition: "transform 0.2s ease" }}
             onClick={() => onSelectNode(node)}
           >
+            {/* 选中高亮光环 */}
+            {isSelected && (
+              <circle
+                r={radius + 5}
+                fill="none"
+                stroke={strokeColor}
+                strokeWidth={2}
+                opacity={0.7}
+              />
+            )}
+            {/* 主节点圆圈 */}
             <circle
-              r={node.kind === "framework_item" ? 6 : 8}
-              fill={node.is_gap ? "var(--accent-ruby-bg)" : "var(--accent-blue-bg)"}
-              stroke={node.is_gap ? "var(--accent-ruby)" : "var(--accent-blue)"}
-              strokeWidth={1.5}
+              r={radius}
+              fill={fillColor}
+              stroke={strokeColor}
+              strokeWidth={isSelected ? 2.5 : 1.5}
             />
+            {/* 差距节点中心红点指示 */}
+            {node.is_gap && (
+              <circle
+                r={2}
+                fill="var(--accent-ruby)"
+                stroke="none"
+              />
+            )}
+            {/* 节点文本 */}
             {labelled.has(node.key) && (
-              <text data-node-label={node.key} x={12} y={4} fontSize={11} fill="var(--text-secondary)">
+              <text
+                data-node-label={node.key}
+                x={radius + 5}
+                y={4}
+                fontSize={11}
+                fontWeight={isSelected ? 600 : 400}
+                fill={isSelected ? "var(--text-primary)" : "var(--text-secondary)"}
+                style={{ userSelect: "none" }}
+              >
                 {node.code}
               </text>
             )}
