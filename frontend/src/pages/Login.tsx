@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { PredictiveArcCanvas } from "@designcodeio/threeui";
+import "@designcodeio/threeui/style.css";
 
 import { useAuth } from "../auth";
 import { setLanguage } from "../i18n";
@@ -34,8 +36,29 @@ export function Login() {
         justifyContent: "center",
         padding: "24px",
         position: "relative",
+        overflow: "hidden",
       }}
     >
+      {/* Background Animated Signal Particles Canvas */}
+      <div
+        className="shader-frame"
+        style={{
+          position: "absolute",
+          inset: 0,
+          pointerEvents: "none",
+          zIndex: 0,
+          overflow: "hidden",
+        }}
+      >
+        <PredictiveArcCanvas
+          variant="signal-particles"
+          mode={theme === "light" ? "light" : "dark"}
+          speed={1.0}
+          hue={0}
+          saturation={1.0}
+          brightness={1.0}
+        />
+      </div>
       {/* Floating Controls: Language & Theme */}
       <div style={{ position: "fixed", top: 20, right: 24, zIndex: 10, display: "flex", alignItems: "center", gap: 8 }}>
         <button
@@ -95,7 +118,11 @@ export function Login() {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          boxShadow: "var(--shadow-lg)",
+          position: "relative",
+          zIndex: 10,
+          boxShadow: "0 20px 50px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--stage-border)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
         }}
       >
         <BrandLogo size={56} style={{ marginBottom: 20 }} />

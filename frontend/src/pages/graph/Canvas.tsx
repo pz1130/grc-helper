@@ -25,6 +25,7 @@ export interface CanvasProps {
   selectedNodeKey?: string | null;
   selectedEdgeKey?: string | null;
   labelLimit?: number;
+  thinLabels?: boolean;
 }
 
 export function Canvas({
@@ -37,6 +38,7 @@ export function Canvas({
   selectedNodeKey,
   selectedEdgeKey,
   labelLimit,
+  thinLabels,
 }: CanvasProps) {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -343,94 +345,14 @@ export function Canvas({
               ? "var(--accent-blue)"
               : "var(--accent-emerald)";
 
-            const isForce = layoutKind === "force";
-            const isForceThinned = isForce && labelLimit !== undefined;
-
-            // 力导向布局下勾选稀释标签时，隐藏编号文字，呈现纯净科技微点
-            if (isForceThinned) {
-              const nodeRadius = isControl ? (isHovered ? 7 : 5.5) : (isHovered ? 6 : 4.8);
-              const ringRadius = nodeRadius + (isHovered || isSelected ? 5 : 3.5);
-
-              return (
-                <g
-                  key={node.key}
-                  data-node-key={node.key}
-                  data-kind={node.kind}
-                  data-gap={node.is_gap ? "true" : "false"}
-                  transform={`translate(${point.x},${point.y})`}
-                  style={{
-                    cursor: "pointer",
-                    opacity: isDimmed ? 0.22 : 1.0,
-                    transition: "opacity 0.2s ease",
-                  }}
-                  onClick={() => onSelectNode(node)}
-                  onMouseEnter={(e) => {
-                    setHoveredNodeKey(node.key);
-                    if (containerRef.current) {
-                      const rect = containerRef.current.getBoundingClientRect();
-                      setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-                    }
-                  }}
-                  onMouseMove={(e) => {
-                    if (containerRef.current) {
-                      const rect = containerRef.current.getBoundingClientRect();
-                      setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-                    }
-                  }}
-                  onMouseLeave={() => {
-                    setHoveredNodeKey(null);
-                    setTooltipPos(null);
-                  }}
-                >
-                  <g
-                    style={{
-                      transform: isHovered ? "scale(1.25)" : isSelected ? "scale(1.15)" : "scale(1)",
-                      transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
-                    }}
-                  >
-                    {/* 悬停/选中发光外光晕 */}
-                    {(isHovered || isSelected) && (
-                      <circle
-                        r={ringRadius + 4}
-                        fill={mainColor}
-                        opacity={0.2}
-                      />
-                    )}
-
-                    {/* 精密外层轨道环 */}
-                    <circle
-                      r={ringRadius}
-                      fill="var(--stage-card)"
-                      stroke={isSelected || isHovered ? mainColor : "var(--stage-border)"}
-                      strokeWidth={isSelected || isHovered ? 1.5 : 1}
-                      strokeDasharray={node.is_gap ? "2 1.5" : undefined}
-                    />
-
-                    {/* 核心纯色微宝石点 */}
-                    <circle
-                      r={nodeRadius}
-                      fill={mainColor}
-                    />
-
-                    {/* 差距节点中心微警示点 */}
-                    {node.is_gap && (
-                      <circle
-                        r={1.5}
-                        fill="#ffffff"
-                      />
-                    )}
-                  </g>
-                </g>
-              );
-            }
-
-            // 默认或泳道布局下展示胶囊药丸：根据 labelled（度数稀释规则）或悬停/选中状态显示编号
-            const shouldShowLabel = labelled.has(node.key) || isHovered || isSelected || isConnectedToActive;
-            const pillHeight = 26;
-            const pillWidth = shouldShowLabel ? Math.max(76, node.code.length * 7.8 + 36) : 26;
-            const pillX = -pillWidth / 2;
-            const pillY = -pillHeight / 2;
-            const gemX = pillX + 13;
+            // thinLabels 为 true 时彻底隐藏编号（呈现极简纯净科技微点）；未勾选 thinLabels 时清晰展示编号
+            const isThinned = thinLabels ?? (labelLimit !== undefined);
+            const showLabel = !isThinned;
+            const nodeRadius = isControl ? (isHovered ? 7.5 : 5.5) : (isHovered ? 6.5 : 4.8);
+            const ringRadius = nodeRadius + (isHovered || isSelected ? 5 : 3.5);
+            const labelX = ringRadius + 7;
+            const labelWidth = node.code.length * 7.5 + 4;
+            const totalWidth = showLabel ? labelX + labelWidth + 10 : 36;
 
             return (
               <g
@@ -463,81 +385,88 @@ export function Canvas({
                   setTooltipPos(null);
                 }}
               >
-                {/* ThreeUI 风格浮动毛玻璃胶囊药丸卡片 (Frosted Capsule Pill) */}
                 <g
                   style={{
-                    transform: isHovered ? "scale(1.1)" : isSelected ? "scale(1.06)" : "scale(1)",
+                    transform: isHovered ? "scale(1.25)" : isSelected ? "scale(1.15)" : "scale(1)",
                     transition: "transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
                   }}
                 >
-                  {/* 悬停/选中发光阴影外环 */}
-                  {(isHovered || isSelected) && (
+                  {/* 易点击透明区域 (Hitbox)：带编号时覆盖整个微点与文字区域，隐藏编号时覆盖圆形区域 */}
+                  {showLabel ? (
                     <rect
-                      x={pillX - 2.5}
-                      y={pillY - 2.5}
-                      width={pillWidth + 5}
-                      height={pillHeight + 5}
-                      rx={15.5}
-                      fill="none"
-                      stroke={mainColor}
-                      strokeWidth={1.5}
-                      opacity={0.4}
+                      x={-18}
+                      y={-14}
+                      width={totalWidth}
+                      height={28}
+                      rx={14}
+                      fill="transparent"
+                    />
+                  ) : (
+                    <circle r={18} fill="transparent" />
+                  )}
+
+                  {/* 悬停/选中发光外光晕 */}
+                  {(isHovered || isSelected) && (
+                    <circle
+                      r={ringRadius + 5}
+                      fill={mainColor}
+                      opacity={0.25}
                     />
                   )}
 
-                  {/* 胶囊主底板 (Pill Capsule Body) */}
-                  <rect
-                    x={pillX}
-                    y={pillY}
-                    width={pillWidth}
-                    height={pillHeight}
-                    rx={13}
+                  {/* 精密外层轨道环 */}
+                  <circle
+                    r={ringRadius}
                     fill="var(--stage-card)"
                     stroke={isSelected || isHovered ? mainColor : "var(--stage-border)"}
                     strokeWidth={isSelected || isHovered ? 1.5 : 1}
-                  />
-
-                  {/* 左侧状态微点光晕环 */}
-                  <circle
-                    cx={gemX}
-                    cy={0}
-                    r={6.5}
-                    fill="none"
-                    stroke={mainColor}
-                    strokeWidth={1}
                     strokeDasharray={node.is_gap ? "2 1.5" : undefined}
-                    opacity={isHovered ? 0.6 : 0.28}
                   />
 
-                  {/* 左侧状态宝石指示微点 (Status Gem Dot) */}
+                  {/* 核心纯色微宝石点 */}
                   <circle
-                    cx={gemX}
-                    cy={0}
-                    r={isHovered ? 4.2 : 3.8}
+                    r={nodeRadius}
                     fill={mainColor}
                   />
 
                   {/* 差距节点中心微警示点 */}
                   {node.is_gap && (
                     <circle
-                      cx={gemX}
-                      cy={0}
                       r={1.5}
                       fill="#ffffff"
                     />
                   )}
 
-                  {/* 胶囊右侧等宽编号文本 */}
-                  {shouldShowLabel && (
+                  {/* 选中时同心微虚线外圈 */}
+                  {isSelected && (
+                    <circle
+                      r={ringRadius + 3}
+                      fill="none"
+                      stroke={mainColor}
+                      strokeWidth={1}
+                      strokeDasharray="2 2"
+                      opacity={0.7}
+                    />
+                  )}
+
+                  {/* 节点编号文字：全部图表下未勾选 thin label 时清晰呈现，勾选后视觉完全隐藏保持极简美观 */}
+                  {labelled.has(node.key) && (
                     <text
                       data-node-label={node.key}
-                      x={gemX + 11}
-                      y={3.8}
+                      x={showLabel ? labelX : 0}
+                      y={showLabel ? 3.5 : 0}
+                      textAnchor={showLabel ? "start" : "middle"}
+                      dominantBaseline={showLabel ? undefined : "central"}
                       fontSize={11}
-                      fontWeight={isSelected || isHovered ? 700 : 600}
+                      fontWeight={isSelected || isHovered ? 600 : 500}
                       fontFamily="'SF Mono', Menlo, Monaco, Consolas, monospace"
                       fill={isSelected || isHovered ? "var(--text-primary)" : "var(--text-secondary)"}
-                      style={{ userSelect: "none" }}
+                      opacity={showLabel ? 1 : 0}
+                      style={{
+                        userSelect: "none",
+                        pointerEvents: showLabel ? undefined : "none",
+                        transition: "opacity 0.2s ease, fill 0.2s ease",
+                      }}
                     >
                       {node.code}
                     </text>

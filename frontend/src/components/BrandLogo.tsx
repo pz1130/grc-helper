@@ -8,7 +8,7 @@ interface BrandLogoProps {
 }
 
 export function BrandLogo({ size = 32, variant = "tile", className, style }: BrandLogoProps) {
-  const idPrefix = "kn-mono-logo";
+  const idPrefix = "grc-brand-logo";
 
   if (variant === "glyph") {
     return (
@@ -27,31 +27,42 @@ export function BrandLogo({ size = 32, variant = "tile", className, style }: Bra
         <svg
           width={size}
           height={size}
-          viewBox="0 0 32 32"
+          viewBox="0 0 64 64"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
           style={{ display: "block" }}
         >
-          {/* Minimalist Monochrome Shield Silhouette */}
+          {/* Outer Hexagonal Shield Outline */}
           <path
-            d="M 16 3 C 21.5 3 27 5.5 27 5.5 C 27 17.5 22 25 16 29 C 10 25 5 17.5 5 5.5 C 5 5.5 10.5 3 16 3 Z"
-            fill="currentColor"
-          />
-          {/* Negative Space Precision Checkmark */}
-          <path
-            d="M 11.5 15.5 L 14.5 18.5 L 21 11.5"
-            stroke="var(--stage-bg)"
+            d="M 32 10 L 52 20 L 52 42 L 32 55 L 12 42 L 12 20 Z"
+            stroke="var(--accent-emerald, #10b981)"
             strokeWidth="2.5"
+            strokeLinejoin="round"
+            fill="rgba(16, 185, 129, 0.08)"
+          />
+
+          {/* Interlocking G-Spine (Compliance Governance Flow) */}
+          <path
+            d="M 44 24 L 32 17 L 19 24 L 19 41 L 32 49 L 45 41 L 45 32 L 32 32"
+            stroke="currentColor"
+            strokeWidth="4.8"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
+
+          {/* Emerald Energy Diamond Core */}
+          <polygon
+            points="32,25.5 38.5,32 32,38.5 25.5,32"
+            fill="var(--accent-emerald, #10b981)"
+          />
+          <circle cx="32" cy="32" r="2" fill="#ffffff" />
         </svg>
       </div>
     );
   }
 
-  // Default: Pure Monochrome Obsidian Tile (Deep Space Black & Brushed Titanium Silver)
-  const borderRadius = Math.round((size * 9) / 36);
+  // Default: Precision Glass Squircle Tile with G-Shield Nexus Core
+  const borderRadius = Math.max(Math.round((size * 16) / 64), 4);
 
   return (
     <div
@@ -63,7 +74,7 @@ export function BrandLogo({ size = 32, variant = "tile", className, style }: Bra
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,
-        boxShadow: "0 4px 14px rgba(0, 0, 0, 0.28)",
+        boxShadow: "0 4px 14px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04), 0 0 12px rgba(16, 185, 129, 0.12)",
         borderRadius: `${borderRadius}px`,
         ...style,
       }}
@@ -71,78 +82,76 @@ export function BrandLogo({ size = 32, variant = "tile", className, style }: Bra
       <svg
         width={size}
         height={size}
-        viewBox="0 0 36 36"
+        viewBox="0 0 64 64"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         style={{ display: "block" }}
       >
         <defs>
-          {/* Pure Monochrome Obsidian Background: Deep Space Gray to Jet Black */}
+          {/* Light Ceramic Studio White Background (matching current UI) */}
           <linearGradient id={`${idPrefix}-bg`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#26262a" />
-            <stop offset="100%" stopColor="#0a0a0c" />
-          </linearGradient>
-
-          {/* Top Specular Reflection Light Rim */}
-          <linearGradient id={`${idPrefix}-rim`} x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.38" />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.06" />
-          </linearGradient>
-
-          {/* Titanium Left Facet (Brilliant Silver Highlight) */}
-          <linearGradient id={`${idPrefix}-facet-l`} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#ffffff" />
-            <stop offset="100%" stopColor="#d4d4d8" />
+            <stop offset="100%" stopColor="#f1f5f9" />
           </linearGradient>
 
-          {/* Titanium Right Facet (Deep Graphite Shading) */}
-          <linearGradient id={`${idPrefix}-facet-r`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#a1a1aa" />
-            <stop offset="100%" stopColor="#71717a" />
+          {/* Precision Emerald & Specular Platinum Rim */}
+          <linearGradient id={`${idPrefix}-rim`} x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#10b981" stopOpacity="0.5" />
+            <stop offset="50%" stopColor="#cbd5e1" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="#94a3b8" stopOpacity="0.3" />
           </linearGradient>
 
-          {/* Neutral Depth Shadow */}
-          <filter id={`${idPrefix}-shadow`} x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" floodColor="#000000" floodOpacity="0.45" />
-          </filter>
+          {/* Deep Slate G-Spine Gradient (High Contrast on Light Base) */}
+          <linearGradient id={`${idPrefix}-g-spine`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#0f172a" />
+            <stop offset="60%" stopColor="#1e293b" />
+            <stop offset="100%" stopColor="#334155" />
+          </linearGradient>
+
+          {/* Luminous Emerald Core Gradient */}
+          <linearGradient id={`${idPrefix}-core`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#10b981" />
+            <stop offset="100%" stopColor="#059669" />
+          </linearGradient>
         </defs>
 
-        {/* Squircle Base Tile (Obsidian Black) */}
-        <rect width="36" height="36" rx="9" fill={`url(#${idPrefix}-bg)`} />
-        <rect x="0.5" y="0.5" width="35" height="35" rx="8.5" stroke={`url(#${idPrefix}-rim)`} strokeWidth="1" />
+        {/* Squircle Base Tile (Light Ceramic Glass) */}
+        <rect width="64" height="64" rx="16" fill={`url(#${idPrefix}-bg)`} />
+        <rect
+          x="0.75"
+          y="0.75"
+          width="62.5"
+          height="62.5"
+          rx="15.25"
+          stroke={`url(#${idPrefix}-rim)`}
+          strokeWidth="1.5"
+        />
 
-        {/* Monochrome 3D Titanium Shield with Certified Checkmark */}
-        <g filter={`url(#${idPrefix}-shadow)`}>
-          {/* Left Facet (Bright Specular Titanium) */}
-          <path
-            d="M 18 7.5 C 13.5 7.5 9 9.2 9 9.2 C 9 18.8 13.2 25.2 18 28.5 L 18 7.5 Z"
-            fill={`url(#${idPrefix}-facet-l)`}
-          />
-          {/* Right Facet (Graphite Shaded Titanium) */}
-          <path
-            d="M 18 7.5 C 22.5 7.5 27 9.2 27 9.2 C 27 18.8 22.8 25.2 18 28.5 L 18 7.5 Z"
-            fill={`url(#${idPrefix}-facet-r)`}
-          />
-          {/* Shield Precision Silver Rim */}
-          <path
-            d="M 18 7.5 C 22.5 7.5 27 9.2 27 9.2 C 27 18.8 22.8 25.2 18 28.5 C 13.2 25.2 9 18.8 9 9.2 C 9 9.2 13.5 7.5 18 7.5 Z"
-            stroke="#ffffff"
-            strokeOpacity="0.85"
-            strokeWidth="1.2"
-            strokeLinejoin="round"
-          />
-          {/* Center Vertical Crease */}
-          <line x1="18" y1="7.5" x2="18" y2="28.5" stroke="#ffffff" strokeOpacity="0.5" strokeWidth="0.75" />
+        {/* Outer Hexagonal Shield Outline */}
+        <path
+          d="M 32 11 L 51 20 L 51 40 L 32 53 L 13 40 L 13 20 Z"
+          stroke="#10b981"
+          strokeOpacity="0.65"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+          fill="rgba(16, 185, 129, 0.08)"
+        />
 
-          {/* Pure Arctic White Certified Precision Checkmark */}
-          <path
-            d="M 14.5 17.5 L 17 20 L 22.5 13.5"
-            stroke="#ffffff"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </g>
+        {/* Interlocking G-Spine (Compliance Governance Flow in Deep Slate) */}
+        <path
+          d="M 44 24 L 32 17 L 19 24 L 19 41 L 32 49 L 45 41 L 45 32 L 32 32"
+          stroke={`url(#${idPrefix}-g-spine)`}
+          strokeWidth="4.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* Emerald Energy Diamond Core */}
+        <polygon
+          points="32,25.5 38.5,32 32,38.5 25.5,32"
+          fill={`url(#${idPrefix}-core)`}
+        />
+        <circle cx="32" cy="32" r="2" fill="#ffffff" />
       </svg>
     </div>
   );

@@ -210,206 +210,148 @@ export function Layout() {
               key={item.to}
               to={item.to}
               end={item.to === "/"}
-              style={({ isActive }) => ({
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "9px 12px",
-                borderRadius: "var(--radius-sm)",
-                color: isActive ? "var(--sidebar-nav-active-color)" : "var(--text-secondary)",
-                background: isActive ? "var(--sidebar-nav-active-bg)" : "transparent",
-                fontWeight: isActive ? 600 : 500,
-                fontSize: "0.875rem",
-                transition: "var(--transition-fast)",
-                boxShadow: isActive ? "var(--shadow-sm)" : "none",
-                border: isActive ? "1px solid var(--stage-border)" : "1px solid transparent",
-              })}
+              className={({ isActive }) => `kn-sidebar-nav-item ${isActive ? "active" : ""}`}
             >
-              <span style={{ opacity: 0.9, display: "flex", alignItems: "center" }}>{item.icon}</span>
-              <span>{item.label}</span>
+              <span className="kn-sidebar-nav-item-icon">{item.icon}</span>
+              <span className="kn-sidebar-nav-item-label">{item.label}</span>
             </NavLink>
           ))}
         </div>
 
-        <hr style={{ margin: "16px 0", borderColor: "var(--stage-border)" }} />
+        <hr style={{ margin: "12px 0 10px 0", borderColor: "var(--stage-border)", opacity: 0.6 }} />
 
-        {/* User Identity Card & Actions */}
-        <div
-          style={{
-            background: "var(--user-card-bg)",
-            border: "1px solid var(--stage-border)",
-            borderRadius: "var(--radius-sm)",
-            padding: "12px",
-            marginBottom: 12,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+        {/* User Identity Card Compact */}
+        <div className="kn-user-card-compact">
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
             <div
               style={{
-                width: 28,
-                height: 28,
+                width: 24,
+                height: 24,
                 borderRadius: "50%",
                 background: "var(--avatar-bg)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "0.75rem",
+                fontSize: "0.6875rem",
                 fontWeight: 600,
                 color: "var(--text-primary)",
                 border: "1px solid var(--stage-border)",
+                flexShrink: 0,
               }}
             >
               {user?.name?.[0]?.toUpperCase() ?? "U"}
             </div>
-            <div style={{ overflow: "hidden" }}>
+            <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
               <div
                 style={{
-                  fontSize: "0.8125rem",
+                  fontSize: "0.75rem",
                   fontWeight: 600,
                   color: "var(--text-primary)",
                   whiteSpace: "nowrap",
                   textOverflow: "ellipsis",
                   overflow: "hidden",
+                  lineHeight: 1.2,
                 }}
               >
-                {user?.name} · {user?.role}
+                {user?.name}
               </div>
-              <div style={{ fontSize: "0.6875rem", color: "var(--text-tertiary)" }}>
-                {user?.email}
+              <div
+                style={{
+                  fontSize: "0.625rem",
+                  color: "var(--text-tertiary)",
+                  whiteSpace: "nowrap",
+                  textOverflow: "ellipsis",
+                  overflow: "hidden",
+                  lineHeight: 1.2,
+                }}
+              >
+                {user?.role}
               </div>
             </div>
           </div>
           <button
+            type="button"
             onClick={logout}
-            className="kn-btn-sm"
-            style={{ width: "100%", justifyContent: "center" }}
+            className="kn-btn-logout-compact"
+            title={t("app.logout")}
+            aria-label={t("app.logout")}
           >
-            {t("app.logout")}
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>{t("app.logout")}</span>
           </button>
         </div>
 
-        {/* Appearance & Language Controls */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {/* Appearance Segmented Toggle */}
-          <div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", marginBottom: 5, fontWeight: 500 }}>
-              {t("app.theme")}
-            </div>
-            <div
-              className="kn-segmented"
-              style={{ width: "100%", display: "flex", padding: "3px", boxSizing: "border-box" }}
-              role="group"
-              aria-label={t("app.theme")}
+        {/* Dual Micro Segmented Controls */}
+        <div className="kn-micro-control-strip">
+          {/* Appearance Toggle */}
+          <div
+            className="kn-segmented-pill"
+            role="group"
+            aria-label={t("app.theme")}
+          >
+            <button
+              type="button"
+              className={`kn-segmented-pill-btn ${theme === "light" ? "active" : ""}`}
+              onClick={() => setTheme("light")}
+              aria-pressed={theme === "light"}
+              title={t("app.themeLight")}
             >
-              <button
-                type="button"
-                className={`kn-segmented-item ${theme === "light" ? "active" : ""}`}
-                onClick={() => setTheme("light")}
-                style={{
-                  flex: 1,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 5,
-                  padding: "5px 0",
-                  fontSize: "0.75rem",
-                }}
-                aria-pressed={theme === "light"}
-                title={t("app.themeLight")}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="5" />
-                  <line x1="12" y1="1" x2="12" y2="3" />
-                  <line x1="12" y1="21" x2="12" y2="23" />
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                  <line x1="1" y1="12" x2="3" y2="12" />
-                  <line x1="21" y1="12" x2="23" y2="12" />
-                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-                </svg>
-                <span>{t("app.themeLight")}</span>
-              </button>
-              <button
-                type="button"
-                className={`kn-segmented-item ${theme === "dark" ? "active" : ""}`}
-                onClick={() => setTheme("dark")}
-                style={{
-                  flex: 1,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 5,
-                  padding: "5px 0",
-                  fontSize: "0.75rem",
-                }}
-                aria-pressed={theme === "dark"}
-                title={t("app.themeDark")}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                </svg>
-                <span>{t("app.themeDark")}</span>
-              </button>
-            </div>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+              <span>{i18n.language.startsWith("zh") ? "浅" : "Light"}</span>
+            </button>
+            <button
+              type="button"
+              className={`kn-segmented-pill-btn ${theme === "dark" ? "active" : ""}`}
+              onClick={() => setTheme("dark")}
+              aria-pressed={theme === "dark"}
+              title={t("app.themeDark")}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+              <span>{i18n.language.startsWith("zh") ? "深" : "Dark"}</span>
+            </button>
           </div>
 
-          {/* Language Segmented Toggle */}
-          <div style={{ position: "relative" }}>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", marginBottom: 5, fontWeight: 500 }}>
-              {t("app.language")}
-            </div>
-            <div
-              className="kn-segmented"
-              style={{ width: "100%", display: "flex", padding: "3px", boxSizing: "border-box" }}
-              role="group"
-              aria-label={t("app.language")}
+          {/* Language Toggle */}
+          <div
+            className="kn-segmented-pill"
+            role="group"
+            aria-label={t("app.language")}
+            style={{ position: "relative" }}
+          >
+            <button
+              type="button"
+              className={`kn-segmented-pill-btn ${i18n.language.startsWith("zh") ? "active" : ""}`}
+              onClick={() => setLanguage("zh")}
+              aria-pressed={i18n.language.startsWith("zh")}
+              title="中文"
             >
-              <button
-                type="button"
-                className={`kn-segmented-item ${i18n.language.startsWith("zh") ? "active" : ""}`}
-                onClick={() => setLanguage("zh")}
-                style={{
-                  flex: 1,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 5,
-                  padding: "5px 0",
-                  fontSize: "0.75rem",
-                }}
-                aria-pressed={i18n.language.startsWith("zh")}
-                title="中文"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="2" y1="12" x2="22" y2="12" />
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                </svg>
-                <span>中文</span>
-              </button>
-              <button
-                type="button"
-                className={`kn-segmented-item ${i18n.language.startsWith("en") ? "active" : ""}`}
-                onClick={() => setLanguage("en")}
-                style={{
-                  flex: 1,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 5,
-                  padding: "5px 0",
-                  fontSize: "0.75rem",
-                }}
-                aria-pressed={i18n.language.startsWith("en")}
-                title="English"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M4 5h7M9 3v2c0 4.418-2.686 8-6 8M5 9c1.5 2 3.5 3.5 6 4M13 19l4-9 4 9M14.5 16h5" />
-                </svg>
-                <span>English</span>
-              </button>
-            </div>
+              <span>中文</span>
+            </button>
+            <button
+              type="button"
+              className={`kn-segmented-pill-btn ${i18n.language.startsWith("en") ? "active" : ""}`}
+              onClick={() => setLanguage("en")}
+              aria-pressed={i18n.language.startsWith("en")}
+              title="English"
+            >
+              <span>EN</span>
+            </button>
 
             {/* Accessible & test-compatible select element */}
             <label
@@ -423,6 +365,7 @@ export function Layout() {
                 overflow: "hidden",
                 margin: 0,
                 padding: 0,
+                pointerEvents: "none",
               }}
             >
               {t("app.language")}

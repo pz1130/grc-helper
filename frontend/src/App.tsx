@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import { useAuth } from "./auth";
+import { BrandLogo } from "./components/BrandLogo";
 import { Layout } from "./components/Layout";
 import { Login } from "./pages/Login";
 import { Overview } from "./pages/Overview";
@@ -41,17 +42,8 @@ export function App() {
           gap: 16,
         }}
       >
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            border: "3px solid rgba(255, 255, 255, 0.1)",
-            borderTopColor: "var(--accent-blue)",
-            borderRadius: "50%",
-            animation: "kn-pulse 1s infinite linear",
-          }}
-        />
-        <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", letterSpacing: "0.05em" }}>
+        <BrandLogo size={48} style={{ animation: "kn-pulse 1.8s infinite ease-in-out", marginBottom: 4 }} />
+        <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", letterSpacing: "0.05em", fontWeight: 600 }}>
           GRC HELPER
         </p>
       </div>

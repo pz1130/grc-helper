@@ -500,23 +500,32 @@ test("hovering a node shows the micro-tooltip and highlights connected elements"
   await expect(tooltip).toHaveCount(0);
 });
 
-test("force layout hides labels when thin labels is checked", async ({ page }) => {
+test("nodes across all layouts render as clean dots, display labels when thin labels is unchecked, and hide labels when checked", async ({ page }) => {
   await mockGraph(page);
   await page.goto("/graph");
 
-  // Switch to Force layout
-  await page.getByRole("button", { name: "Force" }).click();
+  // In document layout with Thin labels unchecked, labels are visible
+  const label1 = page.locator('[data-node-key="control:1"] [data-node-label]');
+  await expect(label1).toHaveCount(1);
+  await expect(label1).toHaveCSS("opacity", "1");
+  await expect(label1).toHaveText("C-0001");
 
-  // In default force layout (thin labels unchecked), labels are visible
-  await expect(page.locator("[data-node-label]")).toHaveCount(3);
-
-  // Check Thin labels
+  // Check Thin labels -> control:1 label is not rendered, and thinned label has opacity 0
   await page.getByLabel("Thin labels").check();
+  await expect(label1).toHaveCount(0);
+  await expect(page.locator('[data-node-key="control:2"] [data-node-label]')).toHaveCSS("opacity", "0");
 
-  // In force layout with thin labels, dots do not carry text labels to keep aesthetics clean
-  await expect(page.locator("[data-node-label]")).toHaveCount(0);
+  // Switch to Force layout with Thin labels still checked -> labels remain hidden
+  await page.getByRole("button", { name: "Force" }).click();
+  await expect(label1).toHaveCount(0);
+  await expect(page.locator('[data-node-key="control:2"] [data-node-label]')).toHaveCSS("opacity", "0");
 
-  // But hovering a dot in force layout still shows the rich tooltip
+  // Uncheck Thin labels in Force layout -> labels appear
+  await page.getByLabel("Thin labels").uncheck();
+  await expect(label1).toHaveCount(1);
+  await expect(label1).toHaveCSS("opacity", "1");
+
+  // Hovering a node shows the rich micro-tooltip
   await page.locator('[data-node-key="control:1"]').hover();
   const tooltip = page.locator(".kn-node-tooltip");
   await expect(tooltip).toBeVisible();

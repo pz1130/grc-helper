@@ -239,6 +239,7 @@ export function Graph() {
                 height={height}
                 selectedNodeKey={selectedNode?.key}
                 selectedEdgeKey={selectedEdge?.key}
+                thinLabels={thinLabels}
                 labelLimit={thinLabels ? Math.max(1, Math.round(data.nodes.length * 0.15)) : undefined}
                 onSelectNode={(node) => {
                   setSelectedEdge(null);
