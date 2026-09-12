@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.errors import Conflict, NotFound, Unauthorized
+from app.iam import throttle
 from app.iam.audit import record
 from app.iam.deps import CurrentUser, require
 from app.iam.models import AuditLog, User
@@ -23,22 +24,31 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=LoginOut)
-async def login(payload: LoginIn, session: AsyncSession = Depends(get_session)) -> LoginOut:
+async def login(
+    payload: LoginIn, request: Request, session: AsyncSession = Depends(get_session)
+) -> LoginOut:
+    # 限流在校验之前：被冷却的账号连"密码对不对"都不该问，否则冷却期内仍能
+    # 用响应差异继续试。未知账号同样计数——否则"没被限流"本身就泄露了它不存在。
+    ip = request.client.host if request.client else None
+    await throttle.check(payload.email, ip)
+
     user = await session.scalar(select(User).where(User.email == payload.email))
 
     # 统一的失败信息，不区分"用户不存在"与"密码错误"，避免账号枚举。
     # 账号不存在时也必须跑一次等价成本的校验：只统一文案不统一耗时，
     # 攻击者仍能用响应时间把有效邮箱扫出来。
-    if user is None:
-        dummy_verify(payload.password)
-        raise Unauthorized("邮箱或密码不正确")
-    if not verify_password(payload.password, user.password_hash):
-        raise Unauthorized("邮箱或密码不正确")
-    if not user.is_active:
-        raise Unauthorized("邮箱或密码不正确")
-    if user.expires_at is not None and user.expires_at <= datetime.now(UTC):
+    async def refuse() -> None:
+        await throttle.record_failure(payload.email, ip)
         raise Unauthorized("邮箱或密码不正确")
 
+    if user is None:
+        dummy_verify(payload.password)
+        await refuse()
+    elif not verify_password(payload.password, user.password_hash) or not user.is_active or user.expires_at is not None and user.expires_at <= datetime.now(UTC):
+        await refuse()
+
+    assert user is not None
+    await throttle.clear(payload.email, ip)
     return LoginOut(
         access_token=create_access_token(user.id, user.role),
         user=UserOut.model_validate(user),
