@@ -80,6 +80,26 @@ class RelationPayload(BaseModel):
     confidence: Annotated[float, Field(strict=True, ge=0, le=1, allow_inf_nan=False)] | None = None
 
 
+async def _resolve_control_id(session: AsyncSession, control_id: int) -> int:
+    """顺着 merged_into_id 走到仍生效的那条。外键拦不住环，所以自带上限。"""
+    seen: set[int] = set()
+    current_id = control_id
+    hops = 0
+    while True:
+        if current_id in seen:
+            raise AppError("控制点合并链成环或循环过长")
+        seen.add(current_id)
+        control = await session.get(Control, current_id)
+        if control is None:
+            raise NotFound("控制点不存在")
+        if control.status != "merged" or control.merged_into_id is None:
+            return control.id
+        hops += 1
+        if hops > 10:
+            raise AppError("控制点合并链成环或循环过长")
+        current_id = control.merged_into_id
+
+
 async def _materialize_relation(
     session: AsyncSession, proposal: Proposal, data: dict[str, Any], *, actor_id: int | None
 ) -> None:
@@ -101,7 +121,11 @@ async def _materialize_relation(
     if reason:
         raise AppError(f"引用校验失败：{reason}")
 
-    start, end = validated.from_control_id, validated.to_control_id
+    # 引文对着提案里的原 id（输家仍持有被引正文）；外键才解析到赢家。
+    start = await _resolve_control_id(session, validated.from_control_id)
+    end = await _resolve_control_id(session, validated.to_control_id)
+    if start == end:
+        raise AppError("合并后关系的两端是同一条控制点")
     # duplicates 对称：不规范化就会存下 A→B 与 B→A 两条互为镜像的记录，
     # (from, to, relation_type) 的唯一约束对它们无能为力。
     if validated.relation_type is RelationType.DUPLICATES and start > end:
@@ -199,10 +223,12 @@ async def _materialize_mapping(
     if reason:
         raise AppError(f"引用校验失败：{reason}")
 
+    control_id = await _resolve_control_id(session, validated.control_id)
+
     await lock_control_writes(session)
     existing = await session.scalar(
         select(Mapping).where(
-            Mapping.control_id == validated.control_id,
+            Mapping.control_id == control_id,
             Mapping.framework_item_id == validated.framework_item_id,
         )
     )
@@ -210,7 +236,7 @@ async def _materialize_mapping(
         raise Conflict("该控制点与框架项之间已有确认过的映射")
 
     session.add(Mapping(
-        control_id=validated.control_id,
+        control_id=control_id,
         framework_item_id=validated.framework_item_id,
         strength=validated.strength,
         rationale=validated.rationale,

@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import select
 
 from app.clauses.models import EMBEDDING_DIM, Clause
-from app.controls.models import Control
+from app.controls.models import Control, ControlRelation
 from app.errors import AppError
 from app.frameworks.models import Framework, FrameworkItem, Mapping, MappingStrength
 from app.iam.models import User
@@ -271,3 +271,113 @@ async def test_a_merged_code_is_never_handed_out_again(db_session):
     )
     assert created is not None
     assert created.code == "C-0003"
+
+
+# 引用校验对着输家原文，落库的外键才解析到赢家。引文与
+# tests/test_relation_materialize.py、tests/test_mapping_materialize.py 对齐。
+_FROM_TEXT = "Every change must be approved by the CAB before implementation."
+_TO_TEXT = "The implementer shall follow the approved implementation plan."
+_FROM_QUOTE = "approved by the CAB"
+_TO_QUOTE = "follow the approved implementation plan"
+_ITEM_TEXT = "Identities and credentials are managed for authorized devices."
+_ITEM_QUOTE = "Identities and credentials are managed"
+
+
+async def _relation_proposal(db_session, left: Control, right: Control) -> Proposal:
+    payload = {
+        "from_control_id": left.id,
+        "to_control_id": right.id,
+        "from_quote": _FROM_QUOTE,
+        "to_quote": _TO_QUOTE,
+        "rationale": "implementation depends on prior approval",
+        "confidence": 0.8,
+        "relation_type": "depends_on",
+    }
+    proposal = Proposal(
+        kind=ProposalKind.RELATION,
+        payload=payload,
+        citations=[
+            {"control_id": left.id, "quote": _FROM_QUOTE},
+            {"control_id": right.id, "quote": _TO_QUOTE},
+        ],
+        confidence=0.8,
+    )
+    db_session.add(proposal)
+    await db_session.flush()
+    return proposal
+
+
+async def _mapping_proposal(db_session, item: FrameworkItem, control: Control) -> Proposal:
+    proposal = Proposal(
+        kind=ProposalKind.MAPPING,
+        payload={
+            "framework_item_id": item.id,
+            "control_id": control.id,
+            "strength": "partial",
+            "framework_item_quote": _ITEM_QUOTE,
+            "rationale": "covers identities",
+            "confidence": 0.9,
+        },
+        citations=[{"framework_item_id": item.id, "framework_item_quote": _ITEM_QUOTE}],
+        confidence=0.9,
+    )
+    db_session.add(proposal)
+    await db_session.flush()
+    return proposal
+
+
+@pytest.mark.asyncio
+async def test_a_relation_proposal_pointing_at_a_merged_control_lands_on_the_winner(db_session):
+    actor = await _user(db_session, Role.GRC_LEAD, "lead@example.com")
+    winner = await _control(db_session, "C-0001")
+    loser = await _control(db_session, "C-0002", statement=_TO_TEXT)
+    other = await _control(db_session, "C-0003", statement=_FROM_TEXT)
+    proposal = await _relation_proposal(db_session, other, loser)
+    loser.status = "merged"
+    loser.merged_into_id = winner.id
+    await db_session.flush()
+
+    await decide(db_session, proposal.id, actor=actor, decision=Decision.ACCEPT)
+
+    relation = await db_session.scalar(select(ControlRelation))
+    assert relation is not None
+    assert relation.to_control_id == winner.id
+    assert relation.from_control_id == other.id
+
+
+@pytest.mark.asyncio
+async def test_a_relation_that_becomes_a_self_loop_is_refused_with_a_clear_message(db_session):
+    # 两端合并成同一条之后，这条关系已经没有意义了——明确报错，不静默建自指关系。
+    actor = await _user(db_session, Role.GRC_LEAD, "lead@example.com")
+    winner = await _control(db_session, "C-0001", statement=_FROM_TEXT)
+    loser = await _control(db_session, "C-0002", statement=_TO_TEXT)
+    proposal = await _relation_proposal(db_session, winner, loser)
+    loser.status = "merged"
+    loser.merged_into_id = winner.id
+    await db_session.flush()
+
+    with pytest.raises(AppError, match="同一条控制点"):
+        await decide(db_session, proposal.id, actor=actor, decision=Decision.ACCEPT)
+
+    assert await db_session.scalar(select(ControlRelation)) is None
+
+
+@pytest.mark.asyncio
+async def test_a_mapping_proposal_pointing_at_a_merged_control_lands_on_the_winner(db_session):
+    actor = await _user(db_session, Role.GRC_LEAD, "lead@example.com")
+    winner = await _control(db_session, "C-0001")
+    loser = await _control(db_session, "C-0002")
+    _, item = await _framework(db_session)
+    item.description = _ITEM_TEXT
+    await db_session.flush()
+    proposal = await _mapping_proposal(db_session, item, loser)
+    loser.status = "merged"
+    loser.merged_into_id = winner.id
+    await db_session.flush()
+
+    await decide(db_session, proposal.id, actor=actor, decision=Decision.ACCEPT)
+
+    mapping = await db_session.scalar(select(Mapping))
+    assert mapping is not None
+    assert mapping.control_id == winner.id
+    assert mapping.framework_item_id == item.id
