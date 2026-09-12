@@ -6,6 +6,7 @@ numbering.xml 画上去的。不还原就只能让 citation_label 退化成标�
 """
 
 import re
+from pathlib import Path
 
 import pytest
 from docx import Document
@@ -135,12 +136,14 @@ def test_a_document_without_numbering_part_does_not_explode(tmp_path):
 
 # ---- 真实文档 ----
 
-REAL = "/samples/Acme-incident-management.docx"
+# 按目录里现有的 .docx 取，而不是写死文件名：语料换一批这条仍然跑得起来，
+# 也不必把哪家机构的文件名留在版本库里。
+_DOCX = sorted(Path("/samples").glob("*.docx")) if Path("/samples").is_dir() else []
+REAL = str(_DOCX[0]) if _DOCX else ""
 EXPECTED_HEAD = ["1", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "2", "2.1", "2.2", "2.3"]
 
 
-@pytest.mark.skipif(not __import__("pathlib").Path(REAL).exists(),
-                    reason="需挂载 sample docs，见 make corpus")
+@pytest.mark.skipif(not _DOCX, reason="需挂载 sample docs，见 make corpus")
 def test_the_real_document_numbers_match_its_own_table_of_contents():
     """未改动的章节与文档自带目录逐条一致。
 

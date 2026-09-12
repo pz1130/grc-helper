@@ -5,8 +5,9 @@
 这不是闸门失灵，是它本来就不管这件事。
 
 抽取结果经常把原文收成 must/shall。其中
-其中一部分原文毫无情态词。最清楚的一例是原文 "The CAB **is arranged** twice a
-week"（陈述现状）→ 生成 "The CAB **must be arranged** twice a week"（强制要求）。
+其中一部分原文毫无情态词。最清楚的一类是原文用「现在这么做」的陈述句
+（"the board **is convened** twice a week"）→ 生成变成「必须这么做」的义务句
+（"**must be convened**"）。原文没承诺的事，控制点替它承诺了。
 
 **为什么只标记不拦截**：SLA 表格转写是已知误报。表格用行列表达义务，
 一个情态词都没有，渲染成 "must be responded within 10 minutes" 是合理的。
