@@ -64,6 +64,11 @@ class Control(Base, TimestampMixin):
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     status: Mapped[str] = mapped_column(String(32), default="active", nullable=False)
+    # 合并后的去向。不删行——AnswerDraft.cited_control_ids 与审计日志都按 id 引用
+    # 控制点，删掉这一行它们就指向空气了；留着才答得出「C-0058 去哪了」。
+    merged_into_id: Mapped[int | None] = mapped_column(
+        ForeignKey("controls.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
 
 
 class ControlSource(Base):

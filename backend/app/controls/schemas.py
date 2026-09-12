@@ -19,6 +19,7 @@ class ControlOut(BaseModel):
     category: str | None
     owner_user_id: int | None
     status: str
+    merged_into_id: int | None
     created_at: datetime
 
 
