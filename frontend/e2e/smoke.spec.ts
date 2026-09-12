@@ -4,6 +4,8 @@ import type { Page } from "@playwright/test";
 const ADMIN = { email: "admin@example.com", password: "pw123456" };
 const SECRET = "sk-e2e-supersecret-value";
 const PROVIDER_NAME = `e2e-${Date.now()}`;
+// 后端直连地址：`make e2e` 把整套栈开在另一组端口上，别写死 8000。
+const API = process.env.E2E_API_BASE ?? "http://localhost:8000";
 
 async function signIn(page: Page) {
   await page.goto("/");
@@ -101,7 +103,7 @@ test("GRC Lead 看不到也进不去 AI 配置页", async ({ page, request }) =>
 
   // 前端只是藏入口，真正的拦截在后端——直接打 API 必须 403
   const token = await page.evaluate(() => localStorage.getItem("grc.token"));
-  const denied = await request.get("http://localhost:8000/api/settings/providers", {
+  const denied = await request.get(`${API}/api/settings/providers`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(denied.status()).toBe(403);
