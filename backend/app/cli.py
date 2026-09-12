@@ -11,6 +11,7 @@ import sys
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import app.models  # noqa: F401  — 注册全部模型，跨模块外键才能解析
 from app.db import session_factory
 from app.iam.models import User
 from app.iam.permissions import Role

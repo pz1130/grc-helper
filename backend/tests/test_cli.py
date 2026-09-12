@@ -1,3 +1,7 @@
+import os
+import subprocess
+import sys
+
 import pytest
 from sqlalchemy import select
 
@@ -5,6 +9,22 @@ from app.cli import create_admin
 from app.iam.models import User
 from app.iam.permissions import Role
 from app.iam.security import hash_password, verify_password
+
+
+def test_cli_entrypoint_registers_cross_module_foreign_key_tables():
+    env = {**os.environ, "PYTHONPATH": os.getcwd()}
+    script = (
+        "import app.cli; from app.db import Base; "
+        "assert 'audit_engagements' in Base.metadata.tables"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        env=env,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.mark.asyncio
