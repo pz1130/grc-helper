@@ -5,7 +5,9 @@ from datetime import date, datetime
 from pathlib import Path
 
 from docx import Document as DocxDocument
+from docx.oxml.ns import qn
 from docx.table import Table
+from docx.text.paragraph import Paragraph
 from docx.text.paragraph import Paragraph
 
 from app.parsing.contract import ClauseNode, DocumentMeta, ParsedDocument, ParseError
@@ -99,6 +101,7 @@ class DocxParser:
         meta_fields: dict[str, str] = {}
         doc_type: str | None = None
         empty_headings = 0
+        table_index = 0
 
         def attach(node: ClauseNode, level: int) -> None:
             while stack and stack[-1].level >= level:
@@ -108,7 +111,32 @@ class DocxParser:
             else:
                 roots.append(node)
 
-        for paragraph in document.paragraphs:
+        # **按文档顺序**遍历 body。`document.paragraphs` 不含表格，
+        # `document.tables` 又丢掉位置信息——两个循环各走各的，表格在第几节里
+        # 就永远看不出来了。实测一份技术标准因此有六个章节正文为空，
+        # 它们的内容是文末孤零零的六张表。
+        for element in document.element.body.iterchildren():
+            if element.tag == qn("w:tbl"):
+                body = _table_text(Table(element, document))
+                if not body:
+                    continue
+                table_index += 1
+                node = ClauseNode(
+                    heading=f"Table {table_index}",
+                    text=body,
+                    level=(stack[-1].level + 1) if stack else 1,
+                    kind="table",
+                )
+                if stack:
+                    stack[-1].children.append(node)
+                else:
+                    # 封面上的版本历史表、缩略语表不属于任何章节。
+                    roots.append(node)
+                continue
+            if element.tag != qn("w:p"):
+                continue
+
+            paragraph = Paragraph(element, document)
             text = _paragraph_text(paragraph).strip()
             level = _heading_level(paragraph)
 
@@ -135,12 +163,6 @@ class DocxParser:
 
             if stack:
                 stack[-1].text = f"{stack[-1].text}\n{text}".strip()
-
-        for index, table in enumerate(document.tables, start=1):
-            body = _table_text(table)
-            if not body:
-                continue
-            roots.append(ClauseNode(heading=f"Table {index}", text=body, level=1, kind="table"))
 
         if empty_headings:
             warnings.append(f"已跳过 {empty_headings} 个空标题")
