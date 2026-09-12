@@ -182,7 +182,7 @@ async def _sourced_control(db_session, code: str) -> Control:
     from app.controls.models import ControlSource, SourceRelation
     from app.ingest.models import DocStatus, DocType, Document
 
-    document = Document(title="Acme IT 监控与日志管理程序 v1.2", doc_type=DocType.PROCEDURE,
+    document = Document(title="Acme 日志管理程序 v1.2", doc_type=DocType.PROCEDURE,
                         file_hash=code.ljust(64, "0"), file_path=f"/{code}.pdf",
                         original_filename=f"{code}.pdf", status=DocStatus.ACTIVE)
     db_session.add(document)
@@ -222,7 +222,7 @@ async def test_a_mapping_proposal_carries_the_controls_source_documents(client, 
     sources = body[0]["mapping_context"]["control"]["sources"]
 
     assert len(sources) == 1
-    assert sources[0]["document_title"] == "Acme IT 监控与日志管理程序 v1.2"
+    assert sources[0]["document_title"] == "Acme 日志管理程序 v1.2"
     assert sources[0]["citation_label"] == "3.1"
     assert sources[0]["heading_path"] == "Service Monitoring › Objectives"
     assert sources[0]["document_id"] and sources[0]["clause_id"]

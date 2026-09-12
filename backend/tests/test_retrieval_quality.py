@@ -21,11 +21,18 @@ CORPUS = Path(os.environ.get("CORPUS_DIR", "/samples"))
 APP_DATABASE_URL = os.environ.get(
     "APP_DATABASE_URL", "postgresql+asyncpg://grc:grc@db:5432/grc"
 )
-GOLD = Path(__file__).parent / "fixtures" / "gold_queries.json"
+# 黄金集按某一批具体文档写成，不进版本库（见 .gitignore）。
+# 换语料时照着 gold_queries.example.json 重写一份 .local.json。
+GOLD = Path(
+    os.environ.get("GOLD_QUERIES")
+    or Path(__file__).parent / "fixtures" / "gold_queries.local.json"
+)
 
 pytestmark = pytest.mark.skipif(
-    not CORPUS.is_dir() or os.environ.get("RUN_RETRIEVAL_EVAL") != "1",
-    reason="需要真实语料且显式开启（会产生 API 费用），见 make retrieval",
+    not CORPUS.is_dir()
+    or not GOLD.exists()
+    or os.environ.get("RUN_RETRIEVAL_EVAL") != "1",
+    reason="需要真实语料、一份本地黄金集，且显式开启（会产生 API 费用），见 make retrieval",
 )
 
 TARGET_RECALL_AT_5 = 0.75

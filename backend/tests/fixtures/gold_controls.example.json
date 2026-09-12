@@ -1,0 +1,14 @@
+[
+  {
+    "document": "Access Control",
+    "must_find": [
+      "administrator accounts are vaulted",
+      "administrator access is reviewed periodically"
+    ],
+    "keyword_groups": [
+      [["administrator", "account"], ["vault", "stor", "manag"]],
+      [["administrator"], ["review", "recertif"], ["periodic", "quarter", "annual", "regular"]]
+    ],
+    "min_controls": 2
+  }
+]

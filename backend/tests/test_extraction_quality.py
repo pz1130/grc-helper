@@ -15,7 +15,11 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-GOLD = Path(__file__).parent / "fixtures" / "gold_controls.json"
+# 同 gold_queries：按某一批具体文档写成，不进版本库，格式见 .example。
+GOLD = Path(
+    os.environ.get("GOLD_CONTROLS")
+    or Path(__file__).parent / "fixtures" / "gold_controls.local.json"
+)
 TARGET_RECALL = 0.70
 TARGET_CITATION_PASS_RATE = 0.90
 
@@ -30,8 +34,8 @@ def matches_groups(text: str, groups: list[list[str]]) -> bool:
 
 
 @pytest.mark.skipif(
-    os.environ.get("RUN_EXTRACTION_EVAL") != "1",
-    reason="需显式开启真实模型验收，见 make extraction-eval",
+    os.environ.get("RUN_EXTRACTION_EVAL") != "1" or not GOLD.exists(),
+    reason="需显式开启真实模型验收，并在本地放一份黄金集，见 make extraction-eval",
 )
 @pytest.mark.asyncio
 async def test_extraction_quality_on_application_corpus(capsys: Any) -> None:

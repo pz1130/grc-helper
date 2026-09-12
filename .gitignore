@@ -21,6 +21,11 @@ playwright-report/
 
 # 真实的内部制度文件——只在本地用于验证解析器，绝不进版本库
 sample docs/
+
+# 黄金集是**按某一批具体文档**写出来的：查询的期望命中、控制点的期望主题，
+# 全部来自读那些文件。所以本地用的那份不进库，只留一份 .example 说明格式。
+# 换一批语料就照着 .example 重写一份 .local.json。
+backend/tests/fixtures/*.local.json
 samples/
 *.docx
 *.pdf

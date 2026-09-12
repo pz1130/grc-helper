@@ -169,7 +169,7 @@ def test_list_item_does_not_hijack_a_real_clause_number():
         ["1 Introduction", "2 Role and Responsibility", "3 Background",
          "1. Open the account list and choose New",
          "2. Pick the account type",
-         "3. Select platform: Acme_target_platform"]
+         "3. Pick the target platform"]
     )
     assert [h.title for h in headings] == [
         "Introduction", "Role and Responsibility", "Background"
