@@ -14,9 +14,10 @@ def payload(cid=1, quote="Two approvers"):
 
 def validator(**kwargs):
     session = SimpleNamespace(scalars=AsyncMock(return_value=[
-        SimpleNamespace(id=1, document_id=10, text="Two  approvers\nare required."),
-        SimpleNamespace(id=2, document_id=11, text="Two approvers"),
-        SimpleNamespace(id=3, document_id=10, text="Two approvers"),
+        SimpleNamespace(id=1, document_id=10, heading="Approval",
+                        text="Two  approvers\nare required."),
+        SimpleNamespace(id=2, document_id=11, heading="Approval", text="Two approvers"),
+        SimpleNamespace(id=3, document_id=10, heading="Approval", text="Two approvers"),
     ]))
     return ClauseCitationValidator(session, **kwargs)
 
@@ -99,3 +100,49 @@ async def test_typographic_artifacts_do_not_reject_a_verbatim_quote(quote):
 async def test_folding_does_not_let_fabricated_wording_through(quote):
     assert await artifact_validator().check(payload(quote=quote))
 
+
+
+# ── 一句话被劈成 heading + text 两半 ──────────────────────────
+# 段落级编号的文档（HKMA SPM 的 `2.2` 就是一个段落，没有标题）里，解析器把
+# 编号那一行当标题、剩下的当正文，于是**每个段落都在第一行处被劈开**：
+#
+#   heading = "Under this policy, AIs are required to develop robust technology"
+#   text    = "and cyber risk management frameworks that are proportionate…"
+#
+# 而送进模型的提示词里这两行是**相连**的（batching.render 先写标题行再写正文），
+# 模型引一句完整的话理所当然。闸 4 只拿 text 对，就把一条本来正确的抽取拒掉了——
+# 实测 HKMA TM-C-1 七批里有两批栽在这里，而那两批恰恰是全文仅有的、真正
+# 对银行提要求的段落。
+
+
+def _split_sentence_validator():
+    session = SimpleNamespace(scalars=AsyncMock(return_value=[
+        SimpleNamespace(
+            id=1,
+            document_id=10,
+            heading="Under this policy, AIs are required to develop robust technology",
+            text="and cyber risk management frameworks that are proportionate.",
+        ),
+    ]))
+    return ClauseCitationValidator(session, document_id=10, clause_ids={1})
+
+
+async def test_a_quote_spanning_the_heading_and_the_body_is_accepted():
+    quote = (
+        "Under this policy, AIs are required to develop robust technology "
+        "and cyber risk management frameworks"
+    )
+    assert await _split_sentence_validator().check(payload(quote=quote)) is None
+
+
+async def test_a_quote_from_the_heading_alone_is_accepted():
+    assert await _split_sentence_validator().check(
+        payload(quote="AIs are required to develop robust technology")
+    ) is None
+
+
+async def test_widening_to_the_heading_does_not_let_fabrication_through():
+    """放宽的只是"这条条款的全部文字"，不是"随便什么文字"。"""
+    assert await _split_sentence_validator().check(
+        payload(quote="AIs are required to appoint an external auditor")
+    )

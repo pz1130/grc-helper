@@ -43,6 +43,27 @@ def normalize(text: str) -> str:
     return " ".join(_LINE_WRAP.sub("-", folded).split())
 
 
+def clause_source(clause: Any) -> str:
+    """一条条款的**全部文字**：标题在前，正文在后。
+
+    引用校验要对着这个，不能只对 `text`。段落级编号的文档（HKMA SPM 的 `2.2`
+    就是一个段落，没有标题）里，解析器把编号那一行当标题、剩下的当正文，
+    于是每个段落都在第一行处被劈开：
+
+        heading = "Under this policy, AIs are required to develop robust technology"
+        text    = "and cyber risk management frameworks that are proportionate…"
+
+    而送进模型的提示词里这两行是相连的，模型引一句完整的话理所当然。
+    只拿 `text` 对，就会把本来正确的抽取拒掉——实测 HKMA TM-C-1 七批里两批
+    栽在这里，而那两批恰恰是全文仅有的、真正对银行提要求的段落。
+
+    放宽的只是"这条条款的全部文字"，不是"随便什么文字"：闸 4 仍然要求逐字命中。
+    """
+    heading = (getattr(clause, "heading", "") or "").strip()
+    text = (getattr(clause, "text", "") or "").strip()
+    return f"{heading}\n{text}".strip()
+
+
 def extract_json(raw: str) -> dict[str, Any]:
     """容忍模型把 JSON 包在代码块里或前后带解释文字。"""
     raw = _THINK.sub("", raw)

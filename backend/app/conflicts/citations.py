@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clauses.models import Clause
-from app.llm.validation import normalize
+from app.llm.validation import clause_source, normalize
 
 _ENDS = (("clause_a_id", "quote_a"), ("clause_b_id", "quote_b"))
 
@@ -81,7 +81,8 @@ class ConflictCitationValidator:
 
         wanted = {entry[field] for entry in items for field, _ in _ENDS}
         texts = {
-            row.id: row.text or ""
+            # 对着条款的**全部文字**，含标题——理由见 llm.validation.clause_source
+            row.id: clause_source(row)
             for row in await self._session.scalars(
                 select(Clause).where(Clause.id.in_(wanted))
             )

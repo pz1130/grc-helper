@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clauses.models import Clause
-from app.llm.validation import normalize
+from app.llm.validation import clause_source, normalize
 
 
 class AnswerCitationValidator:
@@ -58,7 +58,8 @@ class AnswerCitationValidator:
         if not self._require_quotes:
             return None
         clauses = {
-            clause.id: clause.text
+            # 含标题：段落级编号的文档里一句话会被劈在标题与正文之间
+            clause.id: clause_source(clause)
             for clause in await self._session.scalars(select(Clause).where(Clause.id.in_(wanted)))
         }
         for citation in citations:
@@ -89,7 +90,7 @@ async def ground_answer_citations(
 ) -> list[dict[str, Any]]:
     ids = list(dict.fromkeys(citation["clause_id"] for citation in payload["citations"]))
     clauses = {
-        clause.id: clause.text
+        clause.id: clause_source(clause)
         for clause in await session.scalars(select(Clause).where(Clause.id.in_(ids)))
     }
     return [

@@ -7,9 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clauses.models import Clause
-from app.llm.validation import normalize
+from app.llm.validation import clause_source, normalize
 
-__all__ = ["ClauseCitationValidator", "normalize"]
+__all__ = ["ClauseCitationValidator", "clause_source", "normalize"]
 
 
 class ClauseCitationValidator:
@@ -61,6 +61,6 @@ class ClauseCitationValidator:
                 return f"引用的条款 {cid} 不属于本次抽取的文档"
             if self._clause_ids is not None and cid not in self._clause_ids:
                 return f"引用的条款 {cid} 不属于本次批次"
-            if normalize(source["quote"]) not in normalize(clause.text or ""):
+            if normalize(source["quote"]) not in normalize(clause_source(clause)):
                 return f"引文在条款 {cid} 的原文中找不到"
         return None
