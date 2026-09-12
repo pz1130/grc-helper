@@ -173,10 +173,17 @@ def test_house_style_anchors_are_present(path: Path):
 # **豁免按原文体量算，不按抽出来的字数算。** 第一版用的是抽出来的字数，那是循环的：
 # 塌得越彻底抽出来越少，越容易被「太短不判」放过——实测 01_Arab_Bank 是一份 22k 字的
 # 手册，只抽出 2931 字，恰好躲进豁免线以下。判据不能拿被判对象的产物当输入。
+# 阈值只有一份定义，在 app/parsing/shape.py——那边是产品**运行时**用的，
+# 这边是换语料时批量体检用的。两处各写一套数字迟早会分叉。
+from app.parsing.shape import (
+    MAX_CLAUSES_PER_1K,
+    MAX_HEADING_CHARS,
+    MAX_SINGLE_CLAUSE_SHARE,
+    MIN_CLAUSES_PER_1K,
+    MIN_DISTINCT_NUMBER_RATIO,
+)
+
 MIN_RAW_CHARS_TO_JUDGE = 3000
-MAX_SINGLE_CLAUSE_SHARE = 0.60
-MIN_CLAUSES_PER_1K = 0.15
-MAX_CLAUSES_PER_1K = 8.0
 # 松的下限，只抓「大半篇没进来」这种灾难性丢失。实测健康的在 87%–126%
 # （超过 100% 是标题路径被重复计入，不必较真），塌掉的是 2% / 9% / 11% / 13%。
 MIN_TEXT_COVERAGE = 0.40
@@ -294,10 +301,6 @@ def test_most_of_the_text_survives_into_clauses(path: Path):
 # 阈值取自 36 份实测：
 #   标题最长   样本与干净外部文档 28–144 字；坏掉的 288 / 325 / 479 / 860 / 992 / 1051
 #   编号唯一率 所有正常文档 100%；坏掉的 34% / 46% / 81% / 83% / 84% / 92%
-MAX_HEADING_CHARS = 250
-MIN_DISTINCT_NUMBER_RATIO = 0.95
-
-
 @pytest.mark.parametrize("path", _files(), ids=lambda p: p.name[:40])
 def test_a_heading_is_not_a_paragraph(path: Path):
     """标题长成一段正文，说明认标题的判据把正文行收进来了。"""

@@ -11,6 +11,7 @@ from app.ingest.storage import save
 from app.parsing.contract import ParseError
 from app.parsing.flatten import persist
 from app.parsing.registry import get_parser
+from app.parsing.shape import assess_shape
 from app.parsing.validate import check_completeness
 
 
@@ -40,7 +41,8 @@ async def run_parse(session: AsyncSession, document: Document) -> dict[str, Any]
         await session.flush()
         raise
 
-    warnings = [*parsed.warnings, *check_completeness(parsed)]
+    # 形状检查在导入时就说话：切成一坨的文档不该静悄悄地变成 active。
+    warnings = [*parsed.warnings, *assess_shape(parsed), *check_completeness(parsed)]
     count = await persist(session, parsed.clauses, document_id=document.id)
 
     meta = parsed.meta
