@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, Request, status
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clauses.models import EMBEDDING_DIM
 from app.crypto import decrypt, encrypt, mask
 from app.db import get_session
-from app.errors import AppError, NotFound
+from app.errors import AppError, Conflict, NotFound
 from app.iam.audit import record
 from app.iam.deps import require
 from app.iam.models import User
@@ -142,6 +144,58 @@ async def update_provider(
     )
     await session.commit()
     return _to_out(config)
+
+
+# Annotated 形式的依赖别名。本文件其余端点沿用旧的 `= Depends(...)` 默认值写法
+# （ruff 的 B008 对它们都有告警），新写的端点用这两个别名，不再添新的告警。
+ConfigWriter = Annotated[User, Depends(require(Permission.LLM_CONFIG_WRITE))]
+Session = Annotated[AsyncSession, Depends(get_session)]
+
+
+@router.delete("/providers/{config_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_provider(
+    config_id: int,
+    request: Request,
+    actor: ConfigWriter,
+    session: Session,
+) -> Response:
+    """删掉一条 provider 配置。
+
+    这张表此前只进不出：每跑一次 e2e 冒烟就留一行，开发库攒到过 33 条，最后只能
+    写 SQL 清。它不像 `controls` 或 `users` 那样是审计证据——`llm_call` 指向它的
+    外键是 `ON DELETE SET NULL`，删掉不会让任何一次调用记录指向空气，账单与用量
+    仍然查得到。所以这里是真删，不是软删。
+
+    **被任务路由指着的不能删**：那条外键是 `RESTRICT`，数据库本来就会拦，但那样
+    抛出来的是一条 IntegrityError。这里先查一次，好把"哪几个任务还在用它"说清楚。
+    """
+    config = await session.get(LLMProviderConfig, config_id)
+    if config is None:
+        raise NotFound("provider 不存在")
+
+    bound = list(
+        await session.scalars(
+            select(TaskRouting.task_key)
+            .where(TaskRouting.provider_config_id == config_id)
+            .order_by(TaskRouting.task_key)
+        )
+    )
+    if bound:
+        raise Conflict(f"这些任务还在用它，请先改路由：{'、'.join(bound)}")
+
+    before = _snapshot(config)   # 同 create/update：刻意不含密钥
+    await session.delete(config)
+    await record(
+        session,
+        user=actor,
+        action="provider.delete",
+        entity_type="LLMProviderConfig",
+        entity_id=config_id,
+        before=before,
+        ip=request.client.host if request.client else None,
+    )
+    await session.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/providers/{config_id}/test")

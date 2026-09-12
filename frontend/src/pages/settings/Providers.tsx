@@ -54,6 +54,7 @@ const TASK_KEYS = [
 export function Providers() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const [confirming, setConfirming] = useState<number | null>(null);
   const [form, setForm] = useState({
     name: "",
     kind: "anthropic",
@@ -91,6 +92,21 @@ export function Providers() {
         body: JSON.stringify({ ...body, temperature: 0, max_tokens: 4096 }),
       }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["routing"] }),
+  });
+
+  const toggle = useMutation({
+    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
+      request(`/api/settings/providers/${id}`, { method: "PATCH", body: JSON.stringify({ enabled }) }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["providers"] }),
+  });
+  // 被任务路由指着的会被后端拒掉（409），把那句话原样显示出来——
+  // 它写着还有哪几个任务在用它。
+  const remove = useMutation({
+    mutationFn: (id: number) => request(`/api/settings/providers/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      setConfirming(null);
+      void queryClient.invalidateQueries({ queryKey: ["providers"] });
+    },
   });
 
   async function testConnection(id: number) {
@@ -142,8 +158,42 @@ export function Providers() {
                       <button className="kn-btn-secondary kn-btn-sm" onClick={() => void testConnection(p.id)}>
                         {t("common.test")}
                       </button>
+                      <button
+                        className="kn-btn-secondary kn-btn-sm"
+                        disabled={toggle.isPending}
+                        onClick={() => toggle.mutate({ id: p.id, enabled: !p.enabled })}
+                      >
+                        {t(p.enabled ? "settings.providerDisable" : "settings.providerEnable")}
+                      </button>
+                      {confirming === p.id ? (
+                        <>
+                          <button
+                            className="kn-btn-danger kn-btn-sm"
+                            disabled={remove.isPending}
+                            onClick={() => remove.mutate(p.id)}
+                          >
+                            {t("settings.providerConfirmDelete")}
+                          </button>
+                          <button className="kn-btn-secondary kn-btn-sm" onClick={() => { setConfirming(null); remove.reset(); }}>
+                            {t("common.cancel")}
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          className="kn-btn-danger kn-btn-sm"
+                          onClick={() => { setConfirming(p.id); remove.reset(); }}
+                        >
+                          {t("common.delete")}
+                        </button>
+                      )}
+                      {!p.enabled && <span className="kn-badge">{t("settings.providerDisabled")}</span>}
                       {probe[p.id] && (
                         <span style={{ fontSize: "0.8125rem" }}>{probe[p.id]}</span>
+                      )}
+                      {confirming === p.id && remove.error && (
+                        <span role="alert" style={{ fontSize: "0.8125rem", color: "var(--accent-red)" }}>
+                          ⚠️ {remove.error.message}
+                        </span>
                       )}
                     </div>
                   </td>

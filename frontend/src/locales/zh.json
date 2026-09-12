@@ -81,6 +81,10 @@
     "bySemantic": "语义"
   },
   "settings": {
+    "providerDisable": "停用",
+    "providerEnable": "启用",
+    "providerDisabled": "已停用",
+    "providerConfirmDelete": "确认删除",
     "title": "设置",
     "providers": "AI Provider",
     "routing": "任务路由",
@@ -529,6 +533,7 @@
     "add": "新增",
     "test": "测试连接",
     "cancel": "取消",
+    "delete": "删除",
     "close": "关闭",
     "empty": "暂无数据"
   }

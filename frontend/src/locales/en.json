@@ -81,6 +81,10 @@
     "bySemantic": "semantic"
   },
   "settings": {
+    "providerDisable": "Disable",
+    "providerEnable": "Enable",
+    "providerDisabled": "disabled",
+    "providerConfirmDelete": "Delete for good",
     "title": "Settings",
     "providers": "AI providers",
     "routing": "Task routing",
@@ -539,6 +543,7 @@
     "add": "Add",
     "test": "Test connection",
     "cancel": "Cancel",
+    "delete": "Delete",
     "close": "Close",
     "empty": "No data"
   }

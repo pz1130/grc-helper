@@ -41,6 +41,14 @@ test("新建的 provider 只显示掩码后的 key", async ({ page }) => {
   await expect(row).toBeVisible();
   await expect(page.getByText(SECRET)).toHaveCount(0);
   await expect(row.getByRole("code")).toHaveText("…alue");
+
+  // 停用与删除都在这一行上。删除走两步，误点一下不会真的没了。
+  await row.getByRole("button", { name: "停用" }).click();
+  await expect(row.getByRole("button", { name: "启用" })).toBeVisible();
+  await row.getByRole("button", { name: "删除" }).click();
+  await row.getByRole("button", { name: "确认删除" }).click();
+  await expect(row).toHaveCount(0);
+  // 这张表此前只进不出：每跑一次冒烟就留一行。现在用例自己收尾。
 });
 
 test("脱敏预览显示实际会发出去的内容", async ({ page }) => {

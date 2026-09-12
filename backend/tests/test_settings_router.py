@@ -243,3 +243,95 @@ async def test_both_capabilities_failing_reports_both_reasons(client, db_session
 
     assert body["ok"] is False
     assert "chat:" in body["message"] and "embedding:" in body["message"]
+
+
+# ── provider 删除 ──────────────────────────────────────────────
+# 这张表此前只进不出：每次 e2e 冒烟留一行，开发库攒到 33 条，只能写 SQL 清。
+# 它不是审计证据，删掉不会让任何历史记录指向空气——llm_call.provider_config_id
+# 是 ON DELETE SET NULL。但**被任务路由指着的不能删**，否则那个任务直接哑掉。
+
+
+async def _named_provider(client, headers, name: str) -> int:
+    """本节要按名字认人，不能复用上面那个按 model 建的 _make_provider。"""
+    resp = await client.post(
+        "/api/settings/providers",
+        json={"name": name, "kind": "openai", "model": "gpt-4o", "api_key": "sk-abcdefgh1234"},
+        headers=headers,
+    )
+    return resp.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_an_unused_provider_can_be_deleted(client, db_session):
+    await _seed(db_session, Role.ADMIN, "admin@example.com")
+    headers = await _auth(client, "admin@example.com")
+    config_id = await _named_provider(client, headers, "spare")
+
+    resp = await client.delete(f"/api/settings/providers/{config_id}", headers=headers)
+
+    assert resp.status_code == 204
+    listed = (await client.get("/api/settings/providers", headers=headers)).json()
+    assert [c["id"] for c in listed] == []
+
+
+@pytest.mark.asyncio
+async def test_a_routed_provider_cannot_be_deleted(client, db_session):
+    await _seed(db_session, Role.ADMIN, "admin@example.com")
+    headers = await _auth(client, "admin@example.com")
+    config_id = await _named_provider(client, headers, "bound")
+    await client.put(
+        "/api/settings/routing",
+        json={"task_key": "control_extract", "provider_config_id": config_id},
+        headers=headers,
+    )
+
+    resp = await client.delete(f"/api/settings/providers/{config_id}", headers=headers)
+
+    assert resp.status_code == 409
+    assert "control_extract" in resp.text
+    listed = (await client.get("/api/settings/providers", headers=headers)).json()
+    assert [c["id"] for c in listed] == [config_id]
+
+
+@pytest.mark.asyncio
+async def test_deleting_a_provider_is_audited_without_the_key(client, db_session):
+    from sqlalchemy import select
+
+    from app.iam.models import AuditLog
+
+    await _seed(db_session, Role.ADMIN, "admin@example.com")
+    headers = await _auth(client, "admin@example.com")
+    config_id = await _named_provider(client, headers, "gone")
+
+    await client.delete(f"/api/settings/providers/{config_id}", headers=headers)
+
+    entry = await db_session.scalar(
+        select(AuditLog).where(AuditLog.action == "provider.delete")
+    )
+    assert entry is not None
+    assert entry.before["name"] == "gone"
+    assert "sk-abcdefgh1234" not in str(entry.before)
+    assert "api_key" not in str(entry.before)
+
+
+@pytest.mark.asyncio
+async def test_deleting_a_missing_provider_is_a_404(client, db_session):
+    await _seed(db_session, Role.ADMIN, "admin@example.com")
+    headers = await _auth(client, "admin@example.com")
+
+    resp = await client.delete("/api/settings/providers/99999", headers=headers)
+
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_a_grc_lead_cannot_delete_a_provider(client, db_session):
+    await _seed(db_session, Role.ADMIN, "admin@example.com")
+    admin_headers = await _auth(client, "admin@example.com")
+    config_id = await _named_provider(client, admin_headers, "spare")
+    await _seed(db_session, Role.GRC_LEAD, "lead@example.com")
+    lead_headers = await _auth(client, "lead@example.com")
+
+    resp = await client.delete(f"/api/settings/providers/{config_id}", headers=lead_headers)
+
+    assert resp.status_code == 403
