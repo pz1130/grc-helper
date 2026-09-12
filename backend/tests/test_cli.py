@@ -106,3 +106,19 @@ async def test_create_admin_revives_a_locked_out_account(db_session):
     user = await db_session.scalar(select(User).where(User.email == "locked@example.com"))
     assert user.is_active is True
     assert user.expires_at is None
+
+
+def test_rotate_secret_is_reachable_from_the_command_line(monkeypatch, capsys):
+    """换主密钥只能在容器里做——它要同时拿着新旧两把密钥，不该经过任何接口。"""
+    from app import secrets as secrets_module
+
+    async def fake_rotate(old_key):
+        assert old_key == "the-old-key"
+        return {"rotated": 3, "skipped": 0}
+
+    monkeypatch.setattr(secrets_module, "rotate_cli", fake_rotate)
+    monkeypatch.setattr(sys, "argv", ["app.cli", "rotate-secret", "the-old-key"])
+
+    cli.main()
+
+    assert "'rotated': 3" in capsys.readouterr().out

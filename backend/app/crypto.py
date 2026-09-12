@@ -13,12 +13,16 @@ from cryptography.fernet import Fernet
 from app.config import get_settings
 
 
+def fernet_for(key: str) -> Fernet:
+    """按给定主密钥造一个 Fernet。轮换时要同时拿着新旧两把（见 app/secrets.py）。"""
+    # 允许运维填任意长度的随机串：派生成 Fernet 要求的 32 字节 urlsafe base64 key
+    digest = hashlib.sha256(key.encode()).digest()
+    return Fernet(base64.urlsafe_b64encode(digest))
+
+
 @lru_cache
 def _fernet() -> Fernet:
-    raw = get_settings().app_secret_key.encode()
-    # 允许运维填任意长度的随机串：派生成 Fernet 要求的 32 字节 urlsafe base64 key
-    digest = hashlib.sha256(raw).digest()
-    return Fernet(base64.urlsafe_b64encode(digest))
+    return fernet_for(get_settings().app_secret_key)
 
 
 def encrypt(plaintext: str) -> str:

@@ -4,6 +4,7 @@
     python -m app.cli create-admin admin@example.com "Admin" 's3cret-pw'
     python -m app.cli import-framework seeds/nist-csf-2.0.csv nist-csf-2.0 "NIST CSF 2.0" "NIST CSF 2.0" 2.0 nist.gov
     python -m app.cli purge-staging
+    python -m app.cli rotate-secret <旧的 APP_SECRET_KEY>
 """
 
 import asyncio
@@ -97,7 +98,8 @@ def main() -> None:
         "  python -m app.cli create-admin <email> <name> <password>\n"
         "  python -m app.cli import-framework <path> <key> <name_zh> <name_en> "
         "<version> <source>\n"
-        "  python -m app.cli purge-staging"
+        "  python -m app.cli purge-staging\n"
+        "  python -m app.cli rotate-secret <old APP_SECRET_KEY>"
     )
     match sys.argv[1:]:
         case ["create-admin", email, name, password]:
@@ -105,6 +107,12 @@ def main() -> None:
             print(f"管理员已就绪: {email}")
         case ["import-framework", path, key, name_zh, name_en, version, source]:
             asyncio.run(import_framework_cli(path, key, name_zh, name_en, version, source))
+        case ["rotate-secret", old_key]:
+            # 换主密钥：先把新值写进 .env / 环境变量并重启，再拿**旧**值跑这条，
+            # 库里的密文才会跟着换过来。
+            from app.secrets import rotate_cli
+
+            print(asyncio.run(rotate_cli(old_key)))
         case ["purge-staging"]:
             # 平时由 worker 的 cron 跑；这里是「现在就跑一次」的入口。
             from app.ingest import staging
