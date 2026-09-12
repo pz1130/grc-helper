@@ -1,4 +1,4 @@
-.PHONY: up down logs test verify prod-up prod-down prod-logs prod-migrate prod-create-admin backup restore migrate revision migrate-roundtrip fmt create-admin ping-worker purge-staging e2e e2e-down corpus retrieval extraction-eval seed-frameworks mapping-eval relation-eval
+.PHONY: up down logs test verify prod-up prod-down prod-logs prod-migrate prod-create-admin prod-rotate-secret backup restore migrate revision migrate-roundtrip fmt create-admin ping-worker purge-staging e2e e2e-down corpus retrieval extraction-eval seed-frameworks mapping-eval relation-eval
 
 up:
 	docker compose up -d --build db redis api
@@ -64,15 +64,26 @@ prod-migrate:
 prod-create-admin:
 	$(PROD) run --rm api python -m app.cli create-admin "$(email)" "$(name)" "$(password)"
 
+# 换主密钥：先把新值写进 .env 并 make prod-up 重启，再拿**旧**值跑这条。
+prod-rotate-secret:
+	@test -n "$(old)" || (echo "用法: make prod-rotate-secret old='旧的 APP_SECRET_KEY'"; exit 1)
+	$(PROD) run --rm api python -m app.cli rotate-secret "$(old)"
+
 # 备份：数据库 + 制度原文卷。两样缺一不可——只备库，原文没了引用就指向空气；
 # 只备原文，人工裁定的结果全丢。恢复前请先 make prod-down。
+# KEEP 份之外的旧备份会被删掉——无人值守的定时任务不带轮转，迟早把盘写满，
+# 而盘满之后连新备份也写不成，正好在最需要它的时候没有。
+KEEP ?= 14
+
 backup:
 	@mkdir -p backups
 	$(PROD) exec -T db pg_dump -U $${POSTGRES_USER:-grc} -d $${POSTGRES_DB:-grc} \
 	  > backups/db-$$(date +%Y%m%d-%H%M%S).sql
 	$(PROD) run --rm -v "$(PWD)/backups:/backup" worker \
 	  tar czf /backup/docstore-$$(date +%Y%m%d-%H%M%S).tar.gz -C /data documents
-	@ls -lh backups | tail -3
+	@ls -1t backups/db-*.sql        2>/dev/null | tail -n +$$(($(KEEP)+1)) | xargs -r rm --
+	@ls -1t backups/docstore-*.tar.gz 2>/dev/null | tail -n +$$(($(KEEP)+1)) | xargs -r rm --
+	@echo "备份完成，保留最近 $(KEEP) 份："; ls -lh backups | tail -3
 
 restore:
 	@test -n "$(db)" || (echo "用法: make restore db=backups/db-....sql docs=backups/docstore-....tar.gz"; exit 1)

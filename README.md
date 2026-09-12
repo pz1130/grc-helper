@@ -82,11 +82,51 @@ make prod-create-admin email=you@org.com name=You password='...'
 
 ```bash
 make backup                                          # 库 + 制度原文卷，落在 backups/
+make backup KEEP=30                                  # 多留几份（默认保留最近 14 份）
 make restore db=backups/db-....sql docs=backups/docstore-....tar.gz
 ```
 
 **两样缺一不可**：只备库，原文没了、引用就指向空气；只备原文，人工裁定的结果全丢。
 `backups/` 已在 `.gitignore` 里——里面有加密后的 provider 密钥，别提交也别外传。
+
+**要定时，而且要挪到别处。** `make backup` 自己不会跑，也只写在本机——盘坏了两样一起没。
+装一条 cron：
+
+```cron
+30 2 * * *  cd /srv/grc-helper && make backup >> /var/log/grc-backup.log 2>&1
+0  3 * * *  rsync -a /srv/grc-helper/backups/ 备份服务器:/grc/          # 或对象存储
+```
+
+超过 `KEEP` 份的旧备份会被自动删掉——无人值守的任务不带轮转，迟早把盘写满，
+而盘满之后连新备份都写不成，正好在最需要它的时候没有。
+
+**恢复演练至少做一次。** 没验过的备份等于没有备份。
+
+---
+
+## 主密钥
+
+`APP_SECRET_KEY` 是 Fernet 主密钥，**加密着库里所有 provider 的 API key**。
+
+- **单独备份它**，而且不要和数据库备份放在同一个地方——放一起等于没加密
+- **丢了会怎样**：库里的密钥全部解不开。系统本身还能用，但所有 AI 功能会报解密错误，
+  要到设置页把每个 provider 的 key 重新填一遍
+- **泄露了怎么换**：把新值写进 `.env` 并重启，然后拿**旧**值跑一次轮换——
+  库里的密文会被重新加密，不用手工重填：
+
+```bash
+make prod-rotate-secret old='旧的 APP_SECRET_KEY'
+```
+
+轮换中断了可以直接重跑：已经换过的行会被跳过，不会被改坏。
+
+---
+
+## 登录保护
+
+同一账号 15 分钟内连续失败 5 次就冷却（同一 IP 是 50 次，因为办公网出口共用一个 IP）。
+计数放 Redis。**Redis 不可用时限流会静默放行**——这是有意的取舍，
+被自己的缓存故障锁在系统外面比"限流暂时失效"更糟。
 
 ---
 
