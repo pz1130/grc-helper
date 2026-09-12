@@ -57,3 +57,17 @@ async def test_lead_or_admin_enqueues_detection(client, db_session, role, email)
         resp = await client.post("/api/conflicts/detect", headers=headers)
     assert resp.status_code == 202
     assert resp.json() == {"job_id": "job-1"}
+
+
+@pytest.mark.asyncio
+async def test_detection_can_be_limited_to_an_acceptance_sample(client, db_session):
+    await _user(db_session, Role.GRC_LEAD, "lead@example.com")
+    headers = await _auth(client, "lead@example.com")
+    enqueue = AsyncMock(return_value="job-1")
+    with patch("app.conflicts.router.enqueue", new=enqueue):
+        resp = await client.post(
+            "/api/conflicts/detect?max_batches=10", headers=headers
+        )
+
+    assert resp.status_code == 202
+    enqueue.assert_awaited_once_with("detect_conflicts", 10)

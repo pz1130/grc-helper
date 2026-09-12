@@ -40,6 +40,7 @@ from app.review.models import ProposalKind
 
 logger = logging.getLogger(__name__)
 CHECKPOINT_KEY = "_conflict_detection"
+MAX_BATCH_CHARS = 12_000
 
 
 @dataclass(frozen=True)
@@ -89,7 +90,7 @@ async def _build_batches(session: AsyncSession) -> list[Batch]:
     sizes = clause_chars(bundles)
 
     batches: list[Batch] = []
-    for group in batch_pairs(pairs, sizes=sizes):
+    for group in batch_pairs(pairs, sizes=sizes, max_chars=MAX_BATCH_CHARS):
         clause_ids: list[int] = []
         allowed: list[frozenset[int]] = []
         for pair in group:
@@ -113,15 +114,22 @@ async def _build_batches(session: AsyncSession) -> list[Batch]:
 
 
 async def run_detection(
-    session: AsyncSession, *, run_key: str | None = None
+    session: AsyncSession, *, run_key: str | None = None, max_batches: int | None = None
 ) -> dict[str, Any]:
     # 先补向量再取候选：缺向量的控制点在第一级里根本不会出现（OQ-12）。
     await embed_pending(session)
     await session.commit()
 
     batches = await _build_batches(session)
+    total_batches = len(batches)
+    if max_batches is not None:
+        if max_batches <= 0:
+            raise ValueError("max_batches 必须为正")
+        batches = batches[:max_batches]
     summary: dict[str, Any] = {
         "batches": len(batches),
+        "total_batches": total_batches,
+        "limited": len(batches) < total_batches,
         "proposals": 0,
         "rejected": 0,
         "failed": 0,
@@ -244,6 +252,10 @@ async def run_detection(
     return summary
 
 
-async def detect_conflicts(ctx: dict[str, Any]) -> dict[str, Any]:
+async def detect_conflicts(
+    ctx: dict[str, Any], max_batches: int | None = None
+) -> dict[str, Any]:
     async with session_factory() as session:
-        return await run_detection(session, run_key=ctx.get("job_id"))
+        return await run_detection(
+            session, run_key=ctx.get("job_id"), max_batches=max_batches
+        )

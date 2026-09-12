@@ -79,6 +79,21 @@ async def test_one_batch_produces_one_proposal(harness):
     assert summary["proposal_ids"] == [21]
 
 
+async def test_acceptance_sample_limits_provider_calls(harness, monkeypatch):
+    pairs = [Pair(index, index + 100, 0.9) for index in range(1, 4)]
+    monkeypatch.setattr(tasks, "_build_batches", AsyncMock(return_value=[
+        tasks.Batch("system", f"prompt {index}", [91, 92], (frozenset((91, 92)),))
+        for index, _ in enumerate(pairs)
+    ]))
+
+    summary = await tasks.run_detection(harness.session, run_key="t1", max_batches=2)
+
+    assert summary["batches"] == 2
+    assert summary["total_batches"] == 3
+    assert summary["limited"] is True
+    assert harness.run.await_count == 2
+
+
 async def test_the_proposal_is_filed_under_the_conflict_kind(harness):
     from app.review.models import ProposalKind
 

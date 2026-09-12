@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -63,14 +63,20 @@ async def list_conflicts(*, _: Reader, session: Session) -> list[ConflictOut]:
 
 
 @router.post("/detect", status_code=202)
-async def trigger_detection(*, actor: Writer, session: Session) -> dict[str, str]:
-    """排队一次全量冲突检测。任务自身会先补齐控制点向量。"""
-    job_id = await enqueue("detect_conflicts")
+async def trigger_detection(
+    *,
+    actor: Writer,
+    session: Session,
+    max_batches: int | None = Query(default=None, ge=1, le=1000),
+) -> dict[str, str]:
+    """排队冲突检测；验收时可用 max_batches 先做有界抽样。"""
+    args = (max_batches,) if max_batches is not None else ()
+    job_id = await enqueue("detect_conflicts", *args)
     if not job_id:
         raise Conflict("冲突检测任务未能进入队列")
     await record(
         session, user=actor, action="conflicts.enqueue", entity_type="PolicyConflict",
-        entity_id=0, after={"job_id": job_id},
+        entity_id=0, after={"job_id": job_id, "max_batches": max_batches},
     )
     await session.commit()
     return {"job_id": job_id}

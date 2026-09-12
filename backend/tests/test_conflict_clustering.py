@@ -1,6 +1,6 @@
 """候选生成的纯逻辑测试；向量查询在 test_conflicts_router.py 里连库验。"""
 
-from app.conflicts.clustering import MIN_SIMILARITY, keep_cross_document
+from app.conflicts.clustering import MIN_SIMILARITY, TOP_K_NEIGHBOURS, keep_cross_document
 from app.relations.clustering import Pair
 
 
@@ -10,6 +10,10 @@ def test_the_starting_threshold_is_below_the_duplicates_one():
 
     assert MIN_SIMILARITY == 0.85
     assert MIN_SIMILARITY < DUPLICATES_THRESHOLD
+
+
+def test_conflicts_search_beyond_the_eight_neighbours_used_for_duplicates():
+    assert TOP_K_NEIGHBOURS == 20
 
 
 def test_pairs_inside_one_document_are_dropped():
