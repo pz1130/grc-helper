@@ -1,8 +1,26 @@
-from fastapi import FastAPI
+import logging
+
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 import app.models
 from app.config import get_settings
+from app.db import session_factory
+
+logger = logging.getLogger(__name__)
+
+
+
+async def database_reachable() -> bool:
+    """一次最便宜的往返。连不上、超时、认证失败——都算不健康。"""
+    try:
+        async with session_factory() as session:
+            await session.execute(text("SELECT 1"))
+        return True
+    except Exception:  # noqa: BLE001 —— 任何原因连不上都是不健康
+        logger.warning("健康检查：数据库不可达")
+        return False
 
 
 def create_app() -> FastAPI:
@@ -17,8 +35,20 @@ def create_app() -> FastAPI:
     )
 
     @application.get("/api/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok", "version": settings.app_version}
+    async def health(response: Response) -> dict[str, str]:
+        """真的查一下库——只返回常量的健康检查只证明进程还活着。
+
+        Redis 不算：限流在它不可用时放行（iam/throttle.py），API 照样能服务，
+        把它算进来会让一次缓存抖动变成整个服务被重启。
+        """
+        healthy = await database_reachable()
+        if not healthy:
+            response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {
+            "status": "ok" if healthy else "degraded",
+            "database": "ok" if healthy else "down",
+            "version": settings.app_version,
+        }
 
     from app.audit.router import router as audit_assistant_router
     from app.clauses.router import router as clauses_router
