@@ -445,3 +445,81 @@ test("a conflict edge says how many conflict points it carries", async ({ page }
   await expect(drawer.getByText("Conflicts with")).toBeVisible();
   await expect(drawer.getByText("2 conflict points")).toBeVisible();
 });
+
+test("the floating HUD provides zoom in, zoom out, and reset controls", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+
+  const hud = page.locator(".kn-canvas-hud");
+  await expect(hud).toBeVisible();
+  await expect(hud.locator(".kn-hud-badge")).toHaveText("100%");
+
+  // Zoom In
+  await hud.getByRole("button", { name: "Zoom in" }).click();
+  await expect(hud.locator(".kn-hud-badge")).toHaveText("125%");
+  await expect(page.locator("#graph-viewport")).toHaveAttribute(
+    "transform",
+    /scale\(1\.25\)/,
+  );
+
+  // Reset
+  await hud.getByRole("button", { name: "Reset view" }).click();
+  await expect(hud.locator(".kn-hud-badge")).toHaveText("100%");
+
+  // Zoom Out
+  await hud.getByRole("button", { name: "Zoom out" }).click();
+  await expect(hud.locator(".kn-hud-badge")).toHaveText("80%");
+  await expect(page.locator("#graph-viewport")).toHaveAttribute(
+    "transform",
+    /scale\(0\.8\)/,
+  );
+});
+
+test("hovering a node shows the micro-tooltip and highlights connected elements", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+
+  const node1 = page.locator('[data-node-key="control:1"]');
+  const node3 = page.locator('[data-node-key="control:3"]');
+  const tooltip = page.locator(".kn-node-tooltip");
+
+  await expect(tooltip).toHaveCount(0);
+
+  // Hover node 1
+  await node1.hover();
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip.locator(".kn-node-tooltip-code")).toHaveText("C-0001");
+  await expect(tooltip.locator(".kn-node-tooltip-title")).toHaveText("CAB approval");
+  await expect(tooltip).toContainText("Control");
+
+  // Node 3 is not connected to Node 1, so it should be dimmed
+  await expect(node3).toHaveCSS("opacity", "0.22");
+
+  // Move mouse away
+  await page.mouse.move(0, 0);
+  await expect(tooltip).toHaveCount(0);
+});
+
+test("force layout hides labels when thin labels is checked", async ({ page }) => {
+  await mockGraph(page);
+  await page.goto("/graph");
+
+  // Switch to Force layout
+  await page.getByRole("button", { name: "Force" }).click();
+
+  // In default force layout (thin labels unchecked), labels are visible
+  await expect(page.locator("[data-node-label]")).toHaveCount(3);
+
+  // Check Thin labels
+  await page.getByLabel("Thin labels").check();
+
+  // In force layout with thin labels, dots do not carry text labels to keep aesthetics clean
+  await expect(page.locator("[data-node-label]")).toHaveCount(0);
+
+  // But hovering a dot in force layout still shows the rich tooltip
+  await page.locator('[data-node-key="control:1"]').hover();
+  const tooltip = page.locator(".kn-node-tooltip");
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip.locator(".kn-node-tooltip-code")).toHaveText("C-0001");
+});
+

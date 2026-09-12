@@ -281,3 +281,54 @@ def test_most_of_the_text_survives_into_clauses(path: Path):
     assert coverage >= MIN_TEXT_COVERAGE, (
         f"{path.name}: 只有 {coverage:.0%} 的正文进了条款（{total} / {raw} 字）"
     )
+
+
+# ── 条款是真条款吗 ──────────────────────────────────────────
+# 形状对了不代表内容对。实测 06_OCC：56 个章节、77 张表、3 层、最大块 11%、
+# 0.82 条每千字——形状指标全部健康，**闸门放它过了**。但它的每一个"标题"
+# 都是一整段正文：CFR 给**段落**编号（`(a)` `(b)` `(2)`），于是
+# "(b) Procedures. The format, content, and reporting and filing dates of…"
+# 整段被认成「编号 + 标题」，`citation_label` 变成一句 992 字的话，
+# 而 `number` 在整篇里重复——56 条带编号的条款只有 19 个不同编号。
+#
+# 阈值取自 36 份实测：
+#   标题最长   样本与干净外部文档 28–144 字；坏掉的 288 / 325 / 479 / 860 / 992 / 1051
+#   编号唯一率 所有正常文档 100%；坏掉的 34% / 46% / 81% / 83% / 84% / 92%
+MAX_HEADING_CHARS = 250
+MIN_DISTINCT_NUMBER_RATIO = 0.95
+
+
+@pytest.mark.parametrize("path", _files(), ids=lambda p: p.name[:40])
+def test_a_heading_is_not_a_paragraph(path: Path):
+    """标题长成一段正文，说明认标题的判据把正文行收进来了。"""
+    _judged(path)
+    sections = [node for node in _walk(_parsed(path).clauses) if node.kind == "section"]
+    if not sections:
+        pytest.skip(f"{path.name}: 没有章节条款，另有断言管它")
+    longest = max(sections, key=lambda node: len(node.heading))
+    assert len(longest.heading) <= MAX_HEADING_CHARS, (
+        f"{path.name}: 最长的标题有 {len(longest.heading)} 字——那是一段正文，不是标题"
+        f"（{longest.heading[:60]}…）"
+    )
+
+
+@pytest.mark.parametrize("path", _files(), ids=lambda p: p.name[:40])
+def test_clause_numbers_are_mostly_unique_within_a_document(path: Path):
+    """编号重复，`citation_label` 就不唯一——审计引用指不到确定的一条。
+
+    段落级编号（CFR 的 `(a)` `(b)`）在每一节里各起一遍，被当成章节编号时
+    整篇会有大量同号条款。
+    """
+    _judged(path)
+    numbers = [
+        node.number
+        for node in _walk(_parsed(path).clauses)
+        if node.kind == "section" and (node.number or "").strip()
+    ]
+    if not numbers:
+        pytest.skip(f"{path.name}: 没有带编号的条款")
+    ratio = len(set(numbers)) / len(numbers)
+    assert ratio >= MIN_DISTINCT_NUMBER_RATIO, (
+        f"{path.name}: {len(numbers)} 条带编号的条款只有 {len(set(numbers))} 个不同编号"
+        f"（{ratio:.0%}）——编号不唯一，引用指不到确定的一条"
+    )

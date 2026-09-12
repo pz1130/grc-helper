@@ -1044,3 +1044,128 @@ details[open] {
   }
 }
 
+/* ==========================================================================
+   ThreeUI-Inspired Floating HUD & Interactive Canvas
+   ========================================================================== */
+
+.kn-canvas-hud {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(14, 14, 18, 0.78);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--stage-border);
+  border-radius: var(--radius-pill);
+  padding: 4px 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  z-index: 10;
+  user-select: none;
+}
+
+:root[data-theme="light"] .kn-canvas-hud {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.kn-hud-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  padding: 0;
+}
+
+.kn-hud-btn:hover {
+  background: var(--btn-secondary-hover-bg);
+  color: var(--accent-blue);
+  transform: scale(1.1);
+}
+
+.kn-hud-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  min-width: 44px;
+  text-align: center;
+}
+
+.kn-node-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(18, 18, 24, 0.92);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  z-index: 25;
+  max-width: 280px;
+  transition: opacity 0.12s ease;
+  transform: translate(-50%, -100%) translateY(-14px);
+}
+
+:root[data-theme="light"] .kn-node-tooltip {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.kn-node-tooltip::after {
+  content: "";
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background: inherit;
+  border-right: 1px solid rgba(255, 255, 255, 0.14);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+:root[data-theme="light"] .kn-node-tooltip::after {
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.kn-node-tooltip-code {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-blue);
+  font-family: "SF Mono", Menlo, Monaco, Consolas, monospace;
+  margin-bottom: 2px;
+}
+
+.kn-node-tooltip-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.kn-node-tooltip-meta {
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+

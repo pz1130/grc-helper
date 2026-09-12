@@ -497,7 +497,7 @@
     "title": "Graph",
     "stats": "{{nodes}} nodes · {{edges}} edges",
     "layout": { "document": "By document", "function": "By function", "force": "Force" },
-    "drawer": { "title": "Details", "openInDocument": "Open in document", "toReview": "Go to review queue", "notCovered": "Not covered" },
+    "drawer": { "title": "Details", "openInDocument": "Open in document", "toReview": "Go to review queue", "notCovered": "Not covered", "control": "Control", "frameworkItem": "Framework item" },
     "edgeKind": { "depends_on": "Depends on", "duplicates": "Duplicates", "conflicts_with": "Conflicts with", "full": "Full", "partial": "Partial", "supporting": "Supporting" },
     "focus": "Focus",
     "hops": "Hops",
@@ -515,6 +515,10 @@
     "exportPng": "Export PNG",
     "exportTooLarge": "The graph is too large to export as PNG — export SVG instead",
     "exportFailed": "Export failed",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "resetView": "Reset view",
+    "relationsCount": "relations",
     "filters": { "pending": "Show pending proposals", "onlyUnconfirmed": "Only unconfirmed", "onlyConflicts": "Only conflicts", "framework": "Framework", "allFrameworks": "All frameworks" }
   },
   "impact": {

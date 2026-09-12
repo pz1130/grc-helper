@@ -2,7 +2,7 @@
  * 导出前必须把 var(--token) 换成字面色值。
  * 序列化出去的 SVG 在浏览器外没有 CSS 变量，不换颜色会全丢。
  */
-const COLOR_ATTRIBUTES = ["fill", "stroke"] as const;
+const COLOR_ATTRIBUTES = ["fill", "stroke", "stop-color"] as const;
 
 /** 抛出去的是 i18n 键，翻译留给调用方——这里没有 t()。 */
 export const EXPORT_TOO_LARGE = "graph.exportTooLarge";
