@@ -8,7 +8,6 @@ from docx import Document as DocxDocument
 from docx.oxml.ns import qn
 from docx.table import Table
 from docx.text.paragraph import Paragraph
-from docx.text.paragraph import Paragraph
 
 from app.parsing.contract import ClauseNode, DocumentMeta, ParsedDocument, ParseError
 from app.parsing.docx_numbering import HeadingNumbering
