@@ -10,6 +10,7 @@ from pathlib import Path
 import pdfplumber
 
 from app.parsing.contract import DocumentMeta, ParsedDocument, ParseError
+from app.parsing.headings import demote_fragment_headings
 from app.parsing.numbering import assemble_tree, extract_headings
 
 TEXT_LAYER_MIN_CHARS = 200
@@ -105,8 +106,11 @@ class PdfParser:
         if not headings:
             warnings.append("未识别出任何编号条款，该 PDF 可能不是标准 house style")
 
+        clauses = assemble_tree(headings, lines, page_of=page_of)
+        # 段落级编号的文档里，"标题"其实是段落的前半句——整段收回正文。
+        demote_fragment_headings(clauses)
         return ParsedDocument(
             meta=_cover_meta(lines),
-            clauses=assemble_tree(headings, lines, page_of=page_of),
+            clauses=clauses,
             warnings=warnings,
         )

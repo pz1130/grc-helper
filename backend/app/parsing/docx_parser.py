@@ -11,7 +11,7 @@ from docx.text.paragraph import Paragraph
 
 from app.parsing.contract import ClauseNode, DocumentMeta, ParsedDocument, ParseError
 from app.parsing.docx_numbering import HeadingNumbering
-from app.parsing.headings import acts_as_headings
+from app.parsing.headings import acts_as_headings, demote_fragment_headings
 from app.parsing.numbering import _noise
 from app.parsing.vocab import parse_label
 
@@ -295,4 +295,6 @@ class DocxParser:
             effective_date=_parse_date(meta_fields.get("Effective Date", "")),
             doc_type=doc_type,
         )
+        # 同 PDF 路："标题"其实是段落前半句时，整段收回正文。
+        demote_fragment_headings(roots)
         return ParsedDocument(meta=meta, clauses=roots, warnings=warnings)

@@ -13,6 +13,7 @@ from app.parsing.headings import (
     acts_as_headings,
     choose_heading_set,
     consistency_score,
+    continues_the_heading,
     parenthood_ratio,
 )
 
@@ -121,3 +122,30 @@ def test_list_items_that_restart_in_each_section_are_still_list_items():
 
 def test_two_numbers_are_too_few_to_call_it_a_run():
     assert acts_as_headings(["1", "2"]) is False
+
+
+# ── 标题装着半句话 ────────────────────────────────────────────
+# 段落级编号的文档里，解析器把编号那一行当标题、剩下的当正文，一句话被劈成两半：
+#
+#   heading = "Under this policy, AIs are required to develop robust technology"
+#   text    = "and cyber risk management frameworks that are proportionate…"
+#
+# 代价不只是难看：`heading_path` 由它拼成，而 `rebuild_chunks` 会把 heading_path
+# 当上下文前缀拼进**每一个 chunk**——半句话的前缀同时污染向量和全文检索。
+# 确认队列里审核者看到的也是半句话。
+#
+# 判据：**正文以小写字母开头**，说明上面那行是同一句话的前半截。实测 36 份：
+# 真标题的文档 0–29%（样本 6 份是 0/0/0/0/0/20%），段落编号的 43–89%。
+# 按**每一条**判而不是按文档判——HKMA 的 `1 Introduction`、`1.1 Background`
+# 是真标题（正文为空，不受影响），只有 `1.1.1` 那一级是段落。
+
+
+def test_a_body_starting_lower_case_means_the_heading_is_half_a_sentence():
+    assert continues_the_heading("and cyber risk management frameworks that are…")
+    assert continues_the_heading("the C-RAF with a view to raising their maturity")
+
+
+def test_a_real_section_body_starts_a_new_sentence():
+    assert not continues_the_heading("The purpose of this procedure is to establish…")
+    assert not continues_the_heading("IT Division drafts it.")
+    assert not continues_the_heading("")

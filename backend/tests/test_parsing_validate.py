@@ -1,6 +1,17 @@
+import pytest
+
 from app.parsing.contract import ClauseNode, DocumentMeta, ParsedDocument
 from app.parsing.ocr import OCR_CONFIDENCE_THRESHOLD
-from app.parsing.validate import EXPECTED_SECTIONS, check_completeness
+from app.parsing.validate import check_completeness
+
+# 默认什么都不期望（见 test_parsing_validate_house_style.py）。下面这些验的是
+# **机制**——大小写、空白、嵌套、缺失报告——所以显式配上一套期望再测。
+EXPECTED_SECTIONS = ("Introduction", "Roles and Responsibilities")
+
+
+@pytest.fixture(autouse=True)
+def _configured(monkeypatch):
+    monkeypatch.setattr("app.parsing.validate.EXPECTED_SECTIONS", EXPECTED_SECTIONS)
 
 EMPTY_META = DocumentMeta(
     title=None,

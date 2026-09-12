@@ -143,3 +143,34 @@ def _is_one_ascending_run(labels: Sequence[Label]) -> bool:
 def acts_as_headings(labels: Sequence[Label]) -> bool:
     """这批单段编号该当成章节标题，还是正文列表项。"""
     return parenthood_ratio(labels) >= PARENTHOOD_THRESHOLD or _is_one_ascending_run(labels)
+
+
+# ── 标题装着半句话 ────────────────────────────────────────────
+# 段落级编号的文档（HKMA 的 `2.2` 就是一个段落，没有标题）里，解析器把编号那一行
+# 当标题、剩下的当正文，一句话被劈成两半。代价不只是难看：`heading_path` 由它拼成，
+# 而 `rebuild_chunks` 把 heading_path 当上下文前缀拼进**每一个 chunk**——半句话的
+# 前缀同时污染向量检索和全文检索；确认队列里审核者看到的也是半句话。
+#
+# 判据是正文的第一个字母是不是小写。实测 36 份文档：真标题的 0–29%
+# （样本 6 份是 0/0/0/0/0/20%），段落编号的 43–89%。
+
+
+def continues_the_heading(text: str) -> bool:
+    """正文以小写字母开头 ⇒ 上面那行是同一句话的前半截，不是标题。"""
+    return (text or "").lstrip()[:1].islower()
+
+
+def demote_fragment_headings(nodes: list) -> None:
+    """就地把"标题其实是半句话"的条款改回去：整段收进正文，标题改用编号。
+
+    只动**有编号**的条款——没有编号就没有别的东西可以当标题，留着半句话
+    好过留个空标题。
+    """
+    for node in nodes:
+        demote_fragment_headings(node.children)
+        if node.kind != "section" or not (node.number or "").strip():
+            continue
+        if not continues_the_heading(node.text or ""):
+            continue
+        node.text = f"{node.heading} {node.text}".strip()
+        node.heading = node.number

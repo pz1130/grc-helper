@@ -116,7 +116,12 @@ async def test_parse_failure_records_a_specific_reason(db_session, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_completeness_warning_is_stored(db_session, tmp_path):
+async def test_completeness_warning_is_stored(db_session, tmp_path, monkeypatch):
+    # 期望的章节现在是**部署方配置**，默认什么都不期望——写死那两节是样本语料的
+    # 文风，会对每一份外部文档误报（见 test_parsing_validate_house_style.py）。
+    monkeypatch.setattr(
+        "app.parsing.validate.EXPECTED_SECTIONS", ("Introduction", "Roles and Responsibilities")
+    )
     doc = DocxDocument()
     doc.add_heading("Introduction", level=1)
     doc.add_paragraph("x")
