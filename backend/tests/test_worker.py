@@ -15,6 +15,11 @@ def test_worker_settings_registers_ping():
     assert ping in WorkerSettings.functions
 
 
+def test_worker_registers_control_embedding_backfill():
+    names = {getattr(item, "coroutine", item).__name__ for item in WorkerSettings.functions}
+    assert "embed_controls" in names
+
+
 def test_worker_settings_points_at_configured_redis():
     parsed = urlparse(get_settings().redis_url)
     assert WorkerSettings.redis_settings.host == parsed.hostname

@@ -10,6 +10,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.controls.models import Control
+from app.db import session_factory
 from app.indexing.embedder import current_model
 from app.llm.runner import embed
 from app.relations.models import ControlEmbedding
@@ -95,3 +96,10 @@ async def embed_pending(
         select(func.count()).select_from(stale.subquery())
     )
     return {"embedded": embedded, "model": model, "pending": int(pending or 0)}
+
+
+async def embed_controls(ctx: dict[str, Any]) -> dict[str, Any]:
+    """新控制点确认后的后台回填任务；幂等，重复排队不会重复建行。"""
+    del ctx
+    async with session_factory() as session:
+        return await embed_pending(session)

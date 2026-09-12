@@ -19,6 +19,7 @@ from app.extraction.tasks import extract_controls
 from app.indexing.tasks import index_document, reindex_all
 from app.ingest.tasks import parse_document
 from app.mapping.tasks import map_framework
+from app.relations.indexing import embed_controls
 from app.relations.tasks import infer_relations
 
 
@@ -57,6 +58,7 @@ class WorkerSettings:
         func(extract_controls, timeout=LONG_JOB_TIMEOUT),
         func(map_framework, timeout=LONG_JOB_TIMEOUT),
         func(infer_relations, timeout=LONG_JOB_TIMEOUT),
+        func(embed_controls, timeout=LONG_JOB_TIMEOUT),
         func(generate_engagement_answers, timeout=LONG_JOB_TIMEOUT),
         func(detect_conflicts, timeout=LONG_JOB_TIMEOUT),
     ]

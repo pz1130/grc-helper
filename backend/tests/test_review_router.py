@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock
+
 import pytest
 from sqlalchemy import select
 
@@ -8,6 +10,13 @@ from app.iam.permissions import Role
 from app.iam.security import hash_password
 from app.ingest.models import DocStatus, DocType, Document
 from app.review.models import Proposal, ProposalKind
+
+
+@pytest.fixture(autouse=True)
+def embed_queue(monkeypatch):
+    enqueue = AsyncMock(return_value="embed-job")
+    monkeypatch.setattr("app.review.router.enqueue", enqueue)
+    return enqueue
 
 
 async def _seed(db_session, role: Role, email: str) -> User:
@@ -88,7 +97,7 @@ async def test_contributor_cannot_decide(client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_grc_lead_can_accept(client, db_session):
+async def test_grc_lead_can_accept(client, db_session, embed_queue):
     await _seed(db_session, Role.GRC_LEAD, "l@example.com")
     proposal = await _proposal(db_session)
     headers = await _auth(client, "l@example.com")
@@ -99,6 +108,7 @@ async def test_grc_lead_can_accept(client, db_session):
     assert resp.status_code == 200
     assert resp.json()["status"] == "accepted"
     assert await db_session.scalar(select(Control)) is not None
+    embed_queue.assert_awaited_once_with("embed_controls")
 
 
 @pytest.mark.asyncio
@@ -127,7 +137,9 @@ async def test_reject_requires_a_reason(client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_bulk_accept_reports_how_many_were_skipped(client, db_session):
+async def test_bulk_accept_reports_how_many_were_skipped(
+    client, db_session, embed_queue
+):
     await _seed(db_session, Role.GRC_LEAD, "l@example.com")
     high = await _proposal(db_session, confidence=0.95)
     low = await _proposal(db_session, confidence=0.40)
@@ -137,6 +149,7 @@ async def test_bulk_accept_reports_how_many_were_skipped(client, db_session):
         "/api/proposals/bulk-accept", json={"ids": [high.id, low.id]}, headers=headers
     )
     assert resp.json() == {"accepted": 1, "skipped": 1}
+    embed_queue.assert_awaited_once_with("embed_controls")
 
 
 @pytest.mark.asyncio

@@ -19,6 +19,7 @@ from app.review import service
 from app.review.models import Proposal, ProposalKind, ProposalStatus
 from app.review.schemas import AutoProcessIn, BulkAcceptIn, DecideIn, ProposalOut
 from app.review.thresholds import Thresholds, load
+from app.worker import enqueue
 
 router = APIRouter(prefix="/api/proposals", tags=["proposals"])
 
@@ -340,6 +341,8 @@ async def bulk_accept(
     except Exception:
         await session.rollback()
         raise
+    if result["accepted"]:
+        await enqueue("embed_controls")
     return result
 
 
@@ -471,4 +474,9 @@ async def decide(
     except Exception:
         await session.rollback()
         raise
+    if (
+        proposal.kind == ProposalKind.CONTROL_EXTRACT
+        and payload.decision != service.Decision.REJECT
+    ):
+        await enqueue("embed_controls")
     return output
