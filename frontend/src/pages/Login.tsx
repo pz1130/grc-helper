@@ -1,8 +1,7 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { PredictiveArcCanvas } from "@designcodeio/threeui";
-import "@designcodeio/threeui/style.css";
+import { SignalParticlesCanvas } from "../components/SignalParticlesCanvas";
 
 import { useAuth } from "../auth";
 import { setLanguage } from "../i18n";
@@ -39,7 +38,7 @@ export function Login() {
         overflow: "hidden",
       }}
     >
-      {/* Background Animated Signal Particles Canvas */}
+      {/* 原生纯 Canvas 信号粒子背景：0 iframe、0 CDN、纯离线高性能渲染 */}
       <div
         className="shader-frame"
         style={{
@@ -50,13 +49,9 @@ export function Login() {
           overflow: "hidden",
         }}
       >
-        <PredictiveArcCanvas
-          variant="signal-particles"
+        <SignalParticlesCanvas
           mode={theme === "light" ? "light" : "dark"}
           speed={1.0}
-          hue={0}
-          saturation={1.0}
-          brightness={1.0}
         />
       </div>
       {/* Floating Controls: Language & Theme */}

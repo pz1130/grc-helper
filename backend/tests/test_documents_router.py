@@ -90,6 +90,22 @@ async def test_duplicate_upload_is_rejected_with_conflict(client, db_session):
 
 
 @pytest.mark.asyncio
+async def test_oversized_upload_is_rejected(client, db_session, monkeypatch):
+    await _seed(db_session, Role.CONTRIBUTOR, "c@example.com")
+    headers = await _auth(client, "c@example.com")
+    monkeypatch.setattr("app.ingest.router.MAX_UPLOAD_BYTES", 16)
+
+    response = await client.post(
+        "/api/documents",
+        files={"file": ("g.docx", _docx_bytes())},
+        data={"title": "Guideline", "doc_type": "guideline"},
+        headers=headers,
+    )
+    assert response.status_code == 413
+    assert "过大" in response.json()["message"]
+
+
+@pytest.mark.asyncio
 async def test_unsupported_extension_is_rejected(client, db_session):
     await _seed(db_session, Role.CONTRIBUTOR, "c@example.com")
     headers = await _auth(client, "c@example.com")

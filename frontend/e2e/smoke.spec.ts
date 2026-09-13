@@ -15,8 +15,16 @@ async function signIn(page: Page) {
   await expect(page.getByRole("heading", { name: "总览" })).toBeVisible();
 }
 
+test("登录页不嵌第三方 iframe", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "登录" })).toBeVisible();
+  await expect(page.locator("iframe")).toHaveCount(0);
+});
+
 test("管理员能登录并看到总览", async ({ page }) => {
   await signIn(page);
+  await expect(page.getByText("Run Pipeline")).toHaveCount(0);
+  await expect(page.getByText("Active DLP Redaction")).toHaveCount(0);
 });
 
 test("语言可切换到英文", async ({ page }) => {

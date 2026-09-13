@@ -9,6 +9,8 @@ from pathlib import Path
 
 DOCUMENT_ROOT = Path("/data/documents")
 ALLOWED_EXTENSIONS = frozenset({".pdf", ".docx"})
+# 与生产 nginx client_max_body_size 对齐。开发栈没有那一层，应用自己挡。
+MAX_UPLOAD_BYTES = 64 * 1024 * 1024
 
 
 @dataclass(frozen=True)

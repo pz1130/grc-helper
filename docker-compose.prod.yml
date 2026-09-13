@@ -33,7 +33,9 @@ services:
     restart: unless-stopped
 
   api:
-    build: ./backend
+    build:
+      context: ./backend
+      target: prod
     env_file: .env
     depends_on:
       db: {condition: service_healthy}
@@ -51,7 +53,9 @@ services:
     restart: unless-stopped
 
   worker:
-    build: ./backend
+    build:
+      context: ./backend
+      target: prod
     env_file: .env
     depends_on:
       db: {condition: service_healthy}

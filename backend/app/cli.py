@@ -29,6 +29,9 @@ async def create_admin(
     只改密码是不够的。
     """
 
+    if len(password) < 8:
+        raise ValueError("密码至少八位")
+
     async def _run(db: AsyncSession) -> None:
         user = await db.scalar(select(User).where(User.email == email))
         if user is None:
@@ -103,7 +106,11 @@ def main() -> None:
     )
     match sys.argv[1:]:
         case ["create-admin", email, name, password]:
-            asyncio.run(create_admin(email, name, password))
+            try:
+                asyncio.run(create_admin(email, name, password))
+            except ValueError as exc:
+                print(exc, file=sys.stderr)
+                raise SystemExit(1) from exc
             print(f"管理员已就绪: {email}")
         case ["import-framework", path, key, name_zh, name_en, version, source]:
             asyncio.run(import_framework_cli(path, key, name_zh, name_en, version, source))

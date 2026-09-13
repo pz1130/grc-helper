@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.clauses.models import Clause
 from app.clauses.schemas import ClauseTreeOut
 from app.db import get_session
-from app.errors import AppError, Conflict, NotFound
+from app.errors import AppError, Conflict, NotFound, PayloadTooLarge
 from app.iam.audit import record
 from app.iam.deps import require
 from app.iam.models import User
@@ -25,7 +25,7 @@ from app.ingest.schemas import (
     UncoveredClauseOut,
 )
 from app.ingest.service import find_by_hash
-from app.ingest.storage import ALLOWED_EXTENSIONS, sha256_of
+from app.ingest.storage import ALLOWED_EXTENSIONS, MAX_UPLOAD_BYTES, sha256_of
 from app.worker import enqueue
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -54,6 +54,10 @@ async def upload(
         )
 
     content = await file.read()
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise PayloadTooLarge(
+            f"文件过大（上限 {MAX_UPLOAD_BYTES // (1024 * 1024)} MB）。"
+        )
     digest = sha256_of(content)
     existing = await find_by_hash(session, digest)
     if existing is not None:

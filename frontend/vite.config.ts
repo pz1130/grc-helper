@@ -1,15 +1,8 @@
 import react from "@vitejs/plugin-react";
-import path from "path";
 import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
-  resolve: {
-    alias: {
-      "@designcodeio/threeui/style.css": path.resolve(__dirname, "src/shaders/threeui.css"),
-      "@designcodeio/threeui": path.resolve(__dirname, "src/shaders/predictive-arc/PredictiveArcCollection.tsx"),
-    },
-  },
   server: {
     port: 5173,
     proxy: {

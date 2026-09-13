@@ -15,6 +15,8 @@ TEST_DATABASE_URL = os.environ.get(
 # 必须在任何 test 模块被导入前生效：app.db 在 import 时就用 get_settings()
 # 建了模块级 engine，晚一步就会绑到开发库上。
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+os.environ.setdefault("APP_SECRET_KEY", "test-secret-key-not-for-production-use")
+os.environ.setdefault("JWT_SECRET", "test-jwt-secret-not-for-production-use")
 from app.config import get_settings  # noqa: E402
 
 get_settings.cache_clear()

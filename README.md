@@ -58,8 +58,9 @@ API key），再到「任务路由」把八个任务键各绑一个 provider。�
 
 ```bash
 cp .env.example .env
-# 填好 APP_SECRET_KEY、JWT_SECRET，并把 POSTGRES_PASSWORD 设成真的口令
-# ——它必须和 DATABASE_URL 里那一段口令一致，一个建账号、一个连库。
+# 填好 APP_SECRET_KEY、JWT_SECRET（占位值 CHANGE_ME 会被拒绝启动），
+# 并把 POSTGRES_PASSWORD 设成真的口令——它必须和 DATABASE_URL 里那一段口令一致，
+# 一个建账号、一个连库。
 
 make prod-up
 make prod-migrate

@@ -46,6 +46,14 @@ def test_purge_staging_is_reachable_from_the_command_line(monkeypatch, capsys):
 
 
 @pytest.mark.asyncio
+async def test_create_admin_refuses_a_short_password(db_session):
+    with pytest.raises(ValueError, match="至少八位"):
+        await create_admin("admin@example.com", "Admin", "short", session=db_session)
+
+    assert await db_session.scalar(select(User).where(User.email == "admin@example.com")) is None
+
+
+@pytest.mark.asyncio
 async def test_create_admin_inserts_user(db_session):
     await create_admin("admin@example.com", "Admin", "pw123456", session=db_session)
 

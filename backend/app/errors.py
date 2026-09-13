@@ -36,6 +36,11 @@ class Conflict(AppError):
     code = "conflict"
 
 
+class PayloadTooLarge(AppError):
+    status_code = 413
+    code = "payload_too_large"
+
+
 def install_error_handlers(application: FastAPI) -> None:
     @application.exception_handler(AppError)
     async def _handle(_: Request, exc: AppError) -> JSONResponse:
