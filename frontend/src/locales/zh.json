@@ -65,7 +65,11 @@
     "controlCount": "{{count}} 个控制点",
     "uncovered": "{{count}} 条规范条款无控制点",
     "uncoveredHint": "启发式：含 shall / must / should 却没有任何控制点引用的条款。会误报（范围声明）也会漏报（表格用行列表达义务，不含情态词）。",
-    "blindSpotHint": "你自己的文档有没有被变成控制点。与框架覆盖度方向相反。"
+    "blindSpotHint": "你自己的文档有没有被变成控制点。与框架覆盖度方向相反。",
+    "split": "在光标处拆开",
+    "merge": "合并到",
+    "mergePick": "选择条款",
+    "splitHint": "把光标放在要切开的位置。原条款保留，后面新增一条兄弟条款。"
   },
   "search": {
     "title": "检索",

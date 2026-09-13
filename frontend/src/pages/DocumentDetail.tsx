@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { getToken, request } from "../api";
+import { useAuth } from "../auth";
 
 interface ClauseNode {
   id: number;
@@ -91,13 +92,17 @@ function Tree({
 
 export function DocumentDetail() {
   const { t } = useTranslation();
+  const { user } = useAuth();
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
   const [selected, setSelected] = useState<ClauseNode | null>(null);
   const [importing, setImporting] = useState(false);
+  const [mergeInto, setMergeInto] = useState("");
+  const canEdit = user?.role !== "viewer";
 
   const doc = useQuery({
     queryKey: ["document", id],
@@ -107,6 +112,7 @@ export function DocumentDetail() {
     queryKey: ["clauses", id],
     queryFn: () => request<ClauseNode[]>(`/api/documents/${id}/clauses`),
   });
+  const flat = clauses.data ? flatten(clauses.data) : [];
 
   const uploadVersion = useMutation({
     mutationFn: async (file: File) => {
@@ -135,7 +141,31 @@ export function DocumentDetail() {
     },
   });
 
-  const total = clauses.data ? flatten(clauses.data).length : 0;
+  const split = useMutation({
+    mutationFn: (at: number) =>
+      request<ClauseNode>(`/api/clauses/${selected?.id}/split`, {
+        method: "POST",
+        body: JSON.stringify({ at }),
+      }),
+    onSuccess: async (created) => {
+      await queryClient.invalidateQueries({ queryKey: ["clauses", id] });
+      setSelected(created);
+    },
+  });
+  const merge = useMutation({
+    mutationFn: (intoId: number) =>
+      request<ClauseNode>(`/api/clauses/${selected?.id}/merge`, {
+        method: "POST",
+        body: JSON.stringify({ into_id: intoId }),
+      }),
+    onSuccess: async (winner) => {
+      await queryClient.invalidateQueries({ queryKey: ["clauses", id] });
+      setMergeInto("");
+      setSelected(winner);
+    },
+  });
+
+  const total = flat.length;
 
   useEffect(() => {
     if (!clauses.data) return;
@@ -289,21 +319,92 @@ export function DocumentDetail() {
               <p style={{ color: "var(--text-tertiary)", fontSize: "0.8125rem", marginBottom: 16 }}>
                 {selected.heading_path}
               </p>
-              <pre
-                style={{
-                  whiteSpace: "pre-wrap",
-                  font: "inherit",
-                  fontSize: "0.9375rem",
-                  lineHeight: 1.6,
-                  background: "var(--stage-card-subtle)",
-                  border: "1px solid var(--stage-border)",
-                  padding: 16,
-                  borderRadius: "var(--radius-sm)",
-                  color: "var(--text-primary)",
-                }}
-              >
-                {selected.text}
-              </pre>
+              {canEdit ? (
+                <>
+                  <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", marginBottom: 8 }}>
+                    {t("documents.splitHint")}
+                  </p>
+                  <textarea
+                    ref={bodyRef}
+                    readOnly
+                    defaultValue={selected.text}
+                    key={selected.id + selected.text}
+                    aria-label={selected.heading}
+                    style={{
+                      width: "100%",
+                      minHeight: 200,
+                      whiteSpace: "pre-wrap",
+                      font: "inherit",
+                      fontSize: "0.9375rem",
+                      lineHeight: 1.6,
+                      background: "var(--stage-card-subtle)",
+                      border: "1px solid var(--stage-border)",
+                      padding: 16,
+                      borderRadius: "var(--radius-sm)",
+                      color: "var(--text-primary)",
+                      resize: "vertical",
+                    }}
+                  />
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 12, alignItems: "center" }}>
+                    <button
+                      type="button"
+                      className="kn-btn-secondary kn-btn-sm"
+                      onClick={() => {
+                        const at = bodyRef.current?.selectionStart ?? 0;
+                        split.mutate(at);
+                      }}
+                    >
+                      {t("documents.split")}
+                    </button>
+                    <label style={{ display: "inline-flex", alignItems: "center", gap: 8, fontSize: "0.8125rem" }}>
+                      {t("documents.merge")}
+                      <select
+                        value={mergeInto}
+                        onChange={(event) => setMergeInto(event.target.value)}
+                        aria-label={t("documents.mergePick")}
+                      >
+                        <option value="">{t("documents.mergePick")}</option>
+                        {flat
+                          .filter((node) => node.id !== selected.id)
+                          .map((node) => (
+                            <option key={node.id} value={node.id}>
+                              {node.citation_label} {node.heading}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      className="kn-btn-secondary kn-btn-sm"
+                      disabled={!mergeInto}
+                      onClick={() => merge.mutate(Number(mergeInto))}
+                    >
+                      {t("documents.merge")}
+                    </button>
+                  </div>
+                  {(split.error || merge.error) && (
+                    <p role="alert" style={{ marginTop: 8 }}>
+                      {(split.error ?? merge.error)?.message}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <pre
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    font: "inherit",
+                    fontSize: "0.9375rem",
+                    lineHeight: 1.6,
+                    background: "var(--stage-card-subtle)",
+                    border: "1px solid var(--stage-border)",
+                    padding: 16,
+                    borderRadius: "var(--radius-sm)",
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  {selected.text}
+                </pre>
+              )}
             </>
           ) : (
             <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-tertiary)" }}>

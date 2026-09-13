@@ -14,7 +14,7 @@ async def rebuild_chunks(session: AsyncSession, *, document_id: int) -> int:
     clauses = list(
         await session.scalars(
             select(Clause)
-            .where(Clause.document_id == document_id)
+            .where(Clause.document_id == document_id, Clause.status != "merged")
             .order_by(Clause.order_index)
         )
     )

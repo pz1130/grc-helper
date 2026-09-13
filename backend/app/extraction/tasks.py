@@ -61,7 +61,7 @@ async def run_extraction(
     if document.status != DocStatus.ACTIVE:
         raise Conflict("只有 active 文档可以抽取控制点")
     clauses = list(await session.scalars(
-        select(Clause).where(Clause.document_id == document_id)
+        select(Clause).where(Clause.document_id == document_id, Clause.status != "merged")
         .order_by(Clause.order_index, Clause.id)
     ))
     # Render up front so per-batch commits cannot expire the next batch's ORM data.

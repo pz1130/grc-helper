@@ -1,5 +1,5 @@
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Computed, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Computed, ForeignKey, Index, Integer, String, Text, UniqueConstraint, select
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -30,8 +30,17 @@ class Clause(Base, TimestampMixin):
     page_ref: Mapped[int | None] = mapped_column(Integer, nullable=True)
     kind: Mapped[str] = mapped_column(String(16), default="section", nullable=False)
     language: Mapped[str] = mapped_column(String(8), default="en", nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="active", nullable=False)
+    # 合并后的去向。不删行——控制点出处和审计都按 id 引用条款。
+    merged_into_id: Mapped[int | None] = mapped_column(
+        ForeignKey("clauses.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
 
     document: Mapped["Document"] = relationship(back_populates="clauses")  # noqa: F821
+
+
+def active_clauses():
+    return select(Clause).where(Clause.status != "merged")
 
 
 # pgvector 的列必须声明维度。固定 1536：OpenAI text-embedding-3-* 可用。

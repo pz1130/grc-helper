@@ -65,11 +65,15 @@
     "controlCount": "{{count}} controls",
     "uncovered": "{{count}} normative clauses with no control",
     "uncoveredHint": "Heuristic: clauses containing shall / must / should that no control cites. It over-reports (scope statements) and under-reports (tables carry obligations without modal verbs).",
-    "blindSpotHint": "Whether your own documents have been turned into controls. The opposite direction from framework coverage."
+    "blindSpotHint": "Whether your own documents have been turned into controls. The opposite direction from framework coverage.",
+    "split": "Split at cursor",
+    "merge": "Merge into",
+    "mergePick": "Choose a clause",
+    "splitHint": "Place the cursor where this clause should break. The original row is kept; a sibling is added after it."
   },
   "search": {
     "title": "Search",
-    "placeholder": "Search policy clauses, Chinese or English",
+    "placeholder": "Search policy clauses",
     "run": "Search",
     "expanded": "Expanded terms",
     "keywordOnly": "Keyword search only (semantic search unavailable: no embedding provider configured, or the index is incomplete)",

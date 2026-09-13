@@ -16,6 +16,14 @@ class ClauseTreeOut(BaseModel):
     children: list["ClauseTreeOut"] = Field(default_factory=list)
 
 
+class ClauseSplitIn(BaseModel):
+    at: int
+
+
+class ClauseMergeIn(BaseModel):
+    into_id: int
+
+
 class ClauseOut(BaseModel):
     """单条条款。抽屉要的是正文，不需要子树。"""
 

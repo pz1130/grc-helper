@@ -4,10 +4,15 @@ import re
 from dataclasses import dataclass
 
 from app.parsing.contract import ClauseNode
-from app.parsing.headings import acts_as_headings
+from app.parsing.headings import acts_as_headings, choose_heading_set
 
 # 第 2 组捕获编号后是否带点：带点的是正文列表项，不是标题
 _NUMBERED = re.compile(r"^\s*(\d+(?:\.\d+)*)(\.?)\s+(\S.*?)\s*$")
+_ARTICLE = re.compile(
+    r"^\s*(?:Article|Section|Chapter)\s+(\d+(?:\.\d+)*)(?:\s*[.:—–-]\s*|\s+)(\S.*?)\s*$",
+    re.IGNORECASE,
+)
+_LETTERED = re.compile(r"^\s*\(([a-z])\)\s+(\S.*?)\s*$")
 # 目录形态之一：引导点
 _DOT_LEADER = re.compile(r"\.{4,}")
 # 目录形态之二：行尾跟着页码。实测这批文件的目录不带引导点，而是
@@ -76,7 +81,7 @@ def _ancestors(number: str) -> list[str]:
     return [".".join(parts[:cut]) for cut in range(1, len(parts))]
 
 
-def extract_headings(lines: list[str]) -> tuple[list[NumberedHeading], list[str]]:
+def _extract_decimal(lines: list[str]) -> tuple[list[NumberedHeading], list[str]]:
     warnings: list[str] = []
     seen: dict[str, NumberedHeading] = {}
     dropped = {"toc": 0, "version": 0, "orphan": 0, "footer": 0, "list": 0, "duplicate": 0}
@@ -155,6 +160,95 @@ def extract_headings(lines: list[str]) -> tuple[list[NumberedHeading], list[str]
 
     # 稳定排序：补出来的父节点与孩子共用行号，插入顺序保证父在前。
     return sorted(ordered, key=lambda heading: heading.line_index), warnings
+
+
+def _collect(lines: list[str], pattern: re.Pattern[str]) -> list[NumberedHeading]:
+    found: list[NumberedHeading] = []
+    seen: set[str] = set()
+    for index, line in enumerate(lines):
+        if _noise(line) is not None:
+            continue
+        match = pattern.match(line)
+        if match is None:
+            continue
+        number, title = match.group(1), match.group(2).strip()
+        if number in seen:
+            continue
+        seen.add(number)
+        found.append(NumberedHeading(number=number, title=title, line_index=index))
+    return found
+
+
+def _extract_lettered(lines: list[str]) -> list[NumberedHeading]:
+    found: list[NumberedHeading] = []
+    seen_at: set[int] = set()
+    for index, line in enumerate(lines):
+        if _noise(line) is not None:
+            continue
+        match = _LETTERED.match(line)
+        if match is None:
+            continue
+        number = str(ord(match.group(1)) - ord("a") + 1)
+        # 重启的 (a) 会重复编号；留给评分把「每一节各起一遍」判成列表项。
+        key = (number, index)
+        if key in seen_at:
+            continue
+        seen_at.add(key)
+        found.append(
+            NumberedHeading(number=number, title=match.group(2).strip(), line_index=index)
+        )
+    return found
+
+
+def _is_caps_heading(line: str) -> bool:
+    text = line.strip()
+    if len(text) < 4 or len(text) > 80 or text.endswith("."):
+        return False
+    letters = [char for char in text if char.isalpha()]
+    if len(letters) < 3 or not all(char.isupper() for char in letters):
+        return False
+    if _NUMBERED.match(text) or _ARTICLE.match(text) or _LETTERED.match(text):
+        return False
+    return _noise(text) is None
+
+
+def _extract_caps(lines: list[str]) -> list[NumberedHeading]:
+    found: list[NumberedHeading] = []
+    for index, line in enumerate(lines):
+        if not _is_caps_heading(line):
+            continue
+        found.append(
+            NumberedHeading(
+                number=str(len(found) + 1),
+                title=line.strip(),
+                line_index=index,
+            )
+        )
+    return found
+
+
+def extract_headings(lines: list[str]) -> tuple[list[NumberedHeading], list[str]]:
+    """几种英文读法里挑自洽的那一棵树。
+
+    十进制编号、Article/Section/Chapter、(a)(b)(c) 都交给 `choose_heading_set`。
+    全大写无编号行没有真编号，打分会虚高，只在编号读法全部低于门槛时才用。
+    """
+    decimal, warnings = _extract_decimal(lines)
+    numbered = [
+        candidate
+        for candidate in (decimal, _collect(lines, _ARTICLE), _extract_lettered(lines))
+        if candidate
+    ]
+    chosen = choose_heading_set([[heading.number for heading in item] for item in numbered])
+    if chosen:
+        for candidate in numbered:
+            if [heading.number for heading in candidate] == list(chosen):
+                return candidate, warnings
+
+    caps = _extract_caps(lines)
+    if len(caps) >= 3:
+        return caps, [*warnings, "未识别出编号条款，改用全大写英文标题"]
+    return decimal, warnings
 
 
 def assemble_tree(
