@@ -1,13 +1,13 @@
 [
   {
-    "document": "Access Control",
+    "document": "Example Visitor Access Policy",
     "must_find": [
-      "administrator accounts are vaulted",
-      "administrator access is reviewed periodically"
+      "visitors are signed in at reception",
+      "visitor badges expire the same day"
     ],
     "keyword_groups": [
-      [["administrator", "account"], ["vault", "stor", "manag"]],
-      [["administrator"], ["review", "recertif"], ["periodic", "quarter", "annual", "regular"]]
+      [["visitor"], ["sign", "log", "register"], ["reception", "front desk"]],
+      [["visitor", "badge"], ["expir", "same day", "end of day"]]
     ],
     "min_controls": 2
   }

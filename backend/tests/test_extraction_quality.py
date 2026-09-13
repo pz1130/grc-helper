@@ -15,7 +15,8 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-# 同 gold_queries：按某一批具体文档写成，不进版本库，格式见 .example。
+# 同 gold_queries：按某一批具体文档写成，不进版本库。
+# 格式见 .example（里面的文档名是假的，换语料就整份重写，不要沿用那些主题）。
 GOLD = Path(
     os.environ.get("GOLD_CONTROLS")
     or Path(__file__).parent / "fixtures" / "gold_controls.local.json"

@@ -1,17 +1,17 @@
 [
   {
-    "query": "how are administrator accounts stored and rotated",
-    "expect_document": "Access Control",
-    "expect_citation_prefix": "3"
+    "query": "where do visitors sign in",
+    "expect_document": "Example Visitor Access Policy",
+    "expect_citation_prefix": "2"
   },
   {
-    "query": "管理员账号如何管理",
-    "expect_document": "Access Control",
-    "expect_citation_prefix": "3"
+    "query": "访客如何登记",
+    "expect_document": "Example Visitor Access Policy",
+    "expect_citation_prefix": "2"
   },
   {
-    "query": "who approves an urgent change",
-    "expect_document": "Change Management",
-    "expect_citation_prefix": "4.2"
+    "query": "how long is a visitor badge valid",
+    "expect_document": "Example Visitor Access Policy",
+    "expect_citation_prefix": "3"
   }
 ]

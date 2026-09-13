@@ -56,11 +56,16 @@ API key），再到「任务路由」把八个任务键各绑一个 provider。�
 
 ## 部署
 
+**不要把开发机上的 `.env` 拷到生产。** 那两把密钥已经用来加密过开发库里的
+provider key、签过开发会话；拷过去等于开发机能解生产的密文。生产环境从
+`.env.example` 另起一份，重新生成：
+
 ```bash
 cp .env.example .env
-# 填好 APP_SECRET_KEY、JWT_SECRET（占位值 CHANGE_ME 会被拒绝启动），
-# 并把 POSTGRES_PASSWORD 设成真的口令——它必须和 DATABASE_URL 里那一段口令一致，
-# 一个建账号、一个连库。
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"  # APP_SECRET_KEY
+python -c "import secrets; print(secrets.token_urlsafe(48))"                                # JWT_SECRET
+# POSTGRES_PASSWORD 设成真的口令，并改 DATABASE_URL 里对应那一段——
+# 两个必须一致，一个给数据库建账号，一个给应用连。占位值 CHANGE_ME 或留空，进程会拒绝启动。
 
 make prod-up
 make prod-migrate
@@ -76,6 +81,10 @@ make prod-create-admin email=you@org.com name=You password='...'
 
 **没做的事，部署前你得自己补**：HTTPS（前面加一层反代或负载均衡）、
 把 `8080` 限制在内网、日志收集、以及下面这条备份的定时任务。
+
+这个仓库按**私有仓**维护。当前树里没有制度原文和机构名，但 git 历史里还有已删
+掉的样本痕迹；也没有 LICENSE。不要改成 public。作者邮箱里有本机主机名，
+公开之后改不掉。
 
 ---
 

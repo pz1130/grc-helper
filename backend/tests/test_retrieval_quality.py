@@ -22,7 +22,8 @@ APP_DATABASE_URL = os.environ.get(
     "APP_DATABASE_URL", "postgresql+asyncpg://grc:grc@db:5432/grc"
 )
 # 黄金集按某一批具体文档写成，不进版本库（见 .gitignore）。
-# 换语料时照着 gold_queries.example.json 重写一份 .local.json。
+# 换语料时照着 gold_queries.example.json 的字段格式重写一份 .local.json——
+# example 里的文档名和问句是假的，不是产品认的主题表。用户导入什么标题就填什么。
 GOLD = Path(
     os.environ.get("GOLD_QUERIES")
     or Path(__file__).parent / "fixtures" / "gold_queries.local.json"
