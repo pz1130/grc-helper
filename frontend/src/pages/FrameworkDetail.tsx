@@ -5,6 +5,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { ApiError, getToken, request, setToken } from "../api";
 import { useAuth } from "../auth";
+import i18n from "../i18n";
 
 interface Framework {
   id: number; key: string; name_zh: string; name_en: string;
@@ -32,11 +33,11 @@ async function downloadReadinessPackage(frameworkId: string): Promise<{ blob: Bl
   });
   if (response.status === 401) {
     setToken(null);
-    throw new ApiError(401, "unauthorized", "登录已失效，请重新登录");
+    throw new ApiError(401, "unauthorized", i18n.t("common.unauthorized"));
   }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new ApiError(response.status, body.code ?? "error", body.message ?? "请求失败");
+    throw new ApiError(response.status, body.code ?? "error", body.message ?? i18n.t("common.requestFailed"));
   }
   return {
     blob: await response.blob(),
@@ -45,7 +46,7 @@ async function downloadReadinessPackage(frameworkId: string): Promise<{ blob: Bl
 }
 
 export function FrameworkDetail() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { id } = useParams();
   const [baseline, setBaseline] = useState("");
@@ -95,12 +96,19 @@ export function FrameworkDetail() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 24 }}>
         <div>
           <h2>
-            {current?.name_zh ?? id}
+            {current
+              ? i18n.language.startsWith("zh")
+                ? current.name_zh
+                : current.name_en || current.name_zh
+              : id}
             {current && <small style={{ color: "var(--text-secondary)", fontSize: "1.0625rem", marginLeft: 8 }}>· {current.version}</small>}
           </h2>
-          {current?.name_en && (
+          {current && (
             <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)" }}>
-              {current.name_en} · Source: {current.source}
+              {(() => {
+                const sub = i18n.language.startsWith("zh") ? current.name_en : current.name_zh;
+                return sub ? `${sub} · Source: ${current.source}` : `Source: ${current.source}`;
+              })()}
             </p>
           )}
         </div>

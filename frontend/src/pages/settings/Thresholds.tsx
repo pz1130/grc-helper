@@ -44,7 +44,7 @@ export function ThresholdsPage() {
   function submit(event: FormEvent) {
     event.preventDefault();
     if (form.auto_accept_threshold <= form.force_manual_threshold) {
-      setError("自动接受阈值必须高于强制人工阈值");
+      setError(t("settings.thresholdsConfig.orderError"));
       return;
     }
     save.mutate();
@@ -54,12 +54,12 @@ export function ThresholdsPage() {
     <div className="kn-card" style={{ maxWidth: 540 }}>
       <h3 style={{ margin: "0 0 8px 0", fontSize: "1.125rem" }}>{t("settings.thresholds")}</h3>
       <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", marginBottom: 20 }}>
-        Configure algorithmic decision boundaries and automated batch acceptance criteria
+        {t("settings.thresholdsConfig.subtitle")}
       </p>
 
       <form onSubmit={submit} style={{ display: "grid", gap: 16 }}>
         <label>
-          自动接受阈值（高于此值允许批量接受）
+          {t("settings.thresholdsConfig.autoAccept")}
           <input
             type="number"
             step="0.01"
@@ -71,7 +71,7 @@ export function ThresholdsPage() {
         </label>
 
         <label>
-          强制人工阈值（低于此值必须逐条确认）
+          {t("settings.thresholdsConfig.forceManual")}
           <input
             type="number"
             step="0.01"
@@ -83,7 +83,7 @@ export function ThresholdsPage() {
         </label>
 
         <label>
-          持续抽样比例（高可信结果也按此比例留给人工复核）
+          {t("settings.thresholdsConfig.sampleRate")}
           <input
             type="number"
             step="0.01"
@@ -95,7 +95,7 @@ export function ThresholdsPage() {
         </label>
 
         <label>
-          月度预算（USD）
+          {t("settings.thresholdsConfig.monthlyBudget")}
           <input
             type="number"
             step="1"

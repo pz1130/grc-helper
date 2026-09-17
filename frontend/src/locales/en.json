@@ -69,7 +69,8 @@
     "split": "Split at cursor",
     "merge": "Merge into",
     "mergePick": "Choose a clause",
-    "splitHint": "Place the cursor where this clause should break. The original row is kept; a sibling is added after it."
+    "splitHint": "Place the cursor where this clause should break. The original row is kept; a sibling is added after it.",
+    "ocrSuspect": "Suspect OCR quality"
   },
   "search": {
     "title": "Search",
@@ -90,12 +91,44 @@
     "providerDisabled": "disabled",
     "providerConfirmDelete": "Delete for good",
     "title": "Settings",
+    "subtitle": "System Configuration, AI Integrations, Compliance Thresholds & Security Governance",
     "providers": "AI providers",
     "routing": "Task routing",
     "redaction": "Redaction rules",
     "thresholds": "Thresholds & budget",
     "users": "Users",
-    "auditLog": "Audit log"
+    "auditLog": "Audit log",
+    "thresholdsConfig": {
+      "subtitle": "Configure algorithmic decision boundaries and automated batch acceptance criteria",
+      "autoAccept": "Auto-accept threshold (scores above this can be batch accepted)",
+      "forceManual": "Force manual threshold (scores below this require manual confirmation)",
+      "sampleRate": "Review sample rate (proportion of high-confidence items sampled for review)",
+      "monthlyBudget": "Monthly budget (USD)",
+      "orderError": "Auto-accept threshold must be higher than force-manual threshold"
+    },
+    "redactionConfig": {
+      "subtitle": "Generation: Full PII & sensitive info masking · Embedding: Selective term-preserving redaction",
+      "ruleset": "Ruleset",
+      "dictionaryOption": "dictionary (one per line)",
+      "prefixPlaceholder": "replacement prefix, e.g. ORG",
+      "notePlaceholder": "Notes",
+      "sendPreview": "Send preview",
+      "sendPreviewHint": "Paste sample text to preview what will actually be sent.",
+      "previewInputAria": "Send preview input",
+      "previewBtn": "Preview",
+      "hits": "Hits"
+    },
+    "usersConfig": {
+      "auditorHint": "External auditor: choose viewer role and set expiration date.",
+      "passwordPlaceholder": "Initial password (at least 8 chars)",
+      "expiresAt": "Expiration date"
+    },
+    "auditLogConfig": {
+      "description": "This log is append-only and serves as compliance audit trail."
+    },
+    "providersConfig": {
+      "baseUrlPlaceholder": "base_url (leave empty for default; MiniMax China requires ?GroupId=yourGroupId)"
+    }
   },
   "review": {
     "title": "Review queue",
@@ -154,10 +187,14 @@
     "noEvidence": "No clause citations supplied.",
     "kinds": {
       "control_extract": "Control extraction",
+      "mapping": "Framework mapping",
       "matrix_mapping": "Spreadsheet column mapping",
       "relation": "Control relationship",
       "conflict": "Policy conflict",
-      "answer": "Audit answer"
+      "answer": "Audit answer",
+      "audit_prediction": "Audit prediction",
+      "maturity_score": "Maturity score",
+      "evidence_suggestion": "Evidence suggestion"
     },
     "strength": "Strength",
     "allStrengths": "All strengths",
@@ -523,6 +560,10 @@
     "zoomOut": "Zoom out",
     "resetView": "Reset view",
     "relationsCount": "relations",
+    "viewLabel": "View",
+    "layoutLabel": "Layout",
+    "exportFailedSvg": "Failed to render SVG",
+    "canvasUnavailable": "Canvas not available",
     "filters": { "pending": "Show pending proposals", "onlyUnconfirmed": "Only unconfirmed", "onlyConflicts": "Only conflicts", "framework": "Framework", "allFrameworks": "All frameworks" }
   },
   "impact": {
@@ -548,6 +589,9 @@
     "edit": "Edit",
     "saved": "Saved.",
     "save": "Save",
+    "create": "Create",
+    "unauthorized": "Session expired, please sign in again",
+    "requestFailed": "Request failed",
     "add": "Add",
     "test": "Test connection",
     "cancel": "Cancel",

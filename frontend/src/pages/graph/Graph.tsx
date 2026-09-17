@@ -102,7 +102,7 @@ export function Graph() {
       <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", margin: "16px 0 14px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            {t("graph.view.relations").includes("关系") ? "视图" : "View"}:
+            {t("graph.viewLabel")}:
           </span>
           <div className="kn-segmented" style={{ padding: "4px" }}>
             {(["relations", "mappings"] as const).map((kind) => (
@@ -123,7 +123,7 @@ export function Graph() {
         {view === "relations" && (
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              {t("graph.layout.document").includes("文件") ? "布局" : "Layout"}:
+              {t("graph.layoutLabel")}:
             </span>
             <div className="kn-segmented" style={{ padding: "4px" }}>
               {(["document", "function", "force"] as LayoutKind[]).map((kind) => (

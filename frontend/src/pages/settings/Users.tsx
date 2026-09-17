@@ -132,7 +132,7 @@ export function Users() {
       <div className="kn-card" style={{ maxWidth: 520 }}>
         <h4 style={{ margin: "0 0 4px 0", fontSize: "1rem" }}>{t("common.add")}</h4>
         <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", marginBottom: 16 }}>
-          外部审计员：角色选 viewer，并填有效期。
+          {t("settings.usersConfig.auditorHint")}
         </p>
         <form onSubmit={submit} style={{ display: "grid", gap: 12 }}>
           <input
@@ -161,7 +161,7 @@ export function Users() {
           </select>
           <input
             type="password"
-            placeholder="初始密码（至少 8 位）"
+            placeholder={t("settings.usersConfig.passwordPlaceholder")}
             value={form.password}
             required
             minLength={8}
@@ -169,7 +169,7 @@ export function Users() {
           />
           <input
             type="date"
-            aria-label="有效期"
+            aria-label={t("settings.usersConfig.expiresAt")}
             value={form.expires_at}
             onChange={(e) => setForm({ ...form, expires_at: e.target.value })}
           />

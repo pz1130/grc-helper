@@ -13,7 +13,7 @@ export function SettingsLayout() {
       <div style={{ marginBottom: 20 }}>
         <h2>{t("settings.title")}</h2>
         <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)" }}>
-          System Configuration, AI Integrations, Compliance Thresholds & Security Governance
+          {t("settings.subtitle")}
         </p>
       </div>
 

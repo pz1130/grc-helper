@@ -192,7 +192,7 @@ function MappingPreview({
   onDraftChange: (value: string) => void;
   onStrengthChange: (value: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const payload = proposal.payload;
   const item = proposal.mapping_context?.framework_item ?? asRecord(payload.framework_item);
   const control = proposal.mapping_context?.control ?? asRecord(payload.control);
@@ -214,7 +214,7 @@ function MappingPreview({
   const coveredBy = (coverage?.confirmed ?? [])
     .filter((row) => row.strength === "full" || row.strength === "partial")
     .map((row) => `${row.control_code} (${t(`mapping.strength.${row.strength}`, { defaultValue: row.strength })})`)
-    .join("、");
+    .join(i18n.language.startsWith("zh") ? "、" : ", ");
 
   return (
     <div style={{ marginTop: 16 }}>
@@ -498,7 +498,7 @@ function ConflictBody({
 }
 
 export function ReviewQueue() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const canDecide = user?.role === "admin" || user?.role === "grc_lead";
   const canWrite = user?.role === "admin" || user?.role === "grc_lead";
@@ -534,7 +534,7 @@ export function ReviewQueue() {
 
   const frameworks = useQuery({
     queryKey: ["frameworks"],
-    queryFn: () => request<{ key: string; name_en: string }[]>("/api/frameworks"),
+    queryFn: () => request<{ key: string; name_zh: string; name_en: string }[]>("/api/frameworks"),
     enabled: params.get("kind") === "mapping",
   });
   const stats = useQuery({
@@ -665,7 +665,7 @@ export function ReviewQueue() {
             style={{ padding: "6px 28px 6px 12px" }}
           >
             <option value="">{t("review.allKinds")}</option>
-            {[...new Set(["control_extract", "matrix_mapping", ...Object.keys(stats.data?.by_kind ?? {})])].map((k) => (
+            {[...new Set(["control_extract", "mapping", "matrix_mapping", ...Object.keys(stats.data?.by_kind ?? {})])].map((k) => (
               <option key={k} value={k}>{t(`review.kinds.${k}`, { defaultValue: k })}</option>
             ))}
           </select>
@@ -686,7 +686,11 @@ export function ReviewQueue() {
             >
               <option value="">{t("review.allFrameworks")}</option>
               {(frameworks.data ?? []).map((f) => (
-                <option key={f.key} value={f.key}>{f.name_en || f.key}</option>
+                <option key={f.key} value={f.key}>
+                  {i18n.language.startsWith("zh")
+                    ? f.name_zh || f.name_en || f.key
+                    : f.name_en || f.name_zh || f.key}
+                </option>
               ))}
             </select>
           </label>

@@ -70,11 +70,11 @@ export function Redaction() {
           <div>
             <h3 style={{ margin: 0, fontSize: "1.125rem" }}>{t("settings.redaction")}</h3>
             <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", margin: "4px 0 0 0" }}>
-              Generation: Full PII & sensitive info masking · Embedding: Selective term-preserving redaction
+              {t("settings.redactionConfig.subtitle")}
             </p>
           </div>
           <label style={{ flexDirection: "row", alignItems: "center", gap: 8, margin: 0 }}>
-            <span>规则集</span>
+            <span>{t("settings.redactionConfig.ruleset")}</span>
             <select
               value={ruleset}
               onChange={(e) => setRuleset(e.target.value as Ruleset)}
@@ -138,7 +138,7 @@ export function Redaction() {
             }
           >
             <option value="regex">regex</option>
-            <option value="dictionary">dictionary（每行一个词）</option>
+            <option value="dictionary">{t("settings.redactionConfig.dictionaryOption")}</option>
           </select>
           <textarea
             placeholder="pattern"
@@ -148,13 +148,13 @@ export function Redaction() {
             onChange={(e) => setForm({ ...form, pattern: e.target.value })}
           />
           <input
-            placeholder="replacement prefix，如 ORG"
+            placeholder={t("settings.redactionConfig.prefixPlaceholder")}
             value={form.replacement_prefix}
             required
             onChange={(e) => setForm({ ...form, replacement_prefix: e.target.value })}
           />
           <input
-            placeholder="备注"
+            placeholder={t("settings.redactionConfig.notePlaceholder")}
             value={form.note}
             onChange={(e) => setForm({ ...form, note: e.target.value })}
           />
@@ -168,12 +168,12 @@ export function Redaction() {
 
       {/* Live Preview Sandbox Card */}
       <div className="kn-card">
-        <h4 style={{ margin: "0 0 4px 0", fontSize: "1rem" }}>发送预览 / Send preview</h4>
+        <h4 style={{ margin: "0 0 4px 0", fontSize: "1rem" }}>{t("settings.redactionConfig.sendPreview")}</h4>
         <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", marginBottom: 14 }}>
-          粘一段真实文字，看看实际会发出去什么。
+          {t("settings.redactionConfig.sendPreviewHint")}
         </p>
         <textarea
-          aria-label="发送预览输入"
+          aria-label={t("settings.redactionConfig.previewInputAria")}
           rows={4}
           style={{ width: "100%", maxWidth: 720, marginBottom: 12 }}
           value={sample}
@@ -181,7 +181,7 @@ export function Redaction() {
         />
         <div>
           <button className="kn-btn-primary kn-btn-sm" onClick={() => void runPreview()}>
-            预览
+            {t("settings.redactionConfig.previewBtn")}
           </button>
         </div>
         {preview && (
@@ -199,7 +199,7 @@ export function Redaction() {
             }}
           >
             {preview.redacted}
-            {"\n\n命中: " + JSON.stringify(preview.hits)}
+            {"\n\n" + t("settings.redactionConfig.hits") + ": " + JSON.stringify(preview.hits)}
           </pre>
         )}
       </div>

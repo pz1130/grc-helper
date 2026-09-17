@@ -9,7 +9,7 @@ import type { Control } from "./Controls";
 interface Detail extends Control {
   sources: { clause_id: number; document_id: number; document_title: string; citation_label: string; heading_path: string; relation: string }[];
   relations: { from_control_id: number; to_control_id: number; relation_type: string; rationale: string }[];
-  mappings?: { framework_name: string; code: string; title: string; strength: string }[];
+  mappings?: { framework_name: string; framework_name_en?: string; code: string; title: string; strength: string }[];
   implementations?: { id: number; control_id: number; tech_asset_id: number | null; description: string; how_enforced: string; status: string; na_justification: string | null; owner_user_id: number | null; last_verified_at: string | null }[];
   evidence?: { id: number; evidence_type_id: number; control_id: number; tech_asset_id: number | null; title: string; owner_user_id: number | null; location_hint: string; last_collected_at: string | null; valid_until: string | null; file_path: string | null; status: string; intent_status?: string; display_status?: string; evidence_type_name?: string | null; tech_asset_name?: string | null }[];
 }
@@ -28,7 +28,7 @@ export function ControlDetail() {
 }
 
 function ControlContent({ id }: { id: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const canWrite = user?.role === "admin" || user?.role === "grc_lead";
   const client = useQueryClient();
@@ -388,7 +388,12 @@ function ControlContent({ id }: { id: string }) {
                     gap: 10,
                   }}
                 >
-                  <span style={{ fontWeight: 600 }}>{mapping.framework_name}</span> · <code>{mapping.code}</code> {mapping.title} ·{" "}
+                  <span style={{ fontWeight: 600 }}>
+                    {i18n.language.startsWith("zh")
+                      ? mapping.framework_name
+                      : mapping.framework_name_en || mapping.framework_name}
+                  </span>{" "}
+                  · <code>{mapping.code}</code> {mapping.title} ·{" "}
                   <span className="kn-badge kn-badge-purple">
                     {t(`mapping.strength.${mapping.strength}`, { defaultValue: mapping.strength })}
                   </span>

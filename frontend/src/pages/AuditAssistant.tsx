@@ -244,7 +244,7 @@ export function AuditAssistant() {
               <tbody>{preflight.data.rows.filter((row) => readinessFilter === "all" || row.readiness === readinessFilter).map((row) => <tr key={row.framework_item_id}>
                 <td><span className={`kn-badge kn-badge-${row.readiness === "green" ? "emerald" : row.readiness === "yellow" ? "amber" : "danger"}`}>{t(`audit.readiness.${row.readiness}`)}</span><div style={{ marginTop: 6, fontSize: "0.75rem", color: "var(--text-tertiary)" }}>{row.reason}</div></td>
                 <td><strong>{row.code} {row.title}</strong><p>{row.likely_question}</p></td>
-                <td>{t("audit.supportCounts", { controls: row.control_count, implementations: row.implementation_count, evidence: row.valid_evidence_count })}<div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>{row.tool_names.join("、") || "—"}</div></td>
+                <td>{t("audit.supportCounts", { controls: row.control_count, implementations: row.implementation_count, evidence: row.valid_evidence_count })}<div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>{row.tool_names.join(i18n.language.startsWith("zh") ? "、" : ", ") || "—"}</div></td>
               </tr>)}</tbody>
             </table>
           </div>

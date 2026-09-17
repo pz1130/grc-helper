@@ -43,6 +43,7 @@ class FrameworkMappingOut(BaseModel):
     framework_id: int
     framework_key: str
     framework_name: str
+    framework_name_en: str = ""
     framework_item_id: int
     code: str
     title: str

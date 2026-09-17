@@ -26,7 +26,7 @@ export function AuditLog() {
       <div style={{ marginBottom: 16 }}>
         <h3 style={{ margin: "0 0 4px 0", fontSize: "1.125rem" }}>{t("settings.auditLog")}</h3>
         <p style={{ color: "var(--text-secondary)", fontSize: "0.8125rem", margin: 0 }}>
-          本日志只增不删，可作为本系统自身接受审计时的证据。
+          {t("settings.auditLogConfig.description")}
         </p>
       </div>
 

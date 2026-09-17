@@ -77,6 +77,7 @@ async def mappings(session: AsyncSession, control_id: int) -> list[FrameworkMapp
             framework_id=framework.id,
             framework_key=framework.key,
             framework_name=framework.name_zh,
+            framework_name_en=framework.name_en,
             framework_item_id=item.id,
             code=item.code,
             title=item.title,

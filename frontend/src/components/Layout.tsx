@@ -16,7 +16,7 @@ export function Layout() {
       to: "/",
       label: t("nav.overview"),
       icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="3" width="7" height="7" rx="1.5" />
           <rect x="14" y="3" width="7" height="7" rx="1.5" />
           <rect x="14" y="14" width="7" height="7" rx="1.5" />
@@ -28,7 +28,7 @@ export function Layout() {
       to: "/documents",
       label: t("nav.documents"),
       icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
           <polyline points="14 2 14 8 20 8" />
           <line x1="16" y1="13" x2="8" y2="13" />
@@ -41,7 +41,7 @@ export function Layout() {
       to: "/search",
       label: t("nav.search"),
       icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
@@ -51,7 +51,7 @@ export function Layout() {
       to: "/review",
       label: t("nav.review"),
       icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M9 11l3 3L22 4" />
           <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
         </svg>
@@ -61,7 +61,7 @@ export function Layout() {
       to: "/controls",
       label: t("nav.controls"),
       icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           <circle cx="12" cy="11" r="3" />
         </svg>
@@ -71,7 +71,7 @@ export function Layout() {
       to: "/graph",
       label: t("nav.graph"),
       icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="5" cy="6" r="2.5" />
           <circle cx="19" cy="9" r="2.5" />
           <circle cx="9" cy="18" r="2.5" />
@@ -83,7 +83,7 @@ export function Layout() {
       to: "/frameworks",
       label: t("nav.frameworks"),
       icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polygon points="12 2 2 7 12 12 22 7 12 2" />
           <polyline points="2 17 12 22 22 17" />
           <polyline points="2 12 12 17 22 12" />
@@ -94,7 +94,7 @@ export function Layout() {
       to: "/tech-assets",
       label: t("nav.techAssets"),
       icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="4" width="18" height="16" rx="2" />
           <path d="M7 8h10M7 12h4M7 16h7" />
         </svg>
@@ -104,7 +104,7 @@ export function Layout() {
       to: "/evidence",
       label: t("nav.evidence"),
       icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
           <path d="M14 2v6h6M8 13h8M8 17h6" />
         </svg>
@@ -114,7 +114,7 @@ export function Layout() {
       to: "/audit",
       label: t("nav.audit"),
       icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
           <rect x="9" y="3" width="6" height="4" rx="1" />
           <path d="M9 12h6M9 16h4" />
@@ -125,7 +125,7 @@ export function Layout() {
       to: "/maturity",
       label: t("nav.maturity"),
       icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 19V9M10 19V5M16 19v-7M22 19V3" />
           <path d="M2 19h22" />
         </svg>
@@ -135,7 +135,7 @@ export function Layout() {
       to: "/risks",
       label: t("nav.risks"),
       icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 3 2 21h20L12 3z" />
           <path d="M12 9v5M12 18h.01" />
         </svg>
@@ -145,7 +145,7 @@ export function Layout() {
       to: "/settings",
       label: t("nav.settings"),
       icon: (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
@@ -158,7 +158,7 @@ export function Layout() {
       {/* Keynote Sidebar */}
       <nav
         style={{
-          width: 248,
+          width: 260,
           padding: "24px 16px",
           background: "var(--sidebar-bg)",
           backdropFilter: "blur(28px) saturate(180%)",
@@ -175,11 +175,11 @@ export function Layout() {
         }}
       >
         {/* Brand Header */}
-        <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 28, padding: "0 8px" }}>
-          <BrandLogo size={32} />
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 28, padding: "0 8px" }}>
+          <BrandLogo size={34} />
           <h1
             style={{
-              fontSize: "1.0625rem",
+              fontSize: "1.125rem",
               margin: 0,
               fontWeight: 700,
               letterSpacing: "-0.01em",
@@ -225,14 +225,14 @@ export function Layout() {
           <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
             <div
               style={{
-                width: 24,
-                height: 24,
+                width: 28,
+                height: 28,
                 borderRadius: "50%",
                 background: "var(--avatar-bg)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "0.6875rem",
+                fontSize: "0.75rem",
                 fontWeight: 600,
                 color: "var(--text-primary)",
                 border: "1px solid var(--stage-border)",
@@ -244,25 +244,25 @@ export function Layout() {
             <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
               <div
                 style={{
-                  fontSize: "0.75rem",
+                  fontSize: "0.8125rem",
                   fontWeight: 600,
                   color: "var(--text-primary)",
                   whiteSpace: "nowrap",
                   textOverflow: "ellipsis",
                   overflow: "hidden",
-                  lineHeight: 1.2,
+                  lineHeight: 1.25,
                 }}
               >
                 {user?.name}
               </div>
               <div
                 style={{
-                  fontSize: "0.625rem",
+                  fontSize: "0.6875rem",
                   color: "var(--text-tertiary)",
                   whiteSpace: "nowrap",
                   textOverflow: "ellipsis",
                   overflow: "hidden",
-                  lineHeight: 1.2,
+                  lineHeight: 1.25,
                 }}
               >
                 {user?.role}
@@ -276,7 +276,7 @@ export function Layout() {
             title={t("app.logout")}
             aria-label={t("app.logout")}
           >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
               <polyline points="16 17 21 12 16 7" />
               <line x1="21" y1="12" x2="9" y2="12" />
@@ -300,7 +300,7 @@ export function Layout() {
               aria-pressed={theme === "light"}
               title={t("app.themeLight")}
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="5" />
                 <line x1="12" y1="1" x2="12" y2="3" />
                 <line x1="12" y1="21" x2="12" y2="23" />
@@ -320,7 +320,7 @@ export function Layout() {
               aria-pressed={theme === "dark"}
               title={t("app.themeDark")}
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
               </svg>
               <span>{i18n.language.startsWith("zh") ? "深" : "Dark"}</span>
@@ -390,7 +390,7 @@ export function Layout() {
           flex: 1,
           padding: "36px 48px",
           maxWidth: "1440px",
-          width: "calc(100% - 248px)",
+          width: "calc(100% - 260px)",
           boxSizing: "border-box",
           position: "relative",
           zIndex: 1,

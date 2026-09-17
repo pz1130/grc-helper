@@ -69,7 +69,8 @@
     "split": "在光标处拆开",
     "merge": "合并到",
     "mergePick": "选择条款",
-    "splitHint": "把光标放在要切开的位置。原条款保留，后面新增一条兄弟条款。"
+    "splitHint": "把光标放在要切开的位置。原条款保留，后面新增一条兄弟条款。",
+    "ocrSuspect": "OCR 质量存疑"
   },
   "search": {
     "title": "检索",
@@ -90,12 +91,44 @@
     "providerDisabled": "已停用",
     "providerConfirmDelete": "确认删除",
     "title": "设置",
+    "subtitle": "系统配置、AI 集成、合规阈值与安全治理",
     "providers": "AI Provider",
     "routing": "任务路由",
     "redaction": "脱敏规则",
     "thresholds": "阈值与预算",
     "users": "用户管理",
-    "auditLog": "操作日志"
+    "auditLog": "操作日志",
+    "thresholdsConfig": {
+      "subtitle": "配置算法决策边界与自动批量接受条件",
+      "autoAccept": "自动接受阈值（高于此值允许批量接受）",
+      "forceManual": "强制人工阈值（低于此值必须逐条确认）",
+      "sampleRate": "持续抽样比例（高可信结果也按此比例留给人工复核）",
+      "monthlyBudget": "月度预算（USD）",
+      "orderError": "自动接受阈值必须高于强制人工阈值"
+    },
+    "redactionConfig": {
+      "subtitle": "生成任务：完整遮盖个人与敏感信息 · 嵌入任务：保留专业术语的定向脱敏",
+      "ruleset": "规则集",
+      "dictionaryOption": "dictionary（每行一个词）",
+      "prefixPlaceholder": "replacement prefix，如 ORG",
+      "notePlaceholder": "备注",
+      "sendPreview": "发送预览",
+      "sendPreviewHint": "粘一段真实文字，看看实际会发出去什么。",
+      "previewInputAria": "发送预览输入",
+      "previewBtn": "预览",
+      "hits": "命中"
+    },
+    "usersConfig": {
+      "auditorHint": "外部审计员：角色选 viewer，并填有效期。",
+      "passwordPlaceholder": "初始密码（至少 8 位）",
+      "expiresAt": "有效期"
+    },
+    "auditLogConfig": {
+      "description": "本日志只增不删，可作为本系统自身接受审计时的证据。"
+    },
+    "providersConfig": {
+      "baseUrlPlaceholder": "base_url（留空用默认；MiniMax 中国站须加 ?GroupId=你的GroupId）"
+    }
   },
   "review": {
     "title": "确认队列",
@@ -154,10 +187,14 @@
     "noEvidence": "未提供条款引用。",
     "kinds": {
       "control_extract": "控制点抽取",
+      "mapping": "框架映射",
       "matrix_mapping": "Excel 列映射",
       "relation": "控制点关系",
       "conflict": "制度冲突",
-      "answer": "审计答复"
+      "answer": "审计答复",
+      "audit_prediction": "审计预测",
+      "maturity_score": "成熟度评分",
+      "evidence_suggestion": "证据建议"
     },
     "strength": "强度",
     "allStrengths": "全部强度",
@@ -513,6 +550,10 @@
     "zoomOut": "缩小",
     "resetView": "重置视图",
     "relationsCount": "条关联",
+    "viewLabel": "视图",
+    "layoutLabel": "布局",
+    "exportFailedSvg": "SVG 渲染失败",
+    "canvasUnavailable": "canvas 不可用",
     "filters": { "pending": "显示待确认提案", "onlyUnconfirmed": "只看未确认", "onlyConflicts": "只看冲突", "framework": "框架", "allFrameworks": "全部框架" }
   },
   "impact": {
@@ -538,6 +579,9 @@
     "edit": "编辑",
     "saved": "已保存。",
     "save": "保存",
+    "create": "创建",
+    "unauthorized": "登录已失效，请重新登录",
+    "requestFailed": "请求失败",
     "add": "新增",
     "test": "测试连接",
     "cancel": "取消",

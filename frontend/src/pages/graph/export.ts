@@ -65,7 +65,7 @@ export async function downloadGraph(svg: SVGSVGElement, format: "svg" | "png"): 
     const image = new Image();
     await new Promise<void>((resolve, reject) => {
       image.onload = () => resolve();
-      image.onerror = () => reject(new Error("SVG 渲染失败"));
+      image.onerror = () => reject(new Error("graph.exportFailedSvg"));
       image.src = source;
     });
     for (let scale = bitmapScale(width, height); scale >= MIN_SCALE; scale /= 2) {
@@ -108,7 +108,7 @@ async function renderToBlob(
   canvas.width = Math.max(1, Math.floor(width * scale));
   canvas.height = Math.max(1, Math.floor(height * scale));
   const context = canvas.getContext("2d");
-  if (!context) throw new Error("canvas 不可用");
+  if (!context) throw new Error("graph.canvasUnavailable");
   context.scale(scale, scale);
   context.drawImage(image, 0, 0, width, height);
   try {

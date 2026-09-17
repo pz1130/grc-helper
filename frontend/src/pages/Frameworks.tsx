@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 
 import { ApiError, getToken, request, setToken } from "../api";
 import { useAuth } from "../auth";
+import i18n from "../i18n";
 
 interface Framework {
   id: number;
@@ -33,13 +34,13 @@ async function upload<T>(path: string, body: FormData): Promise<T> {
   if (response.status === 401) setToken(null);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new ApiError(response.status, data.code ?? "error", data.message ?? "请求失败");
+    throw new ApiError(response.status, data.code ?? "error", data.message ?? i18n.t("common.requestFailed"));
   }
   return data as T;
 }
 
 export function Frameworks() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const client = useQueryClient();
   const canWrite = user?.role === "admin" || user?.role === "grc_lead";
@@ -133,10 +134,12 @@ export function Frameworks() {
                       to={`/frameworks/${framework.id}`}
                       style={{ fontWeight: 600, color: "var(--text-primary)" }}
                     >
-                      {framework.name_zh}
+                      {i18n.language.startsWith("zh")
+                        ? framework.name_zh
+                        : framework.name_en || framework.name_zh}
                     </Link>
                     <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)" }}>
-                      {framework.name_en}
+                      {i18n.language.startsWith("zh") ? framework.name_en : framework.name_zh}
                     </div>
                   </td>
                   <td>

@@ -228,7 +228,7 @@ export function Providers() {
             onChange={(e) => setForm({ ...form, model: e.target.value })}
           />
           <input
-            placeholder="base_url（留空用默认；MiniMax 中国站须加 ?GroupId=你的GroupId）"
+            placeholder={t("settings.providersConfig.baseUrlPlaceholder")}
             value={form.base_url}
             onChange={(e) => setForm({ ...form, base_url: e.target.value })}
           />

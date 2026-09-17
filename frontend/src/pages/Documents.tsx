@@ -275,7 +275,7 @@ export function Documents() {
                       )}
                       {document.ocr_quality_flag && (
                         <span
-                          title="OCR 质量存疑"
+                          title={t("documents.ocrSuspect")}
                           className="kn-badge kn-badge-purple"
                           style={{ padding: "1px 6px", fontSize: "0.6875rem" }}
                         >
