@@ -8,19 +8,32 @@
     "themeDark": "Dark"
   },
   "nav": {
+    "groups": {
+      "governance": "Governance",
+      "defense": "Defense & Review",
+      "intelligence": "Intelligence",
+      "system": "System"
+    },
     "overview": "Overview",
     "documents": "Documents",
-    "search": "Search",
+    "search": "Global Search",
     "settings": "Settings",
-    "review": "Review",
+    "review": "Review Queue",
     "controls": "Controls",
-    "graph": "Graph",
+    "graph": "Knowledge Graph",
     "frameworks": "Frameworks",
-    "techAssets": "Tech assets",
+    "techAssets": "Tech Assets",
     "evidence": "Evidence",
-    "audit": "Audit assistant",
-    "maturity": "Maturity",
-    "risks": "Risk register"
+    "audit": "Audit Assistant",
+    "maturity": "Maturity Model",
+    "risks": "Risk Register"
+  },
+  "topbar": {
+    "searchPlaceholder": "Search controls, documents, frameworks... (⌘K)",
+    "systemHealthy": "All Systems Operational",
+    "pendingReviews": "{{count}} pending reviews",
+    "noPendingReviews": "Queue cleared",
+    "quickSearch": "Quick Search"
   },
   "login": {
     "title": "Sign in",
@@ -31,13 +44,26 @@
   },
   "overview": {
     "title": "Overview",
+    "heroTitle": "Compliance & Governance Cockpit",
+    "heroSubtitle": "Multi-standard mapping · Evidence validity tracking · AI cost & audit intelligence",
     "monthCost": "Month-to-date AI cost",
     "budget": "Budget",
     "calls": "Calls",
     "expiredEvidence": "Expired evidence",
     "expiredEvidenceHint": "Evidence past its valid-until date",
     "needsAttention": "Needs attention",
-    "upToDate": "Up to date"
+    "upToDate": "Up to date",
+    "costBurnRate": "Budget Burn Rate",
+    "noBudgetSet": "No budget limit set",
+    "budgetWarning": "Budget exceeds warning threshold",
+    "compliancePosture": "Governance Posture",
+    "activeDocuments": "Governed Documents",
+    "reviewAlerts": "Review Alerts",
+    "pendingReviewQuick": "Pending Review Tasks",
+    "viewAllReviews": "Go to Review Queue →",
+    "emptyPending": "No pending proposals requiring review",
+    "aiTasksDistribution": "AI Task Workload & Cost Distribution",
+    "totalCalls": "Total Model Invocations"
   },
   "documents": {
     "title": "Documents",

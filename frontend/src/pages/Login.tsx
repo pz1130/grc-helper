@@ -167,6 +167,50 @@ export function Login() {
           >
             {t("login.submit")}
           </button>
+
+          <div
+            style={{
+              marginTop: 4,
+              padding: "10px 14px",
+              borderRadius: "var(--radius-sm)",
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "1px dashed var(--stage-border)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              fontSize: "0.75rem",
+              color: "var(--text-secondary)",
+            }}
+          >
+            <div>
+              <div style={{ color: "var(--text-primary)", fontWeight: 500, marginBottom: 2 }}>
+                {i18n.language.startsWith("zh") ? "默认管理员账号" : "Default Admin"}
+              </div>
+              <code style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>admin@example.com / pw123456</code>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                setEmail("admin@example.com");
+                setPassword("pw123456");
+                try {
+                  await login("admin@example.com", "pw123456");
+                } catch {
+                  // Handled
+                }
+              }}
+              className="kn-btn-secondary kn-btn-sm"
+              style={{
+                fontSize: "0.75rem",
+                padding: "6px 12px",
+                cursor: "pointer",
+                fontWeight: 600,
+                color: "var(--accent-primary)",
+              }}
+            >
+              {i18n.language.startsWith("zh") ? "一键填入并进入 ➜" : "Auto-fill & Enter ➜"}
+            </button>
+          </div>
         </form>
       </div>
     </div>

@@ -57,12 +57,67 @@ export function Overview() {
   const totalCalls = data?.by_task.reduce((sum, r) => sum + r.calls, 0) ?? 0;
   const maxTaskCost = Math.max(...(data?.by_task.map((r) => r.cost) ?? [1]), 0.0001);
 
+  const proposalStats = useQuery({
+    queryKey: ["proposal-stats"],
+    queryFn: () => request<{ pending: number }>("/api/proposals/stats"),
+  });
+  const pendingCount = proposalStats.data?.pending ?? 0;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <div>
-        <h2 style={{ margin: 0, fontSize: "1.625rem", letterSpacing: "-0.025em" }}>
-          {t("overview.title")}
-        </h2>
+      {/* Executive Hero Cockpit Banner */}
+      <div className="kn-cockpit-hero">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <span className="kn-pulse-dot" />
+              <span className="kn-badge kn-badge-emerald" style={{ fontSize: "0.75rem" }}>
+                {t("overview.compliancePosture", { defaultValue: "治理态势概览" })}
+              </span>
+            </div>
+            <h2 style={{ margin: 0, fontSize: "1.75rem", letterSpacing: "-0.03em", fontWeight: 700 }}>
+              {t("overview.heroTitle", { defaultValue: "合规与治理态势驾驶舱" })}
+            </h2>
+            <p style={{ margin: "6px 0 0", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
+              {t("overview.heroSubtitle", { defaultValue: "多标准合规映射 · 证据有效性追踪 · AI 成本与审计监控" })}
+            </p>
+          </div>
+          {pendingCount > 0 && (
+            <Link to="/review" className="kn-btn-primary kn-btn-sm" style={{ textDecoration: "none" }}>
+              <span>{t("overview.pendingReviewQuick", { defaultValue: "待确认任务" })} ({pendingCount})</span>
+              <span>→</span>
+            </Link>
+          )}
+        </div>
+
+        <div className="kn-cockpit-metrics-strip">
+          <div className="kn-cockpit-metric">
+            <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase" }}>
+              {t("overview.activeDocuments", { defaultValue: "受控制度文档" })}
+            </span>
+            <div className="kn-cockpit-metric-num">{documents.data?.length ?? "—"}</div>
+          </div>
+          <div className="kn-cockpit-metric">
+            <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase" }}>
+              {t("overview.monthCost")}
+            </span>
+            <div className="kn-cockpit-metric-num">${data ? data.month_to_date_cost.toFixed(2) : "0.00"}</div>
+          </div>
+          <div className="kn-cockpit-metric">
+            <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase" }}>
+              {t("overview.totalCalls", { defaultValue: "累计模型调用" })}
+            </span>
+            <div className="kn-cockpit-metric-num">{totalCalls.toLocaleString()}</div>
+          </div>
+          <div className="kn-cockpit-metric">
+            <span style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase" }}>
+              {t("overview.reviewAlerts", { defaultValue: "复审到期告警" })}
+            </span>
+            <div className="kn-cockpit-metric-num" style={{ color: overdue > 0 ? "var(--accent-ruby)" : soon > 0 ? "var(--accent-amber)" : undefined }}>
+              {overdue + soon}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="kn-bento-grid">

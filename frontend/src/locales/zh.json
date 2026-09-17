@@ -8,19 +8,32 @@
     "themeDark": "深色"
   },
   "nav": {
-    "overview": "总览",
-    "documents": "文档库",
-    "search": "检索",
-    "settings": "设置",
+    "groups": {
+      "governance": "核心合规",
+      "defense": "审查与防线",
+      "intelligence": "全景感知",
+      "system": "系统与治理"
+    },
+    "overview": "总览仪表盘",
+    "documents": "文档管理",
+    "search": "全局检索",
+    "settings": "系统配置",
     "review": "确认队列",
     "controls": "控制点库",
-    "graph": "图谱",
-    "frameworks": "框架管理",
-    "techAssets": "技术栈台账",
-    "evidence": "证据库",
+    "graph": "知识图谱",
+    "frameworks": "合规框架",
+    "techAssets": "技术资产",
+    "evidence": "证据登记",
     "audit": "审计助手",
     "maturity": "成熟度评估",
     "risks": "风险登记册"
+  },
+  "topbar": {
+    "searchPlaceholder": "搜索控制点、制度文档、框架... (⌘K)",
+    "systemHealthy": "系统运行正常",
+    "pendingReviews": "{{count}} 项待确认",
+    "noPendingReviews": "队列已清空",
+    "quickSearch": "快速检索"
   },
   "login": {
     "title": "登录",
@@ -31,13 +44,26 @@
   },
   "overview": {
     "title": "总览",
+    "heroTitle": "合规与治理态势驾驶舱",
+    "heroSubtitle": "多标准合规映射 · 证据有效性追踪 · AI 成本与审计监控",
     "monthCost": "本月 AI 花费",
     "budget": "预算",
     "calls": "调用次数",
     "expiredEvidence": "过期证据",
     "expiredEvidenceHint": "已超过有效期的证据登记",
     "needsAttention": "需要关注",
-    "upToDate": "当前有效"
+    "upToDate": "当前有效",
+    "costBurnRate": "预算消耗率",
+    "noBudgetSet": "未设置预算上限",
+    "budgetWarning": "预算消耗超预警线",
+    "compliancePosture": "治理态势概览",
+    "activeDocuments": "受控制度文档",
+    "reviewAlerts": "复审到期告警",
+    "pendingReviewQuick": "待确认审核任务",
+    "viewAllReviews": "进入确认队列 →",
+    "emptyPending": "暂无需要紧急复核的提案",
+    "aiTasksDistribution": "AI 任务负载与成本分布",
+    "totalCalls": "累计模型调用"
   },
   "documents": {
     "title": "文档库",
