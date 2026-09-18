@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import { request } from "../api";
+import { useAuth } from "../auth";
 
 interface Hit {
   chunk_id: number;
@@ -24,6 +25,7 @@ interface SearchResponse {
   expanded_terms: string[];
   hits: Hit[];
   vector_used: boolean;
+  vector_unavailable_reason?: "provider_unconfigured" | "index_incomplete" | "provider_error" | null;
 }
 
 interface IndexStatus {
@@ -35,12 +37,21 @@ interface IndexStatus {
 
 export function Search() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const client = useQueryClient();
+  const canWrite = user?.role === "admin" || user?.role === "grc_lead" || user?.role === "contributor";
   const [draft, setDraft] = useState("");
   const [submitted, setSubmitted] = useState("");
 
   const status = useQuery({
     queryKey: ["index-status"],
     queryFn: () => request<IndexStatus>("/api/index/status"),
+    refetchInterval: 5000,
+  });
+
+  const rebuild = useMutation({
+    mutationFn: () => request<{ job_id: string }>("/api/index/rebuild", { method: "POST" }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["index-status"] }),
   });
 
   const results = useQuery({
@@ -63,6 +74,16 @@ export function Search() {
           Hybrid Lexical & Semantic Knowledge Retrieval Engine
         </p>
       </div>
+
+      {canWrite && (
+        <p>
+          <button className="kn-btn-secondary kn-btn-sm" disabled={rebuild.isPending} onClick={() => rebuild.mutate()}>
+            {t("documents.rebuildIndex")}
+          </button>
+        </p>
+      )}
+      {rebuild.error && <p role="alert">{rebuild.error.message}</p>}
+      {rebuild.isSuccess && <p role="status">{t("documents.indexQueued")}</p>}
 
       {status.data && status.data.total > 0 && (
         <div className="kn-card" style={{ padding: "12px 18px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -132,7 +153,7 @@ export function Search() {
 
       {results.data && !results.data.vector_used && (
         <p role="status" style={{ maxWidth: 780, marginBottom: 16 }}>
-          <span>⚠️</span> {t("search.keywordOnly")}
+          <span>⚠️</span> {t(results.data.vector_unavailable_reason ? `search.vectorReasons.${results.data.vector_unavailable_reason}` : "search.keywordOnly")}
         </p>
       )}
 

@@ -75,6 +75,7 @@ async def test_falls_back_to_fulltext_when_embedding_is_unavailable(db_session):
         response = await search(db_session, "privileged accounts")
     assert response.hits
     assert response.vector_used is False
+    assert response.vector_unavailable_reason == "provider_unconfigured"
 
 
 @pytest.mark.asyncio
@@ -90,6 +91,7 @@ async def test_embedding_call_failure_also_degrades(db_session):
             response = await search(db_session, "privileged accounts")
     assert response.hits
     assert response.vector_used is False
+    assert response.vector_unavailable_reason == "provider_error"
 
 
 @pytest.mark.asyncio

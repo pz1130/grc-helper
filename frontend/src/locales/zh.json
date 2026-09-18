@@ -66,6 +66,8 @@
     "totalCalls": "累计模型调用"
   },
   "documents": {
+    "indexQueued": "索引任务已提交，完成后可检索文档条款。",
+    "rebuildIndex": "重建检索索引",
     "title": "文档库",
     "upload": "上传文件",
     "dropHint": "把 .pdf / .docx 拖到这里，或点击选择（可多选）",
@@ -99,6 +101,11 @@
     "ocrSuspect": "OCR 质量存疑"
   },
   "search": {
+    "vectorReasons": {
+      "provider_unconfigured": "当前仅使用关键词检索：向量服务未配置或已停用，请到设置检查 embedding 任务路由。",
+      "index_incomplete": "当前仅使用关键词检索：没有可用的文档条款向量，请重建检索索引并等待任务完成。",
+      "provider_error": "当前仅使用关键词检索：向量服务调用失败，请检查服务配置或稍后重试。"
+    },
     "title": "检索",
     "placeholder": "搜索制度条款，中英文均可",
     "run": "搜索",
@@ -157,6 +164,7 @@
     }
   },
   "review": {
+    "bulkUnavailable": "仅支持达到批量接受阈值、来源无 OCR 疑点且无需单独处理重复的提案；其余请逐条审核。",
     "title": "确认队列",
     "pending": "待确认",
     "confidence": "置信度",
@@ -399,7 +407,7 @@
     "file": "框架文件",
     "chooseFile": "请先选择框架文件。",
     "import": "导入框架",
-    "importHint": "上传符合模板列定义的 XLSX 或 CSV 文件，先校验再导入。",
+    "importHint": "上传 .xlsx 文件。必需列：code、title；可选列：description、parent_code、attributes_json。首行为列名，code 必须唯一，parent_code 应指向文件中已有的 code。",
     "key": "框架标识",
     "nameZh": "中文名称",
     "nameEn": "英文名称",

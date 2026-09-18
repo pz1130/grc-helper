@@ -151,7 +151,7 @@ test("extraction only offers active documents and links the queued job to docume
   await page.getByLabel("Choose an active document").selectOption("9");
   await page.getByRole("button", { name: "Extract controls" }).click();
   await expect(page.getByRole("status")).toContainText("Extraction queued (extract-9)");
-  await expect(page.getByRole("link", { name: "Review queue" })).toHaveAttribute("href", "/review?document_id=9");
+  await expect(page.locator('a[href="/review?document_id=9"]')).toHaveText("Review queue");
 });
 
 test("matrix validates, approves changed mapping with provenance, imports using proposal_id", async ({ page }) => {
@@ -251,4 +251,19 @@ test("a merged control says where it went instead of offering to merge again", a
   await page.goto("/controls/2");
   await expect(page.getByRole("note")).toContainText("Merged into C-0001");
   await expect(page.getByRole("button", { name: /Merge into/ })).toHaveCount(0);
+});
+
+test("failed decisions surface the server error and keep the proposal pending", async ({ page }) => {
+  await mockSession(page);
+  await page.route("**/api/proposals**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/decide")) return route.fulfill({ status: 409, json: { code: "conflict", message: "A confirmed mapping already exists" } });
+    if (path.endsWith("/stats")) return route.fulfill({ json: { pending: 1, by_kind: { control_extract: 1 } } });
+    return route.fulfill({ json: [proposal(1)] });
+  });
+  await page.goto("/review");
+  await page.locator("#proposal-1").getByRole("button", { name: "Accept", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("A confirmed mapping already exists");
+  await expect(page.locator("#proposal-1")).toBeVisible();
+  await expect(page.getByText("Decision saved.", { exact: true })).toHaveCount(0);
 });

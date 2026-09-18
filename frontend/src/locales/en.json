@@ -66,6 +66,8 @@
     "totalCalls": "Total Model Invocations"
   },
   "documents": {
+    "indexQueued": "Indexing queued. Document clauses will be searchable when it finishes.",
+    "rebuildIndex": "Rebuild search index",
     "title": "Documents",
     "upload": "Upload",
     "dropHint": "Drop .pdf / .docx here, or click to choose (multiple allowed)",
@@ -99,6 +101,11 @@
     "ocrSuspect": "Suspect OCR quality"
   },
   "search": {
+    "vectorReasons": {
+      "provider_unconfigured": "Keyword search only: the embedding provider is unconfigured or disabled. Check the embedding task routing in Settings.",
+      "index_incomplete": "Keyword search only: no document clause vectors are available. Rebuild the search index and wait for completion.",
+      "provider_error": "Keyword search only: the embedding service request failed. Check the provider configuration or retry later."
+    },
     "title": "Search",
     "placeholder": "Search policy clauses",
     "run": "Search",
@@ -157,6 +164,7 @@
     }
   },
   "review": {
+    "bulkUnavailable": "Batch acceptance requires the configured confidence threshold, no suspect OCR source, and no duplicate requiring an individual decision. Review other proposals individually.",
     "title": "Review queue",
     "pending": "Pending",
     "confidence": "Confidence",
@@ -406,7 +414,7 @@
     "file": "Framework file",
     "chooseFile": "Choose a framework file first.",
     "import": "Import framework",
-    "importHint": "Upload an XLSX or CSV file using the canonical columns; validate it before importing.",
+    "importHint": "Upload an .xlsx file. Required columns: code, title. Optional: description, parent_code, attributes_json. Use column names in the first row; codes must be unique and parent_code must reference a code in the file.",
     "key": "Framework key",
     "nameZh": "Chinese name",
     "nameEn": "English name",

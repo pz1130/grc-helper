@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select
 
 from app.clauses.models import Clause, ClauseChunk
-from app.indexing.tasks import index_document
+from app.indexing.tasks import index_document, reindex_all
 from app.ingest.models import DocType, Document
 from app.llm.routing import RoutingError
 
@@ -79,6 +79,24 @@ async def test_real_upstream_failure_still_propagates(db_session):
         ):
             with pytest.raises(ProviderError):
                 await index_document({}, doc.id)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_available", [True, False])
+async def test_reindex_repairs_documents_without_chunks(db_session, provider_available):
+    doc = await _document(db_session)
+    with patch("app.indexing.tasks.session_factory") as factory:
+        factory.return_value.__aenter__.return_value = db_session
+        embedder = AsyncMock(return_value={"embedded": 0, "remaining": 0, "model": "m1"})
+        if not provider_available:
+            embedder.side_effect = RoutingError("未配置")
+        with patch("app.indexing.tasks.embed_pending", new=embedder):
+            await reindex_all({})
+    chunks = list(await db_session.scalars(
+        select(ClauseChunk).where(ClauseChunk.document_id == doc.id)
+    ))
+    assert len(chunks) == 1
+    assert "Applies to all systems" in chunks[0].text
 
 
 @pytest.mark.asyncio

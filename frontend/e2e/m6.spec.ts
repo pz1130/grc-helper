@@ -81,12 +81,12 @@ test("contributors do not see the run relation inference button", async ({ page 
   await expect(page.getByRole("button", { name: "Backfill control embeddings" })).toHaveCount(0);
 });
 
-test("relation proposals do not offer a bulk-accept checkbox", async ({ page }) => {
+test("relation proposals below the threshold have a disabled batch checkbox", async ({ page }) => {
   await mockSession(page);
   await mockRelationQueue(page);
   await page.goto("/review?kind=relation");
   await expect(page.locator("#proposal-31")).toBeVisible();
-  await expect(page.getByLabel("Select proposal 31")).toHaveCount(0);
+  await expect(page.getByLabel("Select proposal 31")).toBeDisabled();
 });
 
 test("automation preview shows impact before any write", async ({ page }) => {
@@ -160,4 +160,18 @@ test("a relation card says both sides are internal controls", async ({ page }) =
   await mockRelationQueue(page);
   await page.goto("/review?kind=relation");
   await expect(page.locator("#proposal-31")).toContainText("Both sides are your internal controls");
+});
+
+test("the default queue includes deferred proposals counted in the badge", async ({ page }) => {
+  await mockSession(page);
+  await page.route("**/api/proposals**", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/stats")) return route.fulfill({ json: { pending: 1, by_kind: { relation: 1 } } });
+    return route.fulfill({ json: url.searchParams.get("actionable_only") === "true" ? [] : [{ ...relationProposal, review_tier: "deferred" }] });
+  });
+  await page.goto("/review");
+  await expect(page.getByLabel("Show deferred unverified items")).toBeChecked();
+  await expect(page.locator("#proposal-31")).toBeVisible();
+  await page.getByLabel("Show deferred unverified items").uncheck();
+  await expect(page.locator("#proposal-31")).toHaveCount(0);
 });

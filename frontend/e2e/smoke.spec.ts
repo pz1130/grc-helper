@@ -12,7 +12,7 @@ async function signIn(page: Page) {
   await page.getByLabel("邮箱").fill(ADMIN.email);
   await page.getByLabel("密码").fill(ADMIN.password);
   await page.getByRole("button", { name: "登录" }).click();
-  await expect(page.getByRole("heading", { name: "总览" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "合规与治理态势驾驶舱" })).toBeVisible();
 }
 
 test("登录页不嵌第三方 iframe", async ({ page }) => {
@@ -32,7 +32,7 @@ test("语言可切换到英文", async ({ page }) => {
   // 语言切换在改造后是「可见的分段按钮 + 隐藏的原生 select」，两者同名，
   // getByLabel 会命中两个。按 combobox 角色取那个 select——它正是为可驱动性留的。
   await page.getByRole("combobox", { name: "语言" }).selectOption("en");
-  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Compliance & Governance Cockpit" })).toBeVisible();
 });
 
 test("新建的 provider 只显示掩码后的 key", async ({ page }) => {

@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Any
 
 from pydantic import ValidationError
-from sqlalchemy import Integer, or_, select
+from sqlalchemy import Integer, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -327,22 +327,7 @@ def proposal_control_ids(proposal: Proposal) -> set[int]:
 
 
 async def ocr_flag(session: AsyncSession, proposal: Proposal) -> bool:
-    stmt = (
-        select(Document.id)
-        .where(
-            Document.ocr_quality_flag.is_(True),
-            or_(
-                Document.id == proposal.document_id,
-                Document.id.in_(
-                    select(Clause.document_id).where(
-                        Clause.id.in_(citation_clause_ids(proposal))
-                    )
-                ),
-            ),
-        )
-        .limit(1)
-    )
-    return await session.scalar(stmt) is not None
+    return proposal.id in await ocr_flags(session, [proposal])
 
 
 async def ocr_flags(
@@ -424,7 +409,9 @@ def eligible(
     return (
         not statement_duplicate
         and proposal.status == ProposalStatus.PENDING
-        and proposal.kind == ProposalKind.CONTROL_EXTRACT
+        and proposal.kind in (
+            ProposalKind.CONTROL_EXTRACT, ProposalKind.MAPPING, ProposalKind.RELATION
+        )
         and proposal.payload.get("origin") != "matrix"
         and thresholds_module.bulk_acceptable(proposal, limits, ocr_flag=ocr_flag)
     )

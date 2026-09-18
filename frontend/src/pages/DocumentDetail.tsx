@@ -26,6 +26,7 @@ interface Doc {
   status: string;
   version: string | null;
   owner: string | null;
+  parse_error: string | null;
   parse_warnings: string | null;
   supersedes_id: number | null;
 }
@@ -107,12 +108,29 @@ export function DocumentDetail() {
   const doc = useQuery({
     queryKey: ["document", id],
     queryFn: () => request<Doc>(`/api/documents/${id}`),
+    refetchInterval: (query) => ["uploaded", "parsing"].includes(query.state.data?.status ?? "") ? 2000 : false,
   });
   const clauses = useQuery({
     queryKey: ["clauses", id],
     queryFn: () => request<ClauseNode[]>(`/api/documents/${id}/clauses`),
+    refetchInterval: ["uploaded", "parsing"].includes(doc.data?.status ?? "") ? 2000 : false,
   });
   const flat = clauses.data ? flatten(clauses.data) : [];
+
+  useEffect(() => {
+    if (doc.data?.status === "active") {
+      void queryClient.invalidateQueries({ queryKey: ["clauses", id] });
+    }
+  }, [doc.data?.status, id, queryClient]);
+
+  const rebuildIndex = useMutation({
+    mutationFn: () => request<{ job_id: string }>(`/api/index/documents/${id}`, { method: "POST" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["index-status"] }),
+  });
+  const reparse = useMutation({
+    mutationFn: () => request<Doc>(`/api/documents/${id}/reparse`, { method: "POST" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["document", id] }),
+  });
 
   const uploadVersion = useMutation({
     mutationFn: async (file: File) => {
@@ -208,6 +226,16 @@ export function DocumentDetail() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {canEdit && doc.data?.status === "active" && (
+            <button className="kn-btn-secondary kn-btn-sm" disabled={rebuildIndex.isPending} onClick={() => rebuildIndex.mutate()}>
+              {t("documents.rebuildIndex")}
+            </button>
+          )}
+          {canEdit && doc.data?.status === "parse_failed" && (
+            <button className="kn-btn-secondary kn-btn-sm" disabled={reparse.isPending} onClick={() => reparse.mutate()}>
+              {t("documents.reparse")}
+            </button>
+          )}
           {doc.data?.supersedes_id != null && (
             <Link
               to={`/documents/${id}/change-impact`}
@@ -226,6 +254,11 @@ export function DocumentDetail() {
           </button>
         </div>
       </div>
+
+      {doc.data?.parse_error && <p role="alert">{doc.data.parse_error}</p>}
+      {reparse.error && <p role="alert">{reparse.error.message}</p>}
+      {rebuildIndex.error && <p role="alert">{rebuildIndex.error.message}</p>}
+      {rebuildIndex.isSuccess && <p role="status">{t("documents.indexQueued")}</p>}
 
       {importing && (
         <div className="kn-card" style={{ marginBottom: 20, border: "1px solid var(--accent-blue)" }}>

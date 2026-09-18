@@ -1,13 +1,17 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clauses.models import ClauseChunk
 from app.db import get_session
+from app.errors import NotFound
 from app.iam.deps import require
 from app.iam.models import User
 from app.iam.permissions import Permission
 from app.indexing.embedder import current_model
+from app.ingest.models import Document
 from app.worker import enqueue
 
 router = APIRouter(prefix="/api/index", tags=["index"])
@@ -16,8 +20,11 @@ router = APIRouter(prefix="/api/index", tags=["index"])
 @router.post("/documents/{document_id}")
 async def index_one(
     document_id: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
     _: User = Depends(require(Permission.DOCUMENT_WRITE)),
 ) -> dict[str, str]:
+    if await session.get(Document, document_id) is None:
+        raise NotFound("文档不存在")
     return {"job_id": await enqueue("index_document", document_id)}
 
 

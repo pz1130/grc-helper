@@ -396,3 +396,39 @@ def test_formatting_headings_carry_no_number(tmp_path: Path):
     parsed = DocxParser().parse(path)
 
     assert parsed.clauses[0].number is None
+
+
+def test_docx_without_optional_numbering_part_still_parses(tmp_path):
+    from xml.etree import ElementTree as ET
+    from zipfile import ZipFile
+
+    doc = DocxDocument()
+    doc.add_paragraph("1 Scope")
+    doc.add_paragraph("Rate limiting must be enabled.")
+    doc.add_paragraph("2 Review")
+    doc.add_paragraph("Review thresholds quarterly.")
+    source = tmp_path / "source.docx"
+    doc.save(source)
+    path = tmp_path / "without-numbering.docx"
+    with ZipFile(source) as original, ZipFile(path, "w") as output:
+        for name in original.namelist():
+            if name == "word/numbering.xml":
+                continue
+            content = original.read(name)
+            if name == "word/_rels/document.xml.rels":
+                root = ET.fromstring(content)
+                for relation in list(root):
+                    if relation.get("Type", "").endswith("/numbering"):
+                        root.remove(relation)
+                content = ET.tostring(root)
+            elif name == "[Content_Types].xml":
+                root = ET.fromstring(content)
+                for part in list(root):
+                    if part.get("PartName") == "/word/numbering.xml":
+                        root.remove(part)
+                content = ET.tostring(root)
+            output.writestr(name, content)
+
+    parsed = DocxParser().parse(path)
+    assert [node.number for node in parsed.clauses] == ["1", "2"]
+    assert parsed.clauses[0].text == "Rate limiting must be enabled."

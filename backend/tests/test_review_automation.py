@@ -219,3 +219,62 @@ async def test_automation_preview_is_read_only_and_shows_impact(client, db_sessi
     assert await db_session.scalar(
         select(AuditLog).where(AuditLog.action.like("proposal.auto%"))
     ) is None
+
+
+@pytest.mark.asyncio
+async def test_manual_bulk_mapping_is_consumed_and_cannot_be_accepted_twice(db_session):
+    from app.errors import Conflict
+    from app.review.service import Decision, bulk_accept, decide, pending
+
+    actor, proposal = await _seed_mapping(db_session)
+    assert await bulk_accept(db_session, [proposal.id], actor=actor) == {
+        "accepted": 1, "skipped": 0,
+    }
+    assert proposal.status is ProposalStatus.ACCEPTED
+    assert not await pending(db_session, kind=ProposalKind.MAPPING)
+    assert len(list(await db_session.scalars(select(Mapping)))) == 1
+    with pytest.raises(Conflict):
+        await decide(db_session, proposal.id, actor=actor, decision=Decision.ACCEPT)
+    assert len(list(await db_session.scalars(select(Mapping)))) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ocr, confidence", [(True, 0.95), (False, 0.8)])
+async def test_bulk_mapping_keeps_ocr_and_confidence_guards(db_session, ocr, confidence):
+    from app.review.service import bulk_accept
+
+    actor, proposal = await _seed_mapping(db_session, ocr=ocr, confidence=confidence)
+    assert await bulk_accept(db_session, [proposal.id], actor=actor) == {
+        "accepted": 0, "skipped": 1,
+    }
+
+
+@pytest.mark.asyncio
+async def test_manual_bulk_relation_is_consumed(db_session):
+    from app.controls.models import ControlRelation
+    from app.review.service import bulk_accept, pending
+
+    actor, mapping = await _seed_mapping(db_session)
+    other = Control(code="C-OTHER", title="Approve", statement="Approve access first.")
+    db_session.add(other)
+    await db_session.flush()
+    proposal = Proposal(
+        kind=ProposalKind.RELATION,
+        payload={
+            "from_control_id": mapping.payload["control_id"],
+            "to_control_id": other.id,
+            "relation_type": "depends_on",
+            "from_quote": "Review access.",
+            "to_quote": "Approve access first.",
+            "rationale": "Approval precedes the review.",
+            "confidence": 0.95,
+        },
+        citations=[], confidence=0.95,
+    )
+    db_session.add(proposal)
+    await db_session.flush()
+    assert await bulk_accept(db_session, [proposal.id], actor=actor) == {
+        "accepted": 1, "skipped": 0,
+    }
+    assert not await pending(db_session, kind=ProposalKind.RELATION)
+    assert len(list(await db_session.scalars(select(ControlRelation)))) == 1

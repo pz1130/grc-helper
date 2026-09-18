@@ -3,6 +3,9 @@
 import logging
 from typing import Any
 
+from sqlalchemy import select
+
+from app.clauses.models import Clause, ClauseChunk
 from app.db import session_factory
 from app.indexing.embedder import embed_pending
 from app.indexing.service import rebuild_chunks
@@ -28,9 +31,23 @@ async def index_document(ctx: dict[str, Any], document_id: int) -> dict[str, Any
 async def reindex_all(ctx: dict[str, Any]) -> dict[str, Any]:
     """换 embedding 模型后的全量重建。"""
     async with session_factory() as session:
+        # Older plain-text imports may have clauses but no retrieval chunks at all.
+        missing_documents = list(await session.scalars(
+            select(Clause.document_id)
+            .outerjoin(ClauseChunk, ClauseChunk.clause_id == Clause.id)
+            .where(Clause.status != "merged", ClauseChunk.id.is_(None))
+            .distinct()
+        ))
+        for document_id in missing_documents:
+            await rebuild_chunks(session, document_id=document_id)
+        await session.commit()
         total = 0
         while True:
-            result = await embed_pending(session, limit=500)
+            try:
+                result = await embed_pending(session, limit=500)
+            except RoutingError as exc:
+                logger.info("跳过向量化：%s", exc)
+                return {"embedded": total, "model": "", "skipped": str(exc)}
             total += int(result["embedded"])
             if not result["embedded"] or not result["remaining"]:
                 return {"embedded": total, "model": result["model"]}

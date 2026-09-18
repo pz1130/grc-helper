@@ -188,8 +188,13 @@ async def test_clause_tree_is_nested(client, db_session):
 
 
 @pytest.mark.asyncio
-async def test_plain_text_fallback_recovers_a_failed_document(client, db_session):
+async def test_plain_text_fallback_recovers_a_failed_document(client, db_session, monkeypatch):
+    from app.indexing.service import rebuild_chunks
     from app.ingest.models import DocStatus, DocType, Document
+    from app.search.fulltext import search
+
+    job = AsyncMock(return_value="index-job")
+    monkeypatch.setattr("app.ingest.router.enqueue", job)
 
     await _seed(db_session, Role.CONTRIBUTOR, "c@example.com")
     headers = await _auth(client, "c@example.com")
@@ -213,9 +218,12 @@ async def test_plain_text_fallback_recovers_a_failed_document(client, db_session
     )
     assert response.status_code == 200
     assert response.json()["status"] == "active"
+    job.assert_awaited_once_with("index_document", doc.id)
 
     tree = await client.get(f"/api/documents/{doc.id}/clauses", headers=headers)
     assert [node["citation_label"] for node in tree.json()] == ["1", "2"]
+    await rebuild_chunks(db_session, document_id=doc.id)
+    assert await search(db_session, "all systems", document_id=doc.id)
 
 
 @pytest.mark.asyncio
@@ -223,3 +231,24 @@ async def test_document_list_is_readable_by_viewer(client, db_session):
     await _seed(db_session, Role.VIEWER, "v@example.com")
     headers = await _auth(client, "v@example.com")
     assert (await client.get("/api/documents", headers=headers)).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_reparse_marks_document_as_queued(client, db_session):
+    from app.ingest.models import DocStatus, DocType, Document
+
+    await _seed(db_session, Role.CONTRIBUTOR, "retry@example.com")
+    headers = await _auth(client, "retry@example.com")
+    doc = Document(
+        title="Retry", doc_type=DocType.STANDARD, file_hash="c" * 64,
+        file_path="/retry.docx", original_filename="retry.docx",
+        status=DocStatus.PARSE_FAILED, parse_error="Previous failure",
+    )
+    db_session.add(doc)
+    await db_session.flush()
+    with patch("app.ingest.router.enqueue", new=AsyncMock(return_value="retry-job")) as job:
+        response = await client.post(f"/api/documents/{doc.id}/reparse", headers=headers)
+    assert response.status_code == 200
+    assert response.json()["status"] == "uploaded"
+    assert response.json()["parse_error"] is None
+    job.assert_awaited_once_with("parse_document", doc.id)

@@ -55,8 +55,9 @@ async def test_relation_proposals_carry_both_control_statements(client, db_sessi
 
 
 @pytest.mark.asyncio
-async def test_relation_proposals_are_not_bulk_acceptable(client, db_session):
-    """关系是两个实体之间的判断，不该用置信度阈值批量放行。"""
+@pytest.mark.parametrize("confidence, acceptable", [(0.99, True), (0.8, False)])
+async def test_relation_batch_eligibility_respects_threshold(client, db_session, confidence, acceptable):
+    """人工选中的关系可批量确认，仍保留置信度阈值。"""
     await _seed(db_session, Role.GRC_LEAD, "lead@example.com")
     left = Control(code="C-0001", title="a", statement="a")
     right = Control(code="C-0002", title="b", statement="b")
@@ -66,11 +67,11 @@ async def test_relation_proposals_are_not_bulk_acceptable(client, db_session):
         kind=ProposalKind.RELATION, status=ProposalStatus.PENDING,
         payload={"from_control_id": left.id, "to_control_id": right.id,
                  "relation_type": "duplicates", "from_quote": "a", "to_quote": "b",
-                 "rationale": "r", "confidence": 0.99},
-        citations=[], confidence=0.99,
+                 "rationale": "r", "confidence": confidence},
+        citations=[], confidence=confidence,
     ))
     await db_session.flush()
 
     headers = await _auth(client, "lead@example.com")
     body = (await client.get("/api/proposals?kind=relation", headers=headers)).json()
-    assert body[0]["bulk_acceptable"] is False
+    assert body[0]["bulk_acceptable"] is acceptable

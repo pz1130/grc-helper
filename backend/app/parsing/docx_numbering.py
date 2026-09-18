@@ -98,7 +98,7 @@ class HeadingNumbering:
     def _load_numbering(self, document) -> None:
         try:
             part = document.part.numbering_part
-        except (KeyError, AttributeError, ValueError):
+        except (KeyError, AttributeError, ValueError, NotImplementedError):
             return
         root = part.element
         for node in root.findall(f"{W}abstractNum"):

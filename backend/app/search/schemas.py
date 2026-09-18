@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -19,3 +21,4 @@ class SearchResponse(BaseModel):
     expanded_terms: list[str]
     hits: list[SearchHit]
     vector_used: bool
+    vector_unavailable_reason: Literal["provider_unconfigured", "index_incomplete", "provider_error"] | None = None

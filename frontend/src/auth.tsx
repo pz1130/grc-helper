@@ -18,6 +18,7 @@ interface AuthValue {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  enterDemo: () => void;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -44,26 +45,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    try {
-      const result = await request<{ access_token: string; user: User }>("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
-      setToken(result.access_token);
-      setUser(result.user);
-    } catch (err) {
-      // If backend is down or returns error, allow demo admin login
-      if (
-        (email === "admin@example.com" && password === "pw123456") ||
-        email === "admin" ||
-        (!password && email === "admin@example.com")
-      ) {
-        setToken(DEMO_TOKEN);
-        setUser(DEMO_USER);
-        return;
-      }
-      throw err;
-    }
+    const result = await request<{ access_token: string; user: User }>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    setToken(result.access_token);
+    setUser(result.user);
+  }, []);
+
+  const enterDemo = useCallback(() => {
+    setToken(DEMO_TOKEN);
+    setUser(DEMO_USER);
   }, []);
 
   const logout = useCallback(() => {
@@ -72,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, login, logout, enterDemo }}>{children}</AuthContext.Provider>
   );
 }
 

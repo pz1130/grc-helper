@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.clauses.models import Clause, ClauseChunk
 from app.indexing.embedder import current_model
 from app.ingest.models import Document
+from app.llm.routing import RoutingError
 from app.llm.runner import embed
 from app.search import fulltext, vector
 from app.search.expansion import expand
@@ -20,19 +21,21 @@ CANDIDATES = 50
 
 async def _vector_hits(
     session: AsyncSession, query: str, document_id: int | None
-) -> tuple[list[fulltext.RankedChunk], bool]:
+) -> tuple[list[fulltext.RankedChunk], bool, str | None]:
     try:
         model = await current_model(session)
         vectors, _ = await embed(session, texts=[query], purpose="query")
         if not vectors:
-            return [], False
+            return [], False, "provider_error"
         hits = await vector.search(
             session, vectors[0], limit=CANDIDATES, document_id=document_id, model=model
         )
+    except RoutingError:
+        return [], False, "provider_unconfigured"
     except Exception as exc:  # noqa: BLE001 — provider 故障必须降级
         logger.warning("向量检索不可用，降级为纯全文检索: %s", exc)
-        return [], False
-    return hits, bool(hits)
+        return [], False, "provider_error"
+    return hits, bool(hits), None if hits else "index_incomplete"
 
 
 async def search(
@@ -50,12 +53,13 @@ async def search(
     text_hits = await fulltext.search(
         session, " ".join(terms), limit=CANDIDATES, document_id=document_id
     )
-    vec_hits, vector_used = await _vector_hits(session, query, document_id)
+    vec_hits, vector_used, vector_reason = await _vector_hits(session, query, document_id)
 
     fused = fuse(text_hits, vec_hits, limit=limit)
     if not fused:
         return SearchResponse(
-            query=query, expanded_terms=terms, hits=[], vector_used=vector_used
+            query=query, expanded_terms=terms, hits=[], vector_used=vector_used,
+            vector_unavailable_reason=vector_reason,
         )
 
     rows = (
@@ -90,5 +94,6 @@ async def search(
         )
 
     return SearchResponse(
-        query=query, expanded_terms=terms, hits=hits, vector_used=vector_used
+        query=query, expanded_terms=terms, hits=hits, vector_used=vector_used,
+        vector_unavailable_reason=vector_reason,
     )

@@ -33,33 +33,24 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
     }
   }
 
-  try {
-    const response = await fetch(path, {
-      ...init,
-      headers: {
-        ...(init.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(init.headers ?? {}),
-      },
-    });
+  const response = await fetch(path, {
+    ...init,
+    headers: {
+      ...(init.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init.headers ?? {}),
+    },
+  });
 
-    if (response.status === 401) {
-      setToken(null);
-      throw new ApiError(401, "unauthorized", i18n.t("common.unauthorized"));
-    }
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      throw new ApiError(response.status, body.code ?? "error", body.message ?? i18n.t("common.requestFailed"));
-    }
-    return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
-  } catch (err) {
-    // If backend is down/unreachable, gracefully provide mock fallback
-    const mock = getMockResponse(path, init);
-    if (mock !== undefined) {
-      return mock as T;
-    }
-    throw err;
+  if (response.status === 401) {
+    setToken(null);
+    throw new ApiError(401, "unauthorized", i18n.t("common.unauthorized"));
   }
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, body.code ?? "error", body.message ?? i18n.t("common.requestFailed"));
+  }
+  return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 }
 
 export async function download(path: string): Promise<Blob> {
@@ -67,20 +58,16 @@ export async function download(path: string): Promise<Blob> {
   if (token === DEMO_TOKEN) {
     return new Blob(["Demo document content"], { type: "text/plain" });
   }
-  try {
-    const response = await fetch(path, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (response.status === 401) {
-      setToken(null);
-      throw new ApiError(401, "unauthorized", i18n.t("common.unauthorized"));
-    }
-    if (!response.ok) {
-      const body = await response.json().catch(() => ({}));
-      throw new ApiError(response.status, body.code ?? "error", body.message ?? i18n.t("common.requestFailed"));
-    }
-    return response.blob();
-  } catch {
-    return new Blob(["Demo document content"], { type: "text/plain" });
+  const response = await fetch(path, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (response.status === 401) {
+    setToken(null);
+    throw new ApiError(401, "unauthorized", i18n.t("common.unauthorized"));
   }
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(response.status, body.code ?? "error", body.message ?? i18n.t("common.requestFailed"));
+  }
+  return response.blob();
 }

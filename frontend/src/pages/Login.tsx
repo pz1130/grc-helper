@@ -10,7 +10,7 @@ import { BrandLogo } from "../components/BrandLogo";
 
 export function Login() {
   const { t, i18n } = useTranslation();
-  const { login } = useAuth();
+  const { login, enterDemo } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -184,21 +184,13 @@ export function Login() {
           >
             <div>
               <div style={{ color: "var(--text-primary)", fontWeight: 500, marginBottom: 2 }}>
-                {i18n.language.startsWith("zh") ? "默认管理员账号" : "Default Admin"}
+                {i18n.language.startsWith("zh") ? "离线演示" : "Offline demo"}
               </div>
-              <code style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>admin@example.com / pw123456</code>
+              <code style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{i18n.language.startsWith("zh") ? "使用示例数据体验界面" : "Explore the interface with sample data"}</code>
             </div>
             <button
               type="button"
-              onClick={async () => {
-                setEmail("admin@example.com");
-                setPassword("pw123456");
-                try {
-                  await login("admin@example.com", "pw123456");
-                } catch {
-                  // Handled
-                }
-              }}
+              onClick={enterDemo}
               className="kn-btn-secondary kn-btn-sm"
               style={{
                 fontSize: "0.75rem",
@@ -208,7 +200,7 @@ export function Login() {
                 color: "var(--accent-primary)",
               }}
             >
-              {i18n.language.startsWith("zh") ? "一键填入并进入 ➜" : "Auto-fill & Enter ➜"}
+              {i18n.language.startsWith("zh") ? "进入演示 ➜" : "Enter demo ➜"}
             </button>
           </div>
         </form>

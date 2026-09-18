@@ -166,7 +166,7 @@ export function AuditAssistant() {
           ))}
           {canDraft && <div style={{ borderTop: "1px solid var(--stage-border)", marginTop: 16, paddingTop: 16 }}>
             <input aria-label={t("audit.newEngagement")} placeholder={t("audit.newEngagement")} value={engagementName} onChange={(event) => setEngagementName(event.target.value)} />
-            <button className="kn-btn-primary" disabled={busy || !engagementName.trim()} style={{ marginTop: 8 }} onClick={() => createEngagement.mutate()}>{t("common.create", { defaultValue: "Create" })}</button>
+            <button className="kn-btn-primary" disabled={busy || !engagementName.trim()} style={{ marginTop: 8 }} onClick={() => createEngagement.mutate()}>{t("common.create")}</button>
           </div>}
           {engagementId && <button className="kn-btn-secondary" disabled={busy} style={{ width: "100%", marginTop: 12 }} onClick={() => exportWord.mutate()}>{t("audit.exportWord")}</button>}
           {engagementId && canDraft && <button className="kn-btn-primary" disabled={busy || !questions.data?.some((row) => row.status === "pending")} style={{ width: "100%", marginTop: 8 }} onClick={() => generateAll.mutate()}>{t("audit.generateAll")}</button>}

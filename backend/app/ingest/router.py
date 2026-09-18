@@ -237,6 +237,7 @@ async def replace_with_plain_text(
         ip=request.client.host if request.client else None,
     )
     await session.commit()
+    await enqueue("index_document", document.id)
     return document
 
 
@@ -250,6 +251,8 @@ async def reparse(
     document = await session.get(Document, document_id)
     if document is None:
         raise NotFound("文档不存在")
+    document.status = DocStatus.UPLOADED
+    document.parse_error = None
     await record(
         session,
         user=actor,

@@ -509,7 +509,7 @@ export function ReviewQueue() {
   const strength = params.getAll("strength");
   const framework = params.get("framework") ?? "";
   const doubtful = params.get("doubtful_rationale") === "1";
-  const showAll = params.get("show_all") === "1";
+  const showAll = params.get("show_all") !== "0";
   const [selected, setSelected] = useState<number[]>([]);
   const [editing, setEditing] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
@@ -702,7 +702,7 @@ export function ReviewQueue() {
             aria-label={t("review.showAll")}
             checked={showAll}
             disabled={busy}
-            onChange={(e) => setParams(withParam(params, "show_all", e.target.checked ? "1" : ""))}
+            onChange={(e) => setParams(withParam(params, "show_all", e.target.checked ? "1" : "0"))}
           />
           <span>{t("review.showAll")}</span>
         </label>
@@ -907,12 +907,13 @@ export function ReviewQueue() {
                   )}
                 </div>
 
-                {canDecide && p.kind !== "relation" && p.kind !== "conflict" && (
+                {canDecide && p.kind !== "conflict" && (
                   <label style={{ flexDirection: "row", alignItems: "center", gap: 6, margin: 0 }}>
                     <input
                       type="checkbox"
                       aria-label={t("review.select", { id: p.id })}
                       disabled={busy || !eligibleIds.includes(p.id)}
+                      title={p.bulk_acceptable ? undefined : t("review.bulkUnavailable")}
                       checked={selectedIds.includes(p.id)}
                       onChange={(e) => setSelected(e.target.checked ? [...selected, p.id] : selected.filter((id) => id !== p.id))}
                     />
