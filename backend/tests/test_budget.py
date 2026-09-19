@@ -124,3 +124,48 @@ async def test_provider_budget_still_yields_to_interactive(db_session):
     await _spend(db_session, 5.0, provider_config_id=config.id)
 
     await check(db_session, interactive=True, provider=config)
+
+
+# ── 未计价的模型要可见 ── OQ-22 ────────────────────────────────────
+#
+# `pricing.py` 对未知模型返回 0 是**有意为之**（注释写了：成本统计不准可以接受，
+# 让整条流水线挂掉不可接受）。问题不在这个决定，在于**没有任何信号说"这个模型
+# 没有价"**：预算卡照常显示 $0.00 / $350.00，预算闸门形同虚设。
+#
+# 修法不是往价格表里加某个具体模型——价格会变，下一家机构又换模型，那是会过期
+# 的数据。要让"未计价"这件事本身可见。
+
+
+def test_unknown_model_is_reported_as_unpriced_not_as_free():
+    from app.llm.pricing import estimate_cost, is_priced
+
+    assert is_priced("claude-opus-5") is True
+    assert is_priced("minimax-m3") is False
+    # 仍然返回 0 而不是抛异常——这条行为不变
+    assert estimate_cost("minimax-m3", 10_000, 10_000) == 0.0
+
+
+@pytest.mark.asyncio
+async def test_usage_counts_calls_that_were_never_priced(db_session):
+    """用量接口要能回答"这个月有多少次调用根本没算进成本"。"""
+    from app.llm import budget as budget_module
+
+    for model, count in (("claude-opus-5", 2), ("minimax-m3", 3)):
+        for index in range(count):
+            db_session.add(
+                LLMCall(
+                    model=model,
+                    task_key="control_extract",
+                    prompt_hash=f"{model}-{index}",
+                    tokens_in=100,
+                    tokens_out=50,
+                    cost=0.0,
+                    latency_ms=10,
+                    ruleset=RulesetName.GENERATION,
+                    status="ok",
+                    cost_unknown=model == "minimax-m3",
+                )
+            )
+    await db_session.flush()
+
+    assert await budget_module.uncosted_calls(db_session) == 3

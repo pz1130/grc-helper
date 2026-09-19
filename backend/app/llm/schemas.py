@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.llm.models import ProviderKind, RulesetName
@@ -42,6 +44,25 @@ class RoutingIn(BaseModel):
     provider_config_id: int
     temperature: float = 0.0
     max_tokens: int = 4096
+
+
+class BulkRoutingIn(BaseModel):
+    """把一个 provider 绑到某 capability 下所有已实现的任务上。
+
+    capability 必须显式传：一次调用只绑一类，绝不让聊天模型顺手把 embedding
+    也绑走（见 app/llm/tasks.py 的说明）。
+    """
+
+    provider_config_id: int
+    capability: Literal["chat", "embedding"]
+    temperature: float = 0.0
+    max_tokens: int = 4096
+
+
+class TaskSpecOut(BaseModel):
+    key: str
+    capability: str
+    implemented: bool
 
 
 class RoutingOut(RoutingIn):

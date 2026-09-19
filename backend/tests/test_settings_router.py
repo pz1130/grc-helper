@@ -335,3 +335,133 @@ async def test_a_grc_lead_cannot_delete_a_provider(client, db_session):
     resp = await client.delete(f"/api/settings/providers/{config_id}", headers=lead_headers)
 
     assert resp.status_code == 403
+
+
+# ── 任务注册表与批量绑定 ── OQ-23 ──────────────────────────────────
+#
+# 11 个推理管道原先只能一条条绑，管理员要连点 11 次下拉。漏配的代价不对等：
+# 漏了 embedding，文档解析后向量静默不生成，检索**退化成纯关键字**而界面
+# 毫无提示；漏了 conflict_detection，冲突检测干脆不执行。两种都不报错。
+#
+# 任务清单原先只写在前端（`Providers.tsx` 的 TASK_KEYS），后端散落成各模块的
+# 模块常量，于是清单漂移了：注释写"八个推理任务 + embedding"＝9，实际列了 11 个，
+# 其中 `maturity_suggestion` 在后端**没有任何消费者**（设计文档 §396 里有，
+# 但 maturity 模块是纯计算，没有 prompts）。所以注册表放后端，并带 implemented 标记。
+
+
+@pytest.mark.asyncio
+async def test_task_registry_lists_capability_and_implementation_status(client, db_session):
+    await _seed(db_session, Role.ADMIN, "admin@example.com")
+    headers = await _auth(client, "admin@example.com")
+
+    resp = await client.get("/api/settings/routing/tasks", headers=headers)
+    assert resp.status_code == 200
+    tasks = {t["key"]: t for t in resp.json()}
+
+    # embedding 要向量模型，其余要聊天模型——这是批量绑定必须分开的原因
+    assert tasks["embedding"]["capability"] == "embedding"
+    assert tasks["control_extract"]["capability"] == "chat"
+
+    # 设计里有、后端没实现的，如实标出来，不要假装它能用
+    assert tasks["maturity_suggestion"]["implemented"] is False
+    assert tasks["control_extract"]["implemented"] is True
+
+
+@pytest.mark.asyncio
+async def test_bulk_routing_binds_every_implemented_chat_task(client, db_session):
+    await _seed(db_session, Role.ADMIN, "admin@example.com")
+    headers = await _auth(client, "admin@example.com")
+    created = await client.post(
+        "/api/settings/providers",
+        json={"name": "chat", "kind": "anthropic", "model": "claude-opus-5", "api_key": "sk-x"},
+        headers=headers,
+    )
+    provider_id = created.json()["id"]
+
+    resp = await client.put(
+        "/api/settings/routing/bulk",
+        json={"provider_config_id": provider_id, "capability": "chat"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+
+    routing = {r["task_key"]: r["provider_config_id"] for r in
+               (await client.get("/api/settings/routing", headers=headers)).json()}
+    assert routing["control_extract"] == provider_id
+    assert routing["conflict_detection"] == provider_id
+    # 向量任务不能被聊天模型顺手绑上——绑错了检索会静默退化
+    assert "embedding" not in routing
+    # 没实现的任务不绑，免得管理员以为这个能力已经有了
+    assert "maturity_suggestion" not in routing
+
+
+@pytest.mark.asyncio
+async def test_bulk_routing_never_mixes_embedding_with_chat(client, db_session):
+    await _seed(db_session, Role.ADMIN, "admin@example.com")
+    headers = await _auth(client, "admin@example.com")
+    emb = (await client.post(
+        "/api/settings/providers",
+        json={"name": "emb", "kind": "openai", "model": "text-embedding-3-large",
+              "api_key": "sk-e"},
+        headers=headers,
+    )).json()["id"]
+
+    await client.put(
+        "/api/settings/routing/bulk",
+        json={"provider_config_id": emb, "capability": "embedding"},
+        headers=headers,
+    )
+    routing = {r["task_key"]: r["provider_config_id"] for r in
+               (await client.get("/api/settings/routing", headers=headers)).json()}
+    assert routing == {"embedding": emb}
+
+
+@pytest.mark.asyncio
+async def test_bulk_routing_overwrites_and_records_one_audit_entry_per_call(client, db_session):
+    """批量绑定要留痕，且**按人的动作记一条**而不是按任务记九条。
+
+    管理员眼里这是一次操作；拆成九行会让审计日志变成噪声，真要查
+    「谁在什么时候把推理任务切到了哪个 provider」反而更难。明细在 after 里。
+    """
+    from sqlalchemy import select
+
+    from app.iam.models import AuditLog
+
+    await _seed(db_session, Role.ADMIN, "admin@example.com")
+    headers = await _auth(client, "admin@example.com")
+    first = (await client.post(
+        "/api/settings/providers",
+        json={"name": "a", "kind": "anthropic", "model": "claude-opus-5", "api_key": "sk-a"},
+        headers=headers,
+    )).json()["id"]
+    second = (await client.post(
+        "/api/settings/providers",
+        json={"name": "b", "kind": "anthropic", "model": "claude-sonnet-5", "api_key": "sk-b"},
+        headers=headers,
+    )).json()["id"]
+
+    await client.put("/api/settings/routing/bulk",
+                     json={"provider_config_id": first, "capability": "chat"}, headers=headers)
+    await client.put("/api/settings/routing/bulk",
+                     json={"provider_config_id": second, "capability": "chat"}, headers=headers)
+
+    routing = {r["task_key"]: r["provider_config_id"] for r in
+               (await client.get("/api/settings/routing", headers=headers)).json()}
+    assert set(routing.values()) == {second}
+
+    logs = (await db_session.scalars(
+        select(AuditLog).where(AuditLog.action == "routing.bulk_upsert")
+    )).all()
+    assert len(logs) == 2
+
+
+@pytest.mark.asyncio
+async def test_bulk_routing_is_denied_to_non_admin(client, db_session):
+    await _seed(db_session, Role.GRC_LEAD, "lead@example.com")
+    headers = await _auth(client, "lead@example.com")
+    resp = await client.put(
+        "/api/settings/routing/bulk",
+        json={"provider_config_id": 1, "capability": "chat"},
+        headers=headers,
+    )
+    assert resp.status_code == 403

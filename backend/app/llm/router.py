@@ -22,6 +22,7 @@ from app.llm.providers.base import (
 from app.llm.providers.factory import build_provider
 from app.llm.redaction import load_engine
 from app.llm.schemas import (
+    BulkRoutingIn,
     PreviewIn,
     PreviewOut,
     ProviderCreateIn,
@@ -31,9 +32,11 @@ from app.llm.schemas import (
     RedactionRuleOut,
     RoutingIn,
     RoutingOut,
+    TaskSpecOut,
     ThresholdsIn,
     ThresholdsOut,
 )
+from app.llm.tasks import TASK_SPECS, TaskSpec, bulk_assignable_keys
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
@@ -264,6 +267,64 @@ async def list_routing(
     return list(await session.scalars(select(TaskRouting).order_by(TaskRouting.task_key)))
 
 
+@router.get("/routing/tasks", response_model=list[TaskSpecOut])
+async def list_tasks(
+    _: User = Depends(require(Permission.LLM_CONFIG_WRITE)),
+) -> list[TaskSpec]:
+    """任务清单由后端给，前端不再自己维护一份——那份漂移过（见 llm/tasks.py）。"""
+    return list(TASK_SPECS)
+
+
+@router.put("/routing/bulk", response_model=list[RoutingOut])
+async def bulk_upsert_routing(
+    payload: BulkRoutingIn,
+    actor: User = Depends(require(Permission.LLM_CONFIG_WRITE)),
+    session: AsyncSession = Depends(get_session),
+) -> list[TaskRouting]:
+    """把一个 provider 绑到该 capability 下所有已实现的任务上。
+
+    只留**一条**审计（而不是每个任务一条）：这在管理员眼里是一个动作，
+    审计日志应当照着人的动作记，否则查起来是九行噪声。绑定明细写进 after。
+    """
+    config = await session.get(LLMProviderConfig, payload.provider_config_id)
+    if config is None:
+        raise NotFound("provider 不存在")
+
+    keys = bulk_assignable_keys(payload.capability)
+    existing = {
+        routing.task_key: routing
+        for routing in await session.scalars(
+            select(TaskRouting).where(TaskRouting.task_key.in_(keys))
+        )
+    }
+    updated: list[TaskRouting] = []
+    for key in keys:
+        routing = existing.get(key)
+        if routing is None:
+            routing = TaskRouting(task_key=key)
+            session.add(routing)
+        routing.provider_config_id = payload.provider_config_id
+        routing.temperature = payload.temperature
+        routing.max_tokens = payload.max_tokens
+        updated.append(routing)
+    await session.flush()
+
+    await record(
+        session,
+        user=actor,
+        action="routing.bulk_upsert",
+        entity_type="TaskRouting",
+        entity_id=config.id,
+        after={
+            "capability": payload.capability,
+            "provider_config_id": payload.provider_config_id,
+            "task_keys": list(keys),
+        },
+    )
+    await session.commit()
+    return updated
+
+
 @router.put("/routing", response_model=RoutingOut)
 async def upsert_routing(
     payload: RoutingIn,
@@ -417,6 +478,8 @@ async def usage(
     return {
         "month_to_date_cost": await budget.month_to_date_cost(session),
         "budget": float(setting.value["value"]) if setting else None,
+        # 大于 0 时上面那个花费是下限，不是实际值——界面必须说出来
+        "uncosted_calls": await budget.uncosted_calls(session),
         "by_task": [
             {"task_key": task, "cost": float(cost or 0), "calls": count}
             for task, cost, count in rows

@@ -27,6 +27,20 @@ async def month_to_date_cost(
     return float(total or 0.0)
 
 
+async def uncosted_calls(session: AsyncSession) -> int:
+    """本月有多少次调用根本没算进成本（模型不在价格表里）。
+
+    这个数字大于 0 时，`month_to_date_cost` 是**下限**而不是实际花费，
+    预算闸门也就不可信。界面要把它说出来，不能只显示一个漂亮的 $0.00。
+    """
+    now = datetime.now(UTC)
+    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    total = await session.scalar(
+        select(func.count()).where(LLMCall.at >= start, LLMCall.cost_unknown.is_(True))
+    )
+    return int(total or 0)
+
+
 async def _budget(session: AsyncSession) -> float | None:
     setting = await session.get(AppSetting, "monthly_budget_usd")
     if setting is None:

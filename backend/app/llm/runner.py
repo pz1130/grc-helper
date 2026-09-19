@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm import budget, routing
 from app.llm.models import LLMCall, LLMProviderConfig, RulesetName
-from app.llm.pricing import estimate_cost
+from app.llm.pricing import estimate_cost, is_priced
 from app.llm.providers.base import (
     CompletionRequest,
     CompletionResponse,
@@ -178,6 +178,7 @@ async def run(
             tokens_in=tokens_in,
             tokens_out=tokens_out,
             cost=estimate_cost(used_config.model, tokens_in, tokens_out),
+            cost_unknown=not is_priced(used_config.model),
             latency_ms=int((time.perf_counter() - started) * 1000),
             ruleset=ruleset,
             redaction_applied=bool(mapping),
@@ -230,6 +231,7 @@ async def embed(
                 tokens_in=tokens_in,
                 tokens_out=0,
                 cost=estimate_cost(config.model, tokens_in, 0),
+                cost_unknown=not is_priced(config.model),
                 latency_ms=int((time.perf_counter() - started) * 1000),
                 ruleset=RulesetName.EMBEDDING,
                 redaction_applied=bool(batch.mapping),

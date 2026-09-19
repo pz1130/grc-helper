@@ -7,6 +7,8 @@ import { request } from "../api";
 interface Usage {
   month_to_date_cost: number;
   budget: number | null;
+  /** 本月有多少次调用没算进成本（模型不在价格表里）。>0 时上面的花费是下限 */
+  uncosted_calls?: number;
   by_task: { task_key: string; cost: number; calls: number }[];
 }
 
@@ -138,6 +140,13 @@ export function Overview() {
               {t("overview.monthCost")}: ${data?.month_to_date_cost.toFixed(2) ?? "—"}
               {data?.budget != null && ` / $${data.budget.toFixed(2)}`}
             </p>
+            {/* 未计价的调用必须说出来。不说的话，一个用未知模型的部署会永远
+                显示 $0.00，预算闸门静默放行，而这张卡看起来一切正常。 */}
+            {(data?.uncosted_calls ?? 0) > 0 && (
+              <p role="note" className="kn-prereq-notice" style={{ marginBottom: 8 }}>
+                {t("overview.uncostedCalls", { count: data!.uncosted_calls })}
+              </p>
+            )}
           </div>
           {budget != null && budgetRatio !== null && (
             <div style={{ marginTop: 8 }}>

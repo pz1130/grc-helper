@@ -63,3 +63,50 @@ test("overview shows the live expired evidence count", async ({ page }) => {
   await expect(page.getByText("3", { exact: true })).toBeVisible();
   await expect(page.getByText("Needs attention", { exact: true })).toBeVisible();
 });
+
+// ── 冷启动空状态 ── OQ-24 ──────────────────────────────────────────
+//
+// 新部署时控制点库和证据类型都是空的，"新增证据"的保存按钮因而永久置灰
+// （disabled 条件里有 !form.control_id 和 !form.evidence_type_id），
+// 界面上不给任何解释。每个新租户上线第一天必撞。
+//
+// 验的是**它说出缺什么**，不是"按钮是灰的"——按钮灰着是对的，
+// 缺的是那句话。
+
+test("empty control library explains what to create first instead of a dead grey button", async ({ page }) => {
+  await mockSession(page, "contributor");
+  await page.route("**/api/evidence**", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/evidence-types", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/controls**", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/tech-assets", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/users", (route) => route.fulfill({ json: [] }));
+
+  await page.goto("/evidence");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+
+  const notice = page.getByRole("note");
+  await expect(notice).toBeVisible();
+  // 两个前置都空，两个都要点名——只说一个会让人补完还是存不了
+  await expect(notice).toContainText("control");
+  await expect(notice).toContainText("evidence type");
+  // 并且给得出去处
+  await expect(notice.getByRole("link", { name: /control/i })).toBeVisible();
+});
+
+test("a satisfied prerequisite is not listed as missing", async ({ page }) => {
+  await mockSession(page, "contributor");
+  await page.route("**/api/evidence**", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/evidence-types", (route) => route.fulfill({
+    json: [{ id: 1, name: "Screenshot", default_validity_days: 90 }],
+  }));
+  await page.route("**/api/controls**", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/tech-assets", (route) => route.fulfill({ json: [] }));
+  await page.route("**/api/users", (route) => route.fulfill({ json: [] }));
+
+  await page.goto("/evidence");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+
+  const notice = page.getByRole("note");
+  await expect(notice).toContainText("control");
+  await expect(notice).not.toContainText("evidence type");
+});

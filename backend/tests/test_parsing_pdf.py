@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from app.parsing.contract import ParseError
+from app.parsing.ocr import ocr_pdf
 from app.parsing.pdf_parser import TEXT_LAYER_MIN_CHARS, PdfParser, extract_lines
 
 
@@ -120,3 +121,98 @@ def test_corrupt_pdf_raises_readable_error(tmp_path: Path):
 
 def test_text_layer_threshold_matches_measured_corpus():
     assert TEXT_LAYER_MIN_CHARS == 200
+
+
+# ── 扫描件（没有文本层）── OQ-18 ────────────────────────────────────
+#
+# 手上 21 份 PDF（15 份外部 + 6 份样本）**全部有文本层**，所以这条路一直是空白。
+# 合成一份没有文本层的 PDF 就能把它从"未知"变成"已知"：把文字画成位图再存成
+# PDF，等价于扫描件的形态（真实扫描件还有噪点、倾斜、印章，那是第二轮的事）。
+#
+# 钉死的结论：**"OCR 兜底"目前并不存在**。文本层不够时解析器只加一条警告、
+# 返回空文档，`ocr_pdf()` 在 app/ 下没有任何调用者，镜像里也没有
+# tesseract/poppler。下面三条就是这个事实的可执行版本——谁要接上 OCR，
+# 它们会红，那时候改它们才是对的。
+
+
+def _write_scanned_pdf(path: Path, pages: list[list[str]]) -> Path:
+    """把文字画成位图再存成 PDF——产物没有文本层，形态等价于扫描件。"""
+    from PIL import Image, ImageDraw
+
+    images = []
+    for lines in pages:
+        image = Image.new("RGB", (1240, 1754), "white")  # A4 @150dpi
+        draw = ImageDraw.Draw(image)
+        y = 80
+        for line in lines:
+            draw.text((80, y), line, fill="black")
+            y += 28
+        images.append(image)
+    images[0].save(str(path), save_all=True, append_images=images[1:])
+    return path
+
+
+@pytest.fixture
+def scanned_pdf(tmp_path: Path) -> Path:
+    return _write_scanned_pdf(
+        tmp_path / "scanned.pdf",
+        [
+            [
+                "IT Procedure - Access Control Procedure",
+                "Version: 1.0",
+                "1 Roles and Responsibilities",
+                "The IT Division owns this procedure and reviews it annually.",
+            ],
+            [
+                "2 Access Provisioning",
+                "2.1 All privileged accounts shall be approved by two approvers.",
+                "2.2 Access reviews shall be performed quarterly.",
+            ],
+        ],
+    )
+
+
+def test_scanned_pdf_really_has_no_text_layer(scanned_pdf: Path):
+    """先证明这份合成件确实是扫描件的形态，否则下面两条测的是别的东西。"""
+    lines, _ = extract_lines(scanned_pdf)
+    assert sum(len(line) for line in lines) < TEXT_LAYER_MIN_CHARS
+
+
+def test_scanned_pdf_yields_an_empty_document_with_a_warning(scanned_pdf: Path):
+    """扫描件进来的结果是**空文档 + 一条警告**，不是 OCR 出来的条款。"""
+    parsed = PdfParser().parse(scanned_pdf)
+    assert parsed.clauses == []
+    assert any("文本层" in warning for warning in parsed.warnings)
+
+
+def test_scanned_pdf_does_not_set_ocr_used(scanned_pdf: Path):
+    """`ocr_used` 恒为 False——`Document.ocr_quality_flag` 由它赋值，
+
+    所以扫描件在库里不会被标成"OCR 质量存疑"，而是看起来像一份正常但空的文档。
+    这正是这条路最危险的地方：没有任何下游信号说"这份没解析出来是因为它是扫描件"。
+    """
+    parsed = PdfParser().parse(scanned_pdf)
+    assert parsed.ocr_used is False
+
+
+def test_ocr_module_explains_what_is_missing_instead_of_crashing():
+    """真去调 ocr_pdf 会拿到一条能照着做的报错，而不是 ImportError 堆栈。
+
+    镜像里没有 tesseract/poppler，所以这是当前**必然**走到的分支。
+    """
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(name: str, *args, **kwargs):
+        if name in {"pytesseract", "pdf2image"}:
+            raise ImportError(name)
+        return real_import(name, *args, **kwargs)
+
+    builtins.__import__ = fake_import
+    try:
+        with pytest.raises(ParseError) as exc:
+            ocr_pdf(Path("whatever.pdf"))
+    finally:
+        builtins.__import__ = real_import
+    assert "tesseract" in str(exc.value)

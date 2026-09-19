@@ -72,7 +72,8 @@
     "task": "任务",
     "cost": "成本",
     "taskTypes_one": "{{count}} 类任务",
-    "taskTypes_other": "{{count}} 类任务"
+    "taskTypes_other": "{{count}} 类任务",
+    "uncostedCalls": "本月有 {{count}} 次调用未计价（模型不在价格表里），实际花费高于上面的数字"
   },
   "documents": {
     "indexQueued": "索引任务已提交，完成后可检索文档条款。",
@@ -226,7 +227,14 @@
       "routingHint": "将各项推理任务分配给指定的 AI 服务商",
       "taskPipeline": "任务流程",
       "assignedProvider": "已分配服务商",
-      "routeFor": "{{task}}的服务商"
+      "routeFor": "{{task}}的服务商",
+      "applyChat": "应用到全部推理任务",
+      "applyChatHint": "把这个 provider 绑到所有已实现的推理任务（不含向量嵌入）",
+      "applyEmbedding": "设为向量模型",
+      "applyEmbeddingHint": "把这个 provider 绑到向量嵌入任务。必须是向量模型，绑错会让检索退化成纯关键字",
+      "needsVectorModel": "需向量模型",
+      "notImplemented": "未实现",
+      "notImplementedHint": "设计里有这个任务，后端还没实现，绑了也不会被调用"
     }
   },
   "review": {
@@ -512,7 +520,9 @@
       "missing": "缺失",
       "valid": "有效",
       "expired": "已过期"
-    }
+    },
+    "prereqControls": "控制点",
+    "prereqTypes": "证据类型"
   },
   "frameworks": {
     "title": "框架管理",
@@ -639,7 +649,8 @@
     "scaleHint": "评分范围 0–4。汇总只计算已评分的末级条目，未评分项不按零分处理。",
     "createRisk": "转为风险",
     "riskCreated": "风险已创建。",
-    "viewRisk": "查看已有风险"
+    "viewRisk": "查看已有风险",
+    "prereqFrameworks": "合规框架"
   },
   "risks": {
     "title": "风险登记册",
@@ -774,7 +785,8 @@
     "delete": "删除",
     "close": "关闭",
     "empty": "暂无数据",
-    "actions": "操作"
+    "actions": "操作",
+    "prerequisiteMissing": "还不能保存——先创建："
   },
   "taskNames": {
     "clause_extraction": "条款提取",

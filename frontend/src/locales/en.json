@@ -72,7 +72,8 @@
     "task": "Task",
     "cost": "Cost",
     "taskTypes_one": "{{count}} task type",
-    "taskTypes_other": "{{count}} task types"
+    "taskTypes_other": "{{count}} task types",
+    "uncostedCalls": "{{count}} call(s) this month were never priced (model not in the price table); actual spend is higher than shown"
   },
   "documents": {
     "indexQueued": "Indexing queued. Document clauses will be searchable when it finishes.",
@@ -226,7 +227,14 @@
       "routingHint": "Assign each inference task to a dedicated AI provider",
       "taskPipeline": "Task pipeline",
       "assignedProvider": "Assigned provider",
-      "routeFor": "Provider for {{task}}"
+      "routeFor": "Provider for {{task}}",
+      "applyChat": "Apply to all inference tasks",
+      "applyChatHint": "Bind this provider to every implemented inference task (excluding embedding)",
+      "applyEmbedding": "Set as embedding model",
+      "applyEmbeddingHint": "Bind this provider to the embedding task. It must be a vector model; binding a chat model silently degrades search to keywords only",
+      "needsVectorModel": "Needs a vector model",
+      "notImplemented": "Not implemented",
+      "notImplementedHint": "This task exists in the design but not yet in the backend; binding it has no effect"
     }
   },
   "review": {
@@ -512,7 +520,9 @@
       "missing": "Missing",
       "valid": "Valid",
       "expired": "Expired"
-    }
+    },
+    "prereqControls": "a control",
+    "prereqTypes": "an evidence type"
   },
   "frameworks": {
     "title": "Frameworks",
@@ -639,7 +649,8 @@
     "scaleHint": "Scores range from 0 to 4. Rollups include scored leaf items only; unscored items are not treated as zero.",
     "createRisk": "Create risk",
     "riskCreated": "Risk created.",
-    "viewRisk": "View existing risk"
+    "viewRisk": "View existing risk",
+    "prereqFrameworks": "a compliance framework"
   },
   "risks": {
     "title": "Risk register",
@@ -774,7 +785,8 @@
     "delete": "Delete",
     "close": "Close",
     "empty": "No data",
-    "actions": "Actions"
+    "actions": "Actions",
+    "prerequisiteMissing": "Cannot save yet — create these first:"
   },
   "taskNames": {
     "clause_extraction": "Clause extraction",

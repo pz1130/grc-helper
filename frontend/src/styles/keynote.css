@@ -1890,3 +1890,37 @@ details[open] {
 
 
 
+
+/* 任务清单上的小标签：说明这一行要什么模型、或者压根还没实现。
+   不用颜色区分对错——这里不是告警，是在配置之前先把约束讲清楚。 */
+.kn-task-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  font-size: 0.6875rem;
+  background: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  color: var(--text-secondary);
+}
+
+.kn-task-tag--muted {
+  opacity: 0.75;
+  font-style: italic;
+}
+
+/* 冷启动前置提示。不用告警红：这不是出错了，是还没开始。 */
+.kn-prereq-notice {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md, 8px);
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.24);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.kn-prereq-notice a {
+  color: var(--accent-emerald);
+  text-decoration: underline;
+}

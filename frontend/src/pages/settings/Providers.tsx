@@ -36,20 +36,13 @@ const KINDS = [
   "openai_compatible",
 ];
 
-// spec §6.5 的八个推理任务，加上 embedding（spec §6.1）
-const TASK_KEYS = [
-  "control_extract",
-  "framework_mapping",
-  "relation_inference",
-  "conflict_detection",
-  "audit_prediction",
-  "answer_generation",
-  "maturity_suggestion",
-  "evidence_suggestion",
-  "embedding",
-  "query_expansion",
-  "matrix_mapping",
-];
+// 任务清单由后端给（app/llm/tasks.py）。这里原先硬编码了一份，注释写
+// "八个推理任务 + embedding"＝9 而实际列了 11 个——两边没有约束关系就会漂。
+interface TaskSpec {
+  key: string;
+  capability: "chat" | "embedding";
+  implemented: boolean;
+}
 
 export function Providers() {
   const { t } = useTranslation();
@@ -83,6 +76,22 @@ export function Providers() {
       setForm({ ...form, name: "", api_key: "" });
       void queryClient.invalidateQueries({ queryKey: ["providers"] });
     },
+  });
+
+  const tasks = useQuery({
+    queryKey: ["routing-tasks"],
+    queryFn: () => request<TaskSpec[]>("/api/settings/routing/tasks"),
+  });
+
+  // 一键应用只绑同一 capability 下已实现的任务。**embedding 单列一行**：
+  // 它要向量模型，被聊天模型顺手绑走不会报错，只会让检索静默退化成纯关键字。
+  const bulkRoute = useMutation({
+    mutationFn: (body: { provider_config_id: number; capability: "chat" | "embedding" }) =>
+      request("/api/settings/routing/bulk", {
+        method: "PUT",
+        body: JSON.stringify({ ...body, temperature: 0, max_tokens: 4096 }),
+      }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["routing"] }),
   });
 
   const route = useMutation({
@@ -157,6 +166,25 @@ export function Providers() {
                     <div style={{ display: "inline-flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
                       <button className="kn-btn-secondary kn-btn-sm" onClick={() => void testConnection(p.id)}>
                         {t("common.test")}
+                      </button>
+                      {/* 一键应用按 capability 分成两个，不是一个。把聊天模型绑到
+                          embedding 上不会报错，只会让向量静默不生成、检索退化成
+                          纯关键字——那是最难被发现的一类配置错误。 */}
+                      <button
+                        className="kn-btn-secondary kn-btn-sm"
+                        disabled={bulkRoute.isPending}
+                        title={t("settings.providersConfig.applyChatHint")}
+                        onClick={() => bulkRoute.mutate({ provider_config_id: p.id, capability: "chat" })}
+                      >
+                        {t("settings.providersConfig.applyChat")}
+                      </button>
+                      <button
+                        className="kn-btn-secondary kn-btn-sm"
+                        disabled={bulkRoute.isPending}
+                        title={t("settings.providersConfig.applyEmbeddingHint")}
+                        onClick={() => bulkRoute.mutate({ provider_config_id: p.id, capability: "embedding" })}
+                      >
+                        {t("settings.providersConfig.applyEmbedding")}
                       </button>
                       <button
                         className="kn-btn-secondary kn-btn-sm"
@@ -262,19 +290,29 @@ export function Providers() {
               </tr>
             </thead>
             <tbody>
-              {TASK_KEYS.map((key) => {
-                const current = routing.data?.find((r) => r.task_key === key);
+              {tasks.data?.map((task) => {
+                const current = routing.data?.find((r) => r.task_key === task.key);
                 return (
-                  <tr key={key}>
+                  <tr key={task.key}>
                     <td>
-                      <span title={key}>{t(`taskNames.${key}`, { defaultValue: key })}</span>
+                      <span title={task.key}>{t(`taskNames.${task.key}`, { defaultValue: task.key })}</span>
+                      {task.capability === "embedding" && (
+                        <span className="kn-task-tag">{t("settings.providersConfig.needsVectorModel")}</span>
+                      )}
+                      {!task.implemented && (
+                        <span className="kn-task-tag kn-task-tag--muted">
+                          {t("settings.providersConfig.notImplemented")}
+                        </span>
+                      )}
                     </td>
                     <td>
                       <select
-                        aria-label={t("settings.providersConfig.routeFor", { task: t(`taskNames.${key}`, { defaultValue: key }) })}
+                        aria-label={t("settings.providersConfig.routeFor", { task: t(`taskNames.${task.key}`, { defaultValue: task.key }) })}
                         value={current?.provider_config_id ?? ""}
+                        disabled={!task.implemented}
+                        title={task.implemented ? undefined : t("settings.providersConfig.notImplementedHint")}
                         onChange={(e) =>
-                          route.mutate({ task_key: key, provider_config_id: Number(e.target.value) })
+                          route.mutate({ task_key: task.key, provider_config_id: Number(e.target.value) })
                         }
                         style={{ minWidth: 260, padding: "5px 28px 5px 12px" }}
                       >

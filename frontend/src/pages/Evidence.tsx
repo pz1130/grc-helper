@@ -5,6 +5,7 @@ import { useSearchParams } from "react-router-dom";
 
 import { request } from "../api";
 import { useAuth } from "../auth";
+import { PrerequisiteNotice } from "../components/PrerequisiteNotice";
 
 interface EvidenceType {
   id: number;
@@ -288,6 +289,12 @@ export function Evidence() {
               <input value={form.file_path} disabled={save.isPending} onChange={(e) => setForm({ ...form, file_path: e.target.value })} />
             </label>
           </div>
+          <PrerequisiteNotice
+            items={[
+              { satisfied: (controls.data?.length ?? 0) > 0, label: t("evidence.prereqControls"), to: "/controls" },
+              { satisfied: (types.data?.length ?? 0) > 0, label: t("evidence.prereqTypes"), to: "/settings" },
+            ]}
+          />
           {error && <p role="alert">⚠️ {error}</p>}
           <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
             <button className="kn-btn-primary" type="submit" disabled={save.isPending || !form.title.trim() || !form.evidence_type_id || !form.control_id}>{t("common.save")}</button>

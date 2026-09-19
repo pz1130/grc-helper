@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import { request } from "../api";
+import { PrerequisiteNotice } from "../components/PrerequisiteNotice";
 import { useAuth } from "../auth";
 
 interface Framework {
@@ -285,6 +286,11 @@ export function Maturity() {
           <label>{t("maturity.assessmentName")}<input required value={name} onChange={(event) => setName(event.target.value)} /></label>
           <label>{t("maturity.asOfDate")}<input required type="date" value={asOfDate} onChange={(event) => setAsOfDate(event.target.value)} /></label>
           <button type="submit" disabled={create.isPending}>{t("maturity.create")}</button>
+          <div style={{ gridColumn: "1 / -1" }}>
+            <PrerequisiteNotice
+              items={[{ satisfied: (frameworks.data?.length ?? 0) > 0, label: t("maturity.prereqFrameworks"), to: "/frameworks" }]}
+            />
+          </div>
           {create.error && <p role="alert" style={{ gridColumn: "1 / -1", color: "var(--accent-ruby)", margin: 0 }}>{create.error.message}</p>}
         </form>
       )}

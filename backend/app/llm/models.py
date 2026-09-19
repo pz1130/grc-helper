@@ -97,6 +97,9 @@ class LLMCall(Base):
     tokens_in: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     tokens_out: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     cost: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    # 这个模型不在价格表里，上面的 cost 是 0 但**不代表这次调用是免费的**。
+    # 没有这个标记，未计价和真的零成本长得一模一样，预算闸门会静默放行。
+    cost_unknown: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     latency_ms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     ruleset: Mapped[RulesetName] = mapped_column(
         SAEnum(
