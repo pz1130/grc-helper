@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from app.parsing.contract import ParseError
+from app.parsing.headings import continues_the_heading
 from app.parsing.ocr import ocr_pdf
 from app.parsing.pdf_parser import TEXT_LAYER_MIN_CHARS, PdfParser, extract_lines
 
@@ -229,3 +230,118 @@ def test_ocr_module_explains_what_is_missing_instead_of_crashing():
     finally:
         builtins.__import__ = real_import
     assert "tesseract" in str(exc.value)
+
+
+# ── 段落级编号的外部文档 ── OQ-20 ──────────────────────────────────
+#
+# HKMA SPM TM-C-1 那一类：`2.2` 本身就是一个段落，没有标题行。解析器把编号那
+# 一行当标题、剩下的当正文，一句话被劈成两半：
+#
+#   heading = "Under this policy, AIs are required to develop robust technology"
+#   text    = "and cyber risk management frameworks that are proportionate…"
+#
+# 下面两条把 2026-09-13 那次改造的效果固定住，免得日后悄悄退回去。
+
+
+@pytest.fixture
+def paragraph_numbered_pdf(tmp_path: Path) -> Path:
+    """段落级编号：编号后面直接是正文，没有标题，且会跨行断开。"""
+    return _write_pdf(
+        tmp_path / "hkma-like.pdf",
+        [
+            [
+                "Supervisory Policy Manual",
+                "TM-C-1 Cyber Risk Management",
+                "2.2 Under this policy, AIs are required to develop robust technology",
+                "and cyber risk management frameworks that are proportionate to their",
+                "size and the complexity of their operations.",
+                "2.3 The Monetary Authority expects senior management to review the",
+                "framework at least annually and after any material incident.",
+            ],
+        ],
+    )
+
+
+def test_paragraph_number_does_not_leave_half_a_sentence_as_the_heading(
+    paragraph_numbered_pdf: Path,
+):
+    """标题要么是真标题，要么是编号——不能是半句话。
+
+    审核者在确认队列里看到的就是这个 heading，`heading_path` 由它拼成，
+    chunk 的上下文前缀也是它。半句话会一路污染到检索和引用可读性。
+    """
+    parsed = PdfParser().parse(paragraph_numbered_pdf)
+    flat: list = []
+
+    def walk(nodes):
+        for node in nodes:
+            flat.append(node)
+            walk(node.children)
+
+    walk(parsed.clauses)
+    numbered = [node for node in flat if (node.number or "").strip()]
+    assert numbered, "这份文档应当切出带编号的条款"
+    for node in numbered:
+        assert not continues_the_heading(node.text or ""), (
+            f"条款 {node.number} 的正文以小写开头，说明 heading 仍是半句话："
+            f"heading={node.heading!r} text={node.text!r}"
+        )
+
+
+def test_sample_house_style_anchors_do_not_fire_on_an_outside_document(
+    paragraph_numbered_pdf: Path,
+):
+    """别拿样本那批文档的文风去量别家机构的文档。
+
+    「Introduction / Roles and Responsibilities」是样本那 6 份的文风，不是解析器
+    的性质。写死它会对每一份外部文档误报「解析可能不完整」，而它们解析得好好的。
+    """
+    from app.parsing.validate import check_completeness
+
+    parsed = PdfParser().parse(paragraph_numbered_pdf)
+    assert check_completeness(parsed) == []
+    assert not any("应有的章节" in warning for warning in parsed.warnings)
+
+
+def test_known_limit_uppercase_continuation_still_leaves_a_fragment(tmp_path: Path):
+    """已知缺口，**刻意不修**：续行以大写词开头时，heading 仍是半句话。
+
+    `continues_the_heading` 用"正文以小写字母开头"代理"这是同一句话的后半截"。
+    续行以缩写开头就漏判——而 IT / GRC 制度里这恰恰极常见（IT、AIs、API、
+    MFA、VPN、HKMA…）。下面这条就是实测出来的形状：
+
+        heading = "AIs should ensure that their cyber resilience frameworks cover"
+        text    = "IT assets across all environments and third-party connections."
+
+    为什么不顺手补一条规则：改标题判据需要一把可信的尺子，而手上只有 6 份样本
+    （外部那 29 份不在仓库里）。本项目在这件事上栽过——通用自洽度分在真实文档上
+    "救 3 份坏 3 份"，教训是不要照着手上的语料调标题判据（见 OQ-19）。
+
+    这条测试**描述现状而不是认可现状**。谁要补上这个缺口，它会红：那时候请先
+    用 `make corpus CORPUS_DIR=...` 在一批真实文档上量过再改。
+    """
+    pdf = _write_pdf(
+        tmp_path / "uppercase-continuation.pdf",
+        [
+            [
+                "Supervisory Policy Manual",
+                "2.2 AIs should ensure that their cyber resilience frameworks cover",
+                "IT assets across all environments and third-party connections.",
+                # 单独一条带编号的会被当成孤儿编号跳过，凑一对才是真实的文档形状
+                "2.3 The Monetary Authority expects senior management to review the",
+                "framework at least annually and after any material incident.",
+            ],
+        ],
+    )
+    flat: list = []
+
+    def walk(nodes):
+        for node in nodes:
+            flat.append(node)
+            walk(node.children)
+
+    walk(PdfParser().parse(pdf).clauses)
+    fragment = next(node for node in flat if node.number == "2.2")
+    assert fragment.heading.startswith("AIs should ensure"), (
+        "如果这条断言不成立，说明缺口被补上了——请更新本测试与 OQ-20"
+    )
