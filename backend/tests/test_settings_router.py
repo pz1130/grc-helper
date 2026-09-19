@@ -465,3 +465,58 @@ async def test_bulk_routing_is_denied_to_non_admin(client, db_session):
         headers=headers,
     )
     assert resp.status_code == 403
+
+
+# ── 失败批次在队列里可见且能重跑 ── OQ-22 ──────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_failed_batches_are_listed_separately_from_the_pending_queue(client, db_session):
+    """失败行不混进待确认列表，但要有地方看得到，并带上原因与文档。"""
+    from app.review.models import Proposal, ProposalKind, ProposalStatus
+
+    await _seed(db_session, Role.GRC_LEAD, "lead@example.com")
+    headers = await _auth(client, "lead@example.com")
+    db_session.add(
+        Proposal(
+            kind=ProposalKind.CONTROL_EXTRACT,
+            payload={"batch_fingerprint": "abc", "clause_ids": [1, 2]},
+            citations=[],
+            status=ProposalStatus.FAILED,
+            reject_reason="schema: 模型输出中没有找到合法的 JSON 对象",
+        )
+    )
+    await db_session.flush()
+
+    queue = await client.get("/api/proposals", headers=headers)
+    assert queue.json() == [], "失败行不是待人决策的提案，不该出现在待确认队列里"
+
+    failures = await client.get("/api/proposals/failures", headers=headers)
+    assert failures.status_code == 200
+    rows = failures.json()
+    assert len(rows) == 1
+    assert "JSON" in rows[0]["reject_reason"]
+    assert rows[0]["clause_ids"] == [1, 2]
+
+
+@pytest.mark.asyncio
+async def test_failed_batches_do_not_inflate_the_pending_badge(client, db_session):
+    from app.review.models import Proposal, ProposalKind, ProposalStatus
+
+    await _seed(db_session, Role.GRC_LEAD, "lead2@example.com")
+    headers = await _auth(client, "lead2@example.com")
+    db_session.add(
+        Proposal(
+            kind=ProposalKind.CONTROL_EXTRACT,
+            payload={"batch_fingerprint": "x"},
+            citations=[],
+            status=ProposalStatus.FAILED,
+            reject_reason="boom",
+        )
+    )
+    await db_session.flush()
+
+    stats = (await client.get("/api/proposals/stats", headers=headers)).json()
+    assert stats["pending"] == 0
+    # 但失败数要单独给出来，否则界面无从知道该不该提示
+    assert stats["failed"] == 1

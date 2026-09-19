@@ -52,6 +52,20 @@ async def _checkpoint(session: AsyncSession, key: str) -> LLMCall | None:
     ).order_by(LLMCall.id.desc()).limit(1))
 
 
+async def _last_call_id(session: AsyncSession) -> int | None:
+    """runner 刚刚 flush 的那次失败调用。占位行指回它，轨迹才追得完整。
+
+    取最后一条 error 的 control_extract 调用——runner 在抛 ValidationFailure
+    之前一定已经把它写进去了（见 llm/runner.py）。
+    """
+    return await session.scalar(
+        select(LLMCall.id)
+        .where(LLMCall.task_key == EXTRACT_TASK_KEY, LLMCall.status == "error")
+        .order_by(LLMCall.id.desc())
+        .limit(1)
+    )
+
+
 async def run_extraction(
     session: AsyncSession, document_id: int, *, run_key: str | None = None,
 ) -> dict[str, Any]:
@@ -70,6 +84,7 @@ async def run_extraction(
         "batches": len(batches), "proposals": 0, "rejected": 0,
         "completed_batches": 0, "skipped_batches": 0, "attempted_batches": 0,
         "proposal_ids": [], "llm_call_ids": [], "resumed_proposal_ids": [],
+        "failed_proposal_ids": [],
         "resumed_llm_call_ids": [],
     }
     for prompt, clause_ids in batches:
@@ -100,6 +115,22 @@ async def run_extraction(
         except ValidationFailure as failure:
             logger.warning("Document %s extraction rejected: %s", document_id, failure.reason)
             summary["rejected"] += 1
+            # 留一行占位提案。不留的话这一批就静默消失了：错误只在 llm_call.error
+            # 里，worker 日志不打，界面只说"任务已入队"，而审计员会以为这份文档
+            # 就只抽出了这些控制点（生产栈实测 7 批丢 2 批）。
+            #
+            # 它的 status 是 failed 而不是 pending——没有东西可供人决策，
+            # 不该进待确认角标；但它必须在队列里看得见，并且能一键重跑。
+            failed = await review_service.record_failed_batch(
+                session,
+                kind=ProposalKind.CONTROL_EXTRACT,
+                reason=failure.reason,
+                document_id=document_id,
+                llm_call_id=await _last_call_id(session),
+                batch_fingerprint=key,
+                clause_ids=clause_ids,
+            )
+            summary["failed_proposal_ids"].append(failed.id)
             # The runner has flushed an error LLMCall. Preserve it, but do not cache failure.
             await session.commit()
             continue
@@ -130,6 +161,10 @@ async def run_extraction(
             # Savepoint removes every proposal in the failed batch, retaining the LLM trace.
             await session.commit()
             raise
+        # 同一批次重跑成功了，让旧的失败行退出队列——**不删行**（AuditLog 按 id
+        # 记实体），改成 rejected 并写明原因。留着是审计要求，退出是为了不让
+        # 一条已经修好的失败继续占用人的注意力。
+        await review_service.supersede_failed_batch(session, key)
         await session.commit()
         summary["completed_batches"] += 1
         summary["proposals"] += len(ids)

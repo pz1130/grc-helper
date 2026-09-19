@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
@@ -25,6 +25,8 @@ export function Layout() {
   const { user, logout } = useAuth();
   const { theme, setTheme } = useTheme();
   const location = useLocation();
+  // 窄屏抽屉。宽屏下这个状态没有任何作用——CSS 那边 768px 以上侧栏常驻。
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const navigate = useNavigate();
 
   // Query live proposal stats for real-time review queue badge
@@ -238,6 +240,9 @@ export function Layout() {
     [t, pendingCount],
   );
 
+  // 跳转后收起抽屉，否则它盖着刚打开的页面
+  useEffect(() => setDrawerOpen(false), [location.pathname]);
+
   // Derive dynamic breadcrumbs from current location
   const breadcrumb = useMemo(() => {
     const path = location.pathname;
@@ -259,23 +264,12 @@ export function Layout() {
       {/* ====================================================================
           Obsidian Studio Pro Sidebar
          ==================================================================== */}
-      <nav
-        style={{
-          width: 256,
-          flexShrink: 0,
-          padding: "20px 14px",
-          background: "var(--sidebar-bg)",
-          borderRight: "1px solid var(--stage-border)",
-          display: "flex",
-          flexDirection: "column",
-          position: "sticky",
-          top: 0,
-          height: "100vh",
-          boxSizing: "border-box",
-          zIndex: 40,
-          transition: "background 0.2s ease, border-color 0.2s ease",
-        }}
-      >
+      {/* 窄屏下点内容区任意处收起抽屉。没有这层遮罩，抽屉开着时
+          背后的表格仍然可点，人会以为自己点空了。 */}
+      {drawerOpen && <div className="kn-drawer-backdrop" onClick={() => setDrawerOpen(false)} />}
+      {/* 布局样式全部在 .kn-sidebar 里，**不要写回内联**——内联样式优先级高于
+          media query，写回去窄屏那套就再也生效不了。 */}
+      <nav className={`kn-sidebar${drawerOpen ? " kn-sidebar--open" : ""}`}>
         {/* Brand Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, padding: "0 6px" }}>
           <BrandLogo size={32} />
@@ -497,6 +491,15 @@ export function Layout() {
         
         {/* Top Command Bar */}
         <header className="kn-top-command-bar">
+          {/* 汉堡只在窄屏出现（CSS 控制），宽屏下侧栏常驻，按钮是多余的 */}
+          <button
+            className="kn-hamburger"
+            aria-label={t("nav.openMenu")}
+            aria-expanded={drawerOpen}
+            onClick={() => setDrawerOpen((open) => !open)}
+          >
+            ☰
+          </button>
           {/* Breadcrumbs */}
           <div className="kn-breadcrumbs">
             <span style={{ opacity: 0.6 }}>GRC</span>

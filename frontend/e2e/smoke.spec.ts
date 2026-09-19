@@ -174,3 +174,35 @@ test("顶部心跳反映真实健康状态，而不是常亮的绿灯", async ({
   await expect(page.getByText("系统异常")).toBeVisible();
   await expect(page.getByText("系统运行正常")).toHaveCount(0);
 });
+
+test("窄屏下侧边栏收进抽屉，内容区不被挤掉也不横向溢出", async ({ page }) => {
+  // 改造前：侧栏固定 width:256 且 flexShrink:0，375px 下主内容只剩几十像素，
+  // 整页横向溢出约 711px。全站 @media 命中数当时是 0——响应式从未实现。
+  await page.setViewportSize({ width: 375, height: 667 });
+  await signIn(page);
+
+  // 抽屉默认收起：导航链接不占位
+  const nav = page.getByRole("navigation");
+  await expect(nav).not.toBeInViewport();
+
+  // 最要紧的一条：不许横向溢出
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
+
+  // 打得开、进得去
+  await page.getByRole("button", { name: "打开导航" }).click();
+  await expect(nav).toBeInViewport();
+  await page.getByRole("link", { name: "文档管理" }).click();
+  await expect(page).toHaveURL(/\/documents$/);
+  // 跳转后抽屉自动收起，否则挡着刚打开的页面
+  await expect(nav).not.toBeInViewport();
+});
+
+test("宽屏不受抽屉改造影响：侧边栏常驻，没有汉堡按钮", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await signIn(page);
+  await expect(page.getByRole("navigation")).toBeInViewport();
+  await expect(page.getByRole("button", { name: "打开导航" })).toBeHidden();
+});

@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Any
 
 from pydantic import ValidationError
-from sqlalchemy import Integer, select
+from sqlalchemy import Integer, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -223,6 +223,73 @@ async def create(
     )
     await session.flush()
     return proposal
+
+
+async def record_failed_batch(
+    session: AsyncSession,
+    *,
+    kind: ProposalKind,
+    reason: str,
+    document_id: int | None = None,
+    llm_call_id: int | None = None,
+    batch_fingerprint: str | None = None,
+    clause_ids: list[int] | None = None,
+) -> Proposal:
+    """给一个什么都没产出的批次留一行占位提案（OQ-22）。
+
+    为什么走这里而不是在抽取任务里直接 `Proposal(...)`：所有 Proposal 的构造都
+    只能在这个模块里发生，`tests/test_extraction_tasks.py` 有一条 AST 守卫在盯着
+    （抽取任务直接建业务对象就是绕开审计）。
+
+    它与 `create()` 的区别是**没有内容可校验**：payload 里装的是批次标识而不是
+    控制点，所以不能走那套引用校验。status 直接落 FAILED——它不是待人决策的
+    提案，不该进待确认计数。
+    """
+    proposal = Proposal(
+        kind=kind,
+        payload={"batch_fingerprint": batch_fingerprint, "clause_ids": clause_ids or []},
+        citations=[],
+        status=ProposalStatus.FAILED,
+        reject_reason=reason,
+        llm_call_id=llm_call_id,
+        document_id=document_id,
+    )
+    session.add(proposal)
+    await session.flush()
+    await record(
+        session,
+        user=None,
+        action="proposal.batch_failed",
+        entity_type="Proposal",
+        entity_id=proposal.id,
+        after={"kind": kind.value, "document_id": document_id, "reason": reason},
+    )
+    await session.flush()
+    return proposal
+
+
+async def supersede_failed_batch(session: AsyncSession, batch_fingerprint: str) -> None:
+    """同一批次重跑成功后，把旧的失败占位行移出队列。
+
+    **不 DELETE**：`AuditLog` 按 id 记录实体，删行会让审计指向空气（铁律 2）。
+    改成 rejected 并在原因后面注明，行还在、队列干净。
+
+    用一条定向 UPDATE 而不是"查出来再逐个改"：每个成功批次都会调它，绝大多数
+    时候一行都匹配不上，没必要为此把 ORM 对象物化一遍。
+    """
+    await session.execute(
+        update(Proposal)
+        .where(
+            Proposal.status == ProposalStatus.FAILED,
+            Proposal.payload["batch_fingerprint"].astext == batch_fingerprint,
+        )
+        .values(
+            status=ProposalStatus.REJECTED,
+            reject_reason=func.concat(
+                func.coalesce(Proposal.reject_reason, ""), "（该批次已重跑成功，本行留档）"
+            ),
+        )
+    )
 
 
 def require_actor(actor: User, permission: Permission = Permission.REVIEW_DECIDE) -> None:

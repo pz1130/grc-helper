@@ -267,3 +267,41 @@ test("failed decisions surface the server error and keep the proposal pending", 
   await expect(page.locator("#proposal-1")).toBeVisible();
   await expect(page.getByText("Decision saved.", { exact: true })).toHaveCount(0);
 });
+
+test("failed extraction batches are visible in the queue and can be retried", async ({ page }) => {
+  // OQ-22：失败批次原先只把 rejected 计数 +1 就跳过，错误落进 llm_call.error，
+  // 界面只说"任务已入队"。生产栈实测 7 批丢 2 批，审计员无从知道。
+  await mockSession(page);
+  let retried = 0;
+  await page.route("**/api/proposals**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/api/proposals/stats") {
+      return route.fulfill({ json: { pending: 0, by_kind: {}, failed: 1 } });
+    }
+    if (path === "/api/proposals/failures") {
+      return route.fulfill({ json: [{
+        id: 91, document_id: 9, llm_call_id: 7, clause_ids: [4, 5, 6],
+        reject_reason: "schema: 模型输出中没有找到合法的 JSON 对象",
+      }] });
+    }
+    return route.fulfill({ json: [] });
+  });
+  await page.route("**/api/extraction/documents/9", (route) => {
+    retried += 1;
+    return route.fulfill({ json: { job_id: "retry-42" } });
+  });
+
+  await page.goto("/review");
+
+  // 看得见，而且说得出是哪一批、为什么
+  await expect(page.getByText("1 batch(es) produced no controls")).toBeVisible();
+  await expect(page.getByText("模型输出中没有找到合法的 JSON 对象")).toBeVisible();
+  await expect(page.getByText("3 clause(s) affected")).toBeVisible();
+
+  // 待确认角标不被失败行撑大
+  await expect(page.getByText("Pending 0")).toBeVisible();
+
+  await page.getByRole("button", { name: "Retry" }).click();
+  await expect(page.getByText("Retry queued (retry-42)")).toBeVisible();
+  expect(retried).toBe(1);
+});

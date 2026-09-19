@@ -21,6 +21,15 @@ export interface ControlView {
   sources?: ControlSource[];
 }
 
+/** 抽取失败的批次：本该产出控制点的位置，什么都没出来。 */
+interface Failure {
+  id: number;
+  document_id: number | null;
+  llm_call_id: number | null;
+  reject_reason: string;
+  clause_ids: number[];
+}
+
 export interface Proposal {
   id: number;
   kind: string;
@@ -539,7 +548,7 @@ export function ReviewQueue() {
   });
   const stats = useQuery({
     queryKey: ["proposal-stats"],
-    queryFn: () => request<{ pending: number; by_kind: Record<string, number> }>("/api/proposals/stats"),
+    queryFn: () => request<{ pending: number; by_kind: Record<string, number>; failed?: number }>("/api/proposals/stats"),
     refetchInterval: 15000,
   });
   const automationPreview = useQuery({
@@ -548,8 +557,31 @@ export function ReviewQueue() {
     enabled: showAutomationPreview,
   });
 
+  // 抽取失败的批次。单独取而不是混进 proposals：它们没有东西可供人决策，
+  // 混进去会让"还剩几条要看"这个数字失去意义。但必须看得见——不看见的话
+  // 这一批就静默消失了，而审计员会以为文档就只抽出了这些控制点。
+  const failures = useQuery({
+    queryKey: ["proposal-failures"],
+    // 只认带失败原因的行。这既是语义上的（没有原因就不是一条失败记录），
+    // 也是防御性的：这个位置在队列最上面，一个意外的返回值不该让整页崩掉。
+    queryFn: async () => {
+      const rows = await request<Failure[]>("/api/proposals/failures");
+      return Array.isArray(rows) ? rows.filter((row) => Boolean(row?.reject_reason)) : [];
+    },
+    refetchInterval: 30000,
+  });
+
+  // 重跑＝重新触发该文档的抽取。成功的批次有 checkpoint 会被跳过，
+  // 失败的没有，所以这条天然只重试失败的那几批。
+  const retry = useMutation({
+    mutationFn: (documentId: number) =>
+      request<{ job_id: string }>(`/api/extraction/documents/${documentId}`, { method: "POST" }),
+    onSuccess: (result) => setNotice(t("review.retryQueued", { id: result.job_id })),
+    onError: (e: Error) => setError(e.message),
+  });
+
   async function refresh() {
-    await Promise.all(["proposals", "proposal-stats", "automation-preview", "controls", "control"].map((key) => client.invalidateQueries({ queryKey: [key] })));
+    await Promise.all(["proposals", "proposal-stats", "proposal-failures", "automation-preview", "controls", "control"].map((key) => client.invalidateQueries({ queryKey: [key] })));
   }
 
   const decide = useMutation({
@@ -633,6 +665,41 @@ export function ReviewQueue() {
           </p>
         </div>
       </div>
+
+      {/* 抽取失败的批次。放在队列最上面：这些是"本该有东西却没有"的位置，
+          比任何一条待确认提案都更需要先被看到。 */}
+      {(failures.data?.length ?? 0) > 0 && (
+        <div className="kn-card kn-failed-batches" style={{ marginBottom: 20 }}>
+          <h3 style={{ margin: "0 0 4px", fontSize: "0.9375rem" }}>
+            {t("review.failedBatches", { count: failures.data!.length })}
+          </h3>
+          <p style={{ margin: "0 0 12px", fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+            {t("review.failedBatchesHint")}
+          </p>
+          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 8 }}>
+            {failures.data!.map((failure) => (
+              <li key={failure.id} className="kn-failed-batch-row">
+                <div style={{ minWidth: 0 }}>
+                  <code style={{ fontSize: "0.75rem" }}>{failure.reject_reason}</code>
+                  <div style={{ fontSize: "0.75rem", color: "var(--text-tertiary)", marginTop: 2 }}>
+                    {t("review.failedBatchClauses", { count: failure.clause_ids?.length ?? 0 })}
+                    {failure.document_id != null && ` · ${t("review.failedBatchDocument", { id: failure.document_id })}`}
+                  </div>
+                </div>
+                {failure.document_id != null && (
+                  <button
+                    className="kn-btn-secondary kn-btn-sm"
+                    disabled={retry.isPending}
+                    onClick={() => retry.mutate(failure.document_id!)}
+                  >
+                    {t("review.retryBatch")}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Control Filter Bar */}
       <div

@@ -345,6 +345,42 @@ async def list_pending(
     return output[:limit]
 
 
+@router.get("/failures")
+async def list_failures(
+    *,
+    document_id: int | None = Query(default=None, gt=0),
+    limit: int = Query(default=50, ge=1, le=200),
+    _: Annotated[User, Depends(require(Permission.READ))],
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> list[dict[str, object]]:
+    """抽取失败的批次。
+
+    单开一个接口而不是塞进待确认队列：这些行**没有东西可供人决策**，
+    混进去会让"还剩几条要看"这个数字失去意义。但它们必须能被看见——
+    不然这一批就静默消失了（OQ-22）。
+    """
+    stmt = (
+        select(Proposal)
+        .where(Proposal.status == ProposalStatus.FAILED)
+        .order_by(Proposal.id.desc())
+        .limit(limit)
+    )
+    if document_id is not None:
+        stmt = stmt.where(Proposal.document_id == document_id)
+    return [
+        {
+            "id": row.id,
+            "kind": row.kind.value,
+            "document_id": row.document_id,
+            "llm_call_id": row.llm_call_id,
+            "reject_reason": row.reject_reason,
+            "clause_ids": (row.payload or {}).get("clause_ids", []),
+            "created_at": row.created_at,
+        }
+        for row in await session.scalars(stmt)
+    ]
+
+
 @router.get("/stats")
 async def stats(
     _: Annotated[User, Depends(require(Permission.READ))],
@@ -356,7 +392,17 @@ async def stats(
         .group_by(Proposal.kind)
     )
     by_kind = {kind.value: count for kind, count in rows}
-    return {"pending": sum(by_kind.values()), "by_kind": by_kind}
+    # 失败批次单独计数：它不是待办，但界面要知道该不该提示"有批次没跑出来"
+    failed = await session.scalar(
+        select(func.count()).select_from(Proposal).where(
+            Proposal.status == ProposalStatus.FAILED
+        )
+    )
+    return {
+        "pending": sum(by_kind.values()),
+        "by_kind": by_kind,
+        "failed": int(failed or 0),
+    }
 
 
 @router.post("/bulk-accept")

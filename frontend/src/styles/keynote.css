@@ -1924,3 +1924,130 @@ details[open] {
   color: var(--accent-emerald);
   text-decoration: underline;
 }
+
+/* ── 侧边栏与窄屏抽屉 ─────────────────────────────────────────────
+   这是全站第一条 media query。此前 `grep -rn "@media" src/` 命中数是 0：
+   响应式从未实现，侧栏写死 256px 且 flexShrink:0，375px 下主内容被挤到
+   几十像素、整页横向溢出约 711px。
+
+   本期只做导航收纳（OQ-21 采纳的范围）。表格、图谱、双栏审查在手机上
+   仍然难用——那是全站按断点重排的事，不在这一轮。 */
+.kn-sidebar {
+  width: 256px;
+  flex-shrink: 0;
+  padding: 20px 14px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--stage-border);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  box-sizing: border-box;
+  z-index: 40;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.kn-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin-right: 10px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--stage-border);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.kn-drawer-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* 抽屉：脱离文档流并移出视口，内容区因此拿回整个宽度 */
+  .kn-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    transform: translateX(-100%);
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .kn-sidebar--open {
+    transform: translateX(0);
+  }
+
+  .kn-hamburger {
+    display: inline-flex;
+  }
+
+  .kn-drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    background: rgba(0, 0, 0, 0.45);
+  }
+
+  /* 顶栏：固定 56px 高、单行排布的那一串在 375px 上放不下——实测右边缘
+     到 541px，溢出 172px。让它换行，并把手机上没意义的两样藏起来：
+     面包屑（页面标题就在正下方，重复了）和 ⌘K 提示（手机没有快捷键）。
+     搜索按钮原本固定 240px，改成可压缩。 */
+  .kn-top-command-bar {
+    padding-left: 12px;
+    padding-right: 12px;
+    height: auto;
+    min-height: 56px;
+    flex-wrap: wrap;
+    row-gap: 8px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .kn-breadcrumbs {
+    display: none;
+  }
+
+  .kn-cmd-kbd {
+    display: none;
+  }
+
+  .kn-cmd-search-btn {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* 右侧那一串自己也要能压缩，否则它整体把顶栏顶宽 */
+  .kn-top-command-bar > :last-child {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  /* 宽表格不该顶破页面——让它自己横向滚，而不是把整页撑宽 */
+  .kn-table-container {
+    overflow-x: auto;
+  }
+}
+
+/* 抽取失败的批次。用琥珀而不是红：这不是系统故障，是"这一批没出东西，
+   需要你知道并决定要不要重跑"。红色留给真正的错误。 */
+.kn-failed-batches {
+  border-color: rgba(245, 158, 11, 0.32);
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.kn-failed-batch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--input-bg);
+  border: 1px solid var(--stage-border);
+}

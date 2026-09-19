@@ -27,7 +27,8 @@
     "evidence": "证据登记",
     "audit": "审计助手",
     "maturity": "成熟度评估",
-    "risks": "风险登记册"
+    "risks": "风险登记册",
+    "openMenu": "打开导航"
   },
   "topbar": {
     "searchPlaceholder": "搜索控制点、制度文档、框架... (⌘K)",
@@ -327,7 +328,13 @@
     "conflictDifference": "差异",
     "conflictSideA": "甲方条款",
     "conflictSideB": "乙方条款",
-    "subtitle": "自动提取校验与人工复核工作台"
+    "subtitle": "自动提取校验与人工复核工作台",
+    "failedBatches": "{{count}} 个批次没有抽出任何控制点",
+    "failedBatchesHint": "这些批次的模型输出不合格，本该有的控制点没有产生。重跑只会重试失败的批次，已完成的不受影响。",
+    "failedBatchClauses": "涉及 {{count}} 条条款",
+    "failedBatchDocument": "文档 #{{id}}",
+    "retryBatch": "重跑",
+    "retryQueued": "重跑已入队（{{id}}）"
   },
   "audit": {
     "title": "审计答复工作台",

@@ -49,3 +49,6 @@ backend/relation-report.json
 
 # 审阅用的导出清单，同 relation-report.json：是查询产物，不入库。
 csf-flagged-mappings.md
+
+# playwright MCP 的中间产物（截图、快照、控制台日志）
+.playwright-mcp/

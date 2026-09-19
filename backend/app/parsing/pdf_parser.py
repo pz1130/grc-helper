@@ -98,7 +98,13 @@ class PdfParser:
         warnings: list[str] = []
 
         if sum(len(line) for line in lines) < TEXT_LAYER_MIN_CHARS:
-            warnings.append("该 PDF 没有可用的文本层（疑似扫描件），需要 OCR 兜底")
+            # 不要写"需要 OCR 兜底"——OCR 并没有接进这条路径（app/parsing/ocr.py
+            # 的 ocr_pdf 零调用者），那句话承诺了一个不存在的东西。指向真正存在
+            # 的兜底：手动粘贴纯文本（POST /api/documents/{id}/plain-text）。
+            warnings.append(
+                "该 PDF 没有可用的文本层（疑似扫描件），本系统不支持扫描件。"
+                "请改用带文本层的 PDF/DOCX，或在文档页用「粘贴纯文本」录入正文。"
+            )
             return ParsedDocument(meta=_empty_meta(), clauses=[], warnings=warnings)
 
         headings, filter_warnings = extract_headings(lines)

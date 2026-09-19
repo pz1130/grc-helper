@@ -185,6 +185,19 @@ def test_scanned_pdf_yields_an_empty_document_with_a_warning(scanned_pdf: Path):
     assert any("文本层" in warning for warning in parsed.warnings)
 
 
+def test_scan_warning_points_at_the_fallback_that_actually_exists(scanned_pdf: Path):
+    """那条警告不能承诺一个不存在的兜底。
+
+    原文写的是"需要 OCR 兜底"——而 OCR 并没有接进解析路径（见本文件上方说明）。
+    用户读完会以为系统接下来会 OCR，或者以为装个依赖就好了。
+    真正**存在**的兜底是"手动粘贴纯文本"（`POST /api/documents/{id}/plain-text`），
+    警告就该指向它。
+    """
+    warning = next(w for w in PdfParser().parse(scanned_pdf).warnings if "文本层" in w)
+    assert "OCR 兜底" not in warning
+    assert "粘贴" in warning
+
+
 def test_scanned_pdf_does_not_set_ocr_used(scanned_pdf: Path):
     """`ocr_used` 恒为 False——`Document.ocr_quality_flag` 由它赋值，
 

@@ -27,7 +27,8 @@
     "evidence": "Evidence",
     "audit": "Audit Assistant",
     "maturity": "Maturity Model",
-    "risks": "Risk Register"
+    "risks": "Risk Register",
+    "openMenu": "Open navigation"
   },
   "topbar": {
     "searchPlaceholder": "Search controls, documents, frameworks... (⌘K)",
@@ -327,7 +328,13 @@
     "conflictDifference": "What differs",
     "conflictSideA": "Side A",
     "conflictSideB": "Side B",
-    "subtitle": "Automated extraction verification and human review"
+    "subtitle": "Automated extraction verification and human review",
+    "failedBatches": "{{count}} batch(es) produced no controls",
+    "failedBatchesHint": "The model output for these batches was rejected, so the controls they should have produced are missing. Retrying only re-runs the failed batches; completed ones are untouched.",
+    "failedBatchClauses": "{{count}} clause(s) affected",
+    "failedBatchDocument": "Document #{{id}}",
+    "retryBatch": "Retry",
+    "retryQueued": "Retry queued ({{id}})"
   },
   "audit": {
     "title": "Audit response workspace",

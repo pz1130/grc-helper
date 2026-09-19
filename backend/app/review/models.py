@@ -39,6 +39,11 @@ class ProposalStatus(StrEnum):
     ACCEPTED = "accepted"
     MODIFIED = "modified"
     REJECTED = "rejected"
+    # 这一批根本没产出东西（模型输出不合 schema、引用对不上原文……）。
+    # 它**不是**待人决策的提案，所以不进待确认计数；但必须在队列里看得见，
+    # 否则这一批就静默消失了，而审计员会以为文档就只抽出这些控制点。
+    # 失败原因写在 reject_reason 里，llm_call_id 指回那次调用。
+    FAILED = "failed"
 
 
 def _enum(enum_cls, name: str):
