@@ -1,4 +1,4 @@
-.PHONY: up down logs test verify prod-up prod-down prod-logs prod-migrate prod-create-admin prod-rotate-secret backup restore migrate revision migrate-roundtrip fmt create-admin ping-worker purge-staging e2e e2e-down corpus retrieval extraction-eval seed-frameworks mapping-eval relation-eval
+.PHONY: up down logs test verify prod-up prod-down prod-logs prod-migrate prod-create-admin prod-seed-frameworks prod-rotate-secret backup restore migrate revision migrate-roundtrip fmt create-admin ping-worker purge-staging e2e e2e-down corpus retrieval extraction-eval seed-frameworks mapping-eval relation-eval
 
 up:
 	docker compose up -d --build db redis api
@@ -63,6 +63,20 @@ prod-migrate:
 
 prod-create-admin:
 	$(PROD) run --rm api python -m app.cli create-admin "$(email)" "$(name)" "$(password)"
+
+# 导入随仓库自带的两个 NIST 框架。与 seed-frameworks 的唯一区别是打生产栈——
+# 上面那条打的是开发栈，在生产上跑等于什么都没做，而且不会报错（最难查的那种）。
+#
+# 新部署的第一天要跑一次：空库里没有框架，映射、成熟度评估、覆盖度都无从谈起。
+#
+# **只能跑一次。** 再跑一遍会以 FrameworkImportError（「框架标识已存在」）退出 1
+# ——数据不会被写坏，但这条命令不是幂等的，别放进无人值守的部署脚本里当"确保
+# 已导入"用。要重导得先换 key 或先把旧框架删掉。
+prod-seed-frameworks:
+	$(PROD) run --rm api python -m app.cli import-framework \
+	  seeds/nist-csf-2.0.csv nist-csf-2.0 "NIST 网络安全框架 2.0" "NIST CSF 2.0" 2.0 nist.gov
+	$(PROD) run --rm api python -m app.cli import-framework \
+	  seeds/nist-800-53-r5.csv nist-800-53-r5 "NIST SP 800-53 Rev.5" "NIST SP 800-53 Rev.5" 5.1.1 nist.gov
 
 # 换主密钥：先把新值写进 .env 并 make prod-up 重启，再拿**旧**值跑这条。
 prod-rotate-secret:
