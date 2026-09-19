@@ -74,7 +74,23 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"                    
 make prod-up
 make prod-migrate
 make prod-create-admin email=you@org.com name=You password='...'
+make prod-seed-frameworks   # 导入自带的 NIST CSF 2.0 与 SP 800-53 Rev.5
 ```
+
+⚠️ **框架那条别写成 `make seed-frameworks`**——那条打的是**开发栈**，在生产上跑
+等于什么都没做，而且不会报错：它会另起一套开发栈容器把框架导进开发库，
+生产库一条没有。也**只能跑一次**，再跑会以「框架标识已存在」退出 1。
+
+跑完上面四条，库里仍然只有 schema、脱敏规则、阈值和一个 admin。**还有两件要人
+在界面上做**，做完系统才真正能干活：
+
+| | 在哪 | 不做会怎样 |
+|---|---|---|
+| 配 AI provider 并绑定任务路由 | `/settings/providers`，有「应用到全部推理任务」和「设为向量模型」两个按钮 | 抽取、映射、冲突检测全都跑不起来；**漏绑 embedding 最隐蔽**——文档照常解析，但向量不生成，检索静默退化成纯关键字 |
+| 建至少一条证据类型 | `/settings/evidence-types` | 证据登记的保存按钮永远是灰的 |
+
+这两件需要人工输入（密钥、机构自己的证据口径），没法做成命令。少任何一件，
+对应页面会直接告诉你缺什么、去哪儿补。
 
 默认监听 `8080`（`WEB_PORT` 可改）。生产栈与开发栈的区别不是参数，是**形态**：
 
