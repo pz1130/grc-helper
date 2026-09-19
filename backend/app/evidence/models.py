@@ -61,7 +61,9 @@ class EvidenceItem(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     evidence_type_id: Mapped[int] = mapped_column(
-        ForeignKey("evidence_types.id", ondelete="CASCADE"), nullable=False, index=True
+        # RESTRICT 而不是 CASCADE：删一个证据类型不该把已登记的审计证据一起
+        # 带走（实测过，而且连审计都不留）。被引用时后端返 409，见 evidence/router.py。
+        ForeignKey("evidence_types.id", ondelete="RESTRICT"), nullable=False, index=True
     )
     control_id: Mapped[int] = mapped_column(
         ForeignKey("controls.id", ondelete="CASCADE"), nullable=False, index=True

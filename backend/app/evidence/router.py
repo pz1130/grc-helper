@@ -2,10 +2,11 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query, Request, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.errors import NotFound
+from app.errors import Conflict, NotFound
 from app.evidence import service
 from app.evidence.models import EvidenceItem, EvidenceType
 from app.evidence.schemas import (
@@ -92,6 +93,16 @@ async def delete_evidence_type(
     evidence_type = await session.get(EvidenceType, evidence_type_id)
     if evidence_type is None:
         raise NotFound("证据类型不存在")
+    # 被证据引用时明确拒绝。数据库那条外键已经是 RESTRICT 会拦住，但那样抛出来的
+    # 是一条 IntegrityError，对用户毫无帮助——这里先查一次，把"还有几条证据在用它"
+    # 直接说出来（与 provider 删除的做法一致）。
+    in_use = await session.scalar(
+        select(func.count()).select_from(EvidenceItem).where(
+            EvidenceItem.evidence_type_id == evidence_type_id
+        )
+    )
+    if in_use:
+        raise Conflict(f"还有 {in_use} 条证据在用这个类型，请先改掉它们的类型或删除那些证据")
     await service.delete_type(
         session, evidence_type, actor=actor, ip=request.client.host if request.client else None
     )
