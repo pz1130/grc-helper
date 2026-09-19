@@ -96,6 +96,15 @@ test("配置变更留下了审计日志且不含明文密钥", async ({ page }) 
   await expect(page.getByText(SECRET)).toHaveCount(0);
 });
 
+test("用户列表加载失败时显示错误并允许重试", async ({ page }) => {
+  await signIn(page);
+  await page.route("**/api/users", (route) => route.fulfill({ status: 500, json: { message: "user service unavailable" } }));
+  await page.goto("/settings/users");
+
+  await expect(page.getByRole("alert")).toContainText("user service unavailable");
+  await expect(page.getByRole("button", { name: "重试" })).toBeVisible();
+});
+
 test("GRC Lead 看不到也进不去 AI 配置页", async ({ page, request }) => {
   await signIn(page);
   await page.goto("/settings/users");

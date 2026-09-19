@@ -12,7 +12,9 @@ class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    email: EmailStr
+    # 输出必须兼容升级前已存在的内网地址（例如 admin@grc.local）。
+    # 新建与登录输入仍用 EmailStr 校验，历史脏数据不能拖垮整个用户列表。
+    email: str
     name: str
     role: Role
     is_active: bool

@@ -33,7 +33,7 @@ test("文档页可以对条款拆分和合并", async ({ page }) => {
   });
 
   await page.goto("/documents/3");
-  await page.getByRole("button", { name: /Scope/ }).click();
+  await expect(page.getByLabel("Scope")).toHaveValue("First paragraph.\n\nSecond paragraph.");
   await expect(page.getByRole("button", { name: "Split at cursor" })).toBeVisible();
   await expect(page.getByLabel("Choose a clause")).toBeVisible();
 });

@@ -76,6 +76,14 @@ export function Users() {
             <span>⚠️</span> {error}
           </p>
         )}
+        {users.error && (
+          <p role="alert">
+            <span>⚠️</span> {users.error.message}{" "}
+            <button className="kn-btn-secondary kn-btn-sm" onClick={() => void users.refetch()}>
+              {t("common.retry")}
+            </button>
+          </p>
+        )}
         <div className="kn-table-container" style={{ margin: 0 }}>
           <table>
             <thead>

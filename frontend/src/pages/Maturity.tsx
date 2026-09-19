@@ -293,7 +293,7 @@ export function Maturity() {
         <label style={{ maxWidth: 520 }}>{t("maturity.assessment")}<select value={selectedId ?? ""} onChange={(event) => setSelectedId(Number(event.target.value))}><option value="">{t("maturity.chooseAssessment")}</option>{assessments.data?.map((assessment) => <option key={assessment.id} value={assessment.id}>{assessment.name} · {assessment.as_of_date} · {t(`maturity.${assessment.status}`)}</option>)}</select></label>
       </div>
 
-      {(assessments.isPending || summary.isPending) && <p role="status">{t("common.loading")}</p>}
+      {(assessments.isPending || (selectedId !== null && summary.isPending)) && <p role="status">{t("common.loading")}</p>}
       {(assessments.error || summary.error) && <p role="alert" style={{ color: "var(--accent-ruby)" }}>{(assessments.error ?? summary.error)?.message}</p>}
       {!assessments.isPending && assessments.data?.length === 0 && <div className="kn-card"><p style={{ margin: 0, color: "var(--text-secondary)" }}>{t("maturity.empty")}</p></div>}
 

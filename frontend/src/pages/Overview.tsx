@@ -198,7 +198,7 @@ export function Overview() {
               {totalCalls.toLocaleString()}
             </div>
             <div className="kn-stat-sub">
-              {data?.by_task.length ?? 0} {t("overview.calls")}
+              {t("overview.taskTypes", { count: data?.by_task.length ?? 0 })}
             </div>
           </div>
         </div>

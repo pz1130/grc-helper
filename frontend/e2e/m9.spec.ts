@@ -52,6 +52,15 @@ test("maturity workspace shows dual rollups and saves leaf scores", async ({ pag
   await expect(page.getByRole("row").filter({ hasText: "GV.RR-01" }).getByRole("status")).toHaveText("Saved.");
 });
 
+test("an empty maturity workspace does not show a permanent loading state", async ({ page }) => {
+  await mockMaturity(page);
+  await page.route("**/api/maturity/assessments", (route) => route.fulfill({ json: [] }));
+  await page.goto("/maturity");
+
+  await expect(page.getByText("No maturity assessments yet. Choose a framework to create the first one.")).toBeVisible();
+  await expect(page.getByText("Loading…")).toHaveCount(0);
+});
+
 test("a low implementation score converts to a traceable risk", async ({ page }) => {
   await mockMaturity(page);
   await page.goto("/maturity");

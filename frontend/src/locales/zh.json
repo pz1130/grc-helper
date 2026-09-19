@@ -67,7 +67,9 @@
     "aiTasksDistribution": "AI 任务负载与成本分布",
     "totalCalls": "累计模型调用",
     "task": "任务",
-    "cost": "成本"
+    "cost": "成本",
+    "taskTypes_one": "{{count}} 类任务",
+    "taskTypes_other": "{{count}} 类任务"
   },
   "documents": {
     "indexQueued": "索引任务已提交，完成后可检索文档条款。",

@@ -187,12 +187,15 @@ export function DocumentDetail() {
 
   useEffect(() => {
     if (!clauses.data) return;
+    const nodes = flatten(clauses.data);
     const hashClauseId = location.hash.match(/^#clause-(\d+)$/)?.[1];
-    if (!hashClauseId) return;
-    const hashClause = flatten(clauses.data).find((node) => node.id === Number(hashClauseId));
-    if (hashClause) {
-      setSelected((current) => (current?.id === hashClause.id ? current : hashClause));
-    }
+    const hashClause = hashClauseId
+      ? nodes.find((node) => node.id === Number(hashClauseId))
+      : undefined;
+    setSelected((current) => {
+      const next = hashClause ?? (current && nodes.some((node) => node.id === current.id) ? current : nodes[0]) ?? null;
+      return current?.id === next?.id ? current : next;
+    });
   }, [clauses.data, location.hash]);
 
   useEffect(() => {

@@ -67,7 +67,9 @@
     "aiTasksDistribution": "AI Task Workload & Cost Distribution",
     "totalCalls": "Total Model Invocations",
     "task": "Task",
-    "cost": "Cost"
+    "cost": "Cost",
+    "taskTypes_one": "{{count}} task type",
+    "taskTypes_other": "{{count}} task types"
   },
   "documents": {
     "indexQueued": "Indexing queued. Document clauses will be searchable when it finishes.",

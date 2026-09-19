@@ -62,6 +62,19 @@ async def test_admin_creates_user_and_it_is_audited(client, db_session):
 
 
 @pytest.mark.asyncio
+async def test_user_list_survives_legacy_internal_email(client, db_session):
+    """旧库里的 .local 地址可以展示，不能让整张用户表响应校验失败。"""
+    await _seed(db_session, Role.ADMIN, "admin@example.com")
+    await _seed(db_session, Role.VIEWER, "legacy@grc.local")
+    headers = await _auth(client, "admin@example.com")
+
+    resp = await client.get("/api/users", headers=headers)
+
+    assert resp.status_code == 200
+    assert any(row["email"] == "legacy@grc.local" for row in resp.json())
+
+
+@pytest.mark.asyncio
 async def test_duplicate_email_conflicts(client, db_session):
     await _seed(db_session, Role.ADMIN, "admin@example.com")
     headers = await _auth(client, "admin@example.com")
