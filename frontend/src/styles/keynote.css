@@ -1324,6 +1324,30 @@ details[open] {
   letter-spacing: 0.01em;
 }
 
+/* 心跳的降级/检查中两态。绿色是 .kn-heartbeat-pill 的默认色，这里只覆盖差异，
+   连同里面的脉冲点一起换——只改文字不改颜色的话，余光扫过去还是一片绿。 */
+.kn-heartbeat-pill--down {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.kn-heartbeat-pill--down .kn-pulse-dot {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+
+.kn-heartbeat-pill--checking {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.28);
+  color: var(--text-secondary);
+}
+
+.kn-heartbeat-pill--checking .kn-pulse-dot {
+  background: #94a3b8;
+  box-shadow: none;
+}
+
 .kn-pulse-dot {
   width: 6px;
   height: 6px;

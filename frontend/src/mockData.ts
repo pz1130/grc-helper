@@ -20,6 +20,12 @@ export function getMockResponse(path: string, _init: RequestInit = {}, language 
   const url = path.split("?")[0];
   const pick = (zh: string, en: string) => language.startsWith("zh") ? zh : en;
 
+  // 离线演示没有后端可问。返回 ok 是为了不在演示里挂一盏假的红灯——
+  // 演示模式本来就整套是示例数据，这里跟着示例走是一致的，不是在骗人。
+  if (url === "/api/health") {
+    return { status: "ok", database: "ok", version: "demo" };
+  }
+
   if (url === "/api/auth/me") {
     return DEMO_USER;
   }

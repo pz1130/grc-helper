@@ -150,3 +150,27 @@ test("侧栏导航再长，退出按钮也留在视口里", async ({ page }) => 
   expect(box).not.toBeNull();
   expect(box!.y + box!.height).toBeLessThanOrEqual(viewport.height);
 });
+
+test("顶部心跳反映真实健康状态，而不是常亮的绿灯", async ({ page }) => {
+  // 这个指示器原本是写死的 <div>：库挂了照样显示"系统运行正常"，
+  // 对着一屋子审计人员撒谎。所以要验的不是"它显示绿"，而是
+  // **它会因为后端的回答而改变**。
+
+  // 先确认它真的去问了后端
+  const asked = page.waitForRequest((r) => r.url().includes("/api/health"));
+  await signIn(page);
+  await asked;
+  await expect(page.getByText("系统运行正常")).toBeVisible();
+
+  // 后端报 503 降级时，指示器必须跟着变
+  await page.route("**/api/health", (route) =>
+    route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ status: "degraded", database: "down", version: "0.1.0" }),
+    }),
+  );
+  await page.reload();
+  await expect(page.getByText("系统异常")).toBeVisible();
+  await expect(page.getByText("系统运行正常")).toHaveCount(0);
+});

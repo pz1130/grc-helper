@@ -14,6 +14,12 @@ interface ProposalStats {
   by_kind: Record<string, number>;
 }
 
+interface HealthStatus {
+  status: string;
+  database: string;
+  version: string;
+}
+
 export function Layout() {
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
@@ -30,6 +36,25 @@ export function Layout() {
   });
 
   const pendingCount = proposalStats.data?.pending ?? 0;
+
+  // 顶部心跳真的去问后端。原先这里是个写死的绿点：库连不上时它照样显示
+  // "系统运行正常"，等于对着审计人员撒谎，而这正是最不该骗人的一个位置。
+  //
+  // retry: false —— 后端降级时返回 503，默认的三次退避重试会把红灯拖到十几秒
+  // 之后才亮；这个指示器的全部价值就在于立刻显形。
+  const healthQuery = useQuery({
+    queryKey: ["system-health"],
+    queryFn: () => request<HealthStatus>("/api/health"),
+    refetchInterval: 30000,
+    retry: false,
+  });
+  // 请求失败（503、网络不通）和 status !== "ok" 是同一件事：都不能显示正常。
+  const healthOk = healthQuery.isSuccess && healthQuery.data.status === "ok";
+  const healthLabel = healthQuery.isPending
+    ? t("topbar.systemChecking")
+    : healthOk
+      ? t("topbar.systemHealthy")
+      : t("topbar.systemDegraded");
 
   // Global ⌘K / Ctrl+K shortcut listener
   useEffect(() => {
@@ -510,10 +535,16 @@ export function Layout() {
               </NavLink>
             ) : null}
 
-            {/* System Status Heartbeat */}
-            <div className="kn-heartbeat-pill">
+            {/* System Status Heartbeat —— 状态来自 /api/health，不是常量。
+                别给它加 role="status"：各页面的 e2e 都用 getByRole("status") 取
+                自己那条操作结果提示，顶栏常驻一个同角色的元素会让它们全部
+                撞上 strict mode violation（2026-09-19 加过一次，挂了 5 条）。 */}
+            <div
+              className={`kn-heartbeat-pill${healthQuery.isPending ? " kn-heartbeat-pill--checking" : healthOk ? "" : " kn-heartbeat-pill--down"}`}
+              title={healthOk ? undefined : t("topbar.systemDegradedHint")}
+            >
               <span className="kn-pulse-dot" />
-              <span>{t("topbar.systemHealthy", { defaultValue: "系统运行正常" })}</span>
+              <span>{healthLabel}</span>
             </div>
           </div>
         </header>

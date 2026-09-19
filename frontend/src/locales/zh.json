@@ -32,6 +32,9 @@
   "topbar": {
     "searchPlaceholder": "搜索控制点、制度文档、框架... (⌘K)",
     "systemHealthy": "系统运行正常",
+    "systemChecking": "检查中…",
+    "systemDegraded": "系统异常",
+    "systemDegradedHint": "后端健康检查未通过，数据可能不是最新的",
     "pendingReviews": "{{count}} 项待确认",
     "noPendingReviews": "队列已清空",
     "quickSearch": "快速检索"

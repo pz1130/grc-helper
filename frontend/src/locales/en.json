@@ -32,6 +32,9 @@
   "topbar": {
     "searchPlaceholder": "Search controls, documents, frameworks... (⌘K)",
     "systemHealthy": "All Systems Operational",
+    "systemChecking": "Checking…",
+    "systemDegraded": "System degraded",
+    "systemDegradedHint": "The backend health check is failing; data may be stale",
     "pendingReviews": "{{count}} pending reviews",
     "noPendingReviews": "Queue cleared",
     "quickSearch": "Quick Search"

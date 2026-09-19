@@ -1,6 +1,7 @@
 import re
 
 import pytest
+from sqlalchemy import select
 
 from app.llm.models import RedactionRule, RulesetName
 from app.llm.redaction import RedactionEngine
@@ -173,3 +174,102 @@ def test_property_redact_many_then_restore_is_identity(texts):
 
     for original, redacted in zip(texts, batch.texts, strict=True):
         assert engine.restore(redacted, batch.mapping) == original
+
+
+# ── 国内常见 PII：手机号与身份证号 ──────────────────────────────────
+#
+# 制度正文、工单摘录、审计答复里出现个人手机号和身份证号是常态，而默认规则集
+# 原本只有 IPv4 和邮箱两条，这两类直接原样发给第三方模型。
+#
+# 这里同时验两件事，缺一不可：
+#   1. 正则本身对不对（下面几条）；
+#   2. **默认规则集里确实种了这两条**（test_default_ruleset_seeds_cn_pii_rules）。
+# 只验正则的话，规则没进库在生产上照样漏——本次生产栈实测就是这么发现的。
+
+PHONE_CN_RULE = _rule(r"\b1[3-9]\d{9}\b", "PHONE", order=30)
+IDCARD_CN_RULE = _rule(
+    r"\b[1-9]\d{5}(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{3}[\dXx]\b",
+    "IDCARD",
+    order=40,
+)
+
+
+def test_cn_mobile_number_is_redacted():
+    engine = RedactionEngine([PHONE_CN_RULE])
+    result = engine.redact("运维主管张三电话 13800138000，故障时直接联系。")
+    assert "13800138000" not in result.text
+    assert "[[PHONE_1]]" in result.text
+    assert engine.restore(result.text, result.mapping) == "运维主管张三电话 13800138000，故障时直接联系。"
+
+
+def test_cn_id_card_is_redacted():
+    engine = RedactionEngine([IDCARD_CN_RULE])
+    result = engine.redact("经办人身份证 110101199003074471 已核验。")
+    assert "110101199003074471" not in result.text
+    assert "[[IDCARD_1]]" in result.text
+
+
+def test_id_card_ending_in_x_is_redacted():
+    """校验位是 X 的身份证同样要脱敏——只认数字会漏掉约十分之一的号。"""
+    engine = RedactionEngine([IDCARD_CN_RULE])
+    result = engine.redact("身份证 11010119900307447X")
+    assert "11010119900307447X" not in result.text
+
+
+def test_bank_account_is_not_mistaken_for_an_id_card():
+    """19 位卡号不该被当成 18 位身份证。
+
+    脱敏的假阳性不是"多脱一点更安全"：被替换掉的内容模型再也看不见，
+    把卡号、流水号打成 [[IDCARD_1]] 会让抽取出来的控制点丢掉关键事实。
+    """
+    engine = RedactionEngine([IDCARD_CN_RULE])
+    result = engine.redact("对公账户 6222020000000000123 每季度对账。")
+    assert "6222020000000000123" in result.text
+    assert "IDCARD" not in result.text
+
+
+def test_short_order_number_is_not_mistaken_for_a_mobile():
+    """11 位但不以 1[3-9] 开头的单号不该被脱敏。"""
+    engine = RedactionEngine([PHONE_CN_RULE])
+    result = engine.redact("工单号 12345678901 已关闭。")
+    assert "12345678901" in result.text
+    assert "PHONE" not in result.text
+
+
+def test_cn_pii_rules_coexist_with_the_existing_ones():
+    """四条规则一起跑，各自的占位符计数器不互相污染。"""
+    engine = RedactionEngine([IP_RULE, PHONE_CN_RULE, IDCARD_CN_RULE])
+    original = "跳板机 10.20.30.40 由张三（13800138000，110101199003074471）负责。"
+    result = engine.redact(original)
+    assert "[[IP_1]]" in result.text
+    assert "[[PHONE_1]]" in result.text
+    assert "[[IDCARD_1]]" in result.text
+    assert engine.restore(result.text, result.mapping) == original
+
+
+@pytest.mark.asyncio
+async def test_default_ruleset_seeds_cn_pii_rules(db_session):
+    """迁移种下的默认规则集必须覆盖手机号和身份证号，两个 ruleset 都要有。
+
+    generation 和 embedding 分开种：embedding 那套是"宽松"的（保留业务术语），
+    但 PII 不属于业务术语，两边都得脱。
+    """
+    rules = (await db_session.scalars(select(RedactionRule))).all()
+    for ruleset in (RulesetName.GENERATION, RulesetName.EMBEDDING):
+        prefixes = {r.replacement_prefix for r in rules if r.ruleset == ruleset and r.enabled}
+        assert "PHONE" in prefixes, f"{ruleset} 缺少手机号脱敏规则"
+        assert "IDCARD" in prefixes, f"{ruleset} 缺少身份证脱敏规则"
+
+
+@pytest.mark.asyncio
+async def test_seeded_cn_rules_actually_redact(db_session):
+    """种进库的正则要真能用——迁移里写错一个反斜杠，上面那条断言照样过。"""
+    rules = [
+        r
+        for r in (await db_session.scalars(select(RedactionRule))).all()
+        if r.ruleset == RulesetName.GENERATION and r.enabled
+    ]
+    engine = RedactionEngine(rules)
+    result = engine.redact("联系人 13800138000，证件 110101199003074471。")
+    assert "13800138000" not in result.text
+    assert "110101199003074471" not in result.text
