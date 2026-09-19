@@ -236,7 +236,8 @@
       "needsVectorModel": "需向量模型",
       "notImplemented": "未实现",
       "notImplementedHint": "设计里有这个任务，后端还没实现，绑了也不会被调用"
-    }
+    },
+    "evidenceTypes": "证据类型"
   },
   "review": {
     "bulkUnavailable": "仅支持达到批量接受阈值、来源无 OCR 疑点且无需单独处理重复的提案；其余请逐条审核。",
@@ -809,5 +810,25 @@
     "embedding": "向量嵌入",
     "query_expansion": "查询扩展",
     "matrix_mapping": "矩阵映射"
+  },
+  "evidenceTypes": {
+    "title": "证据类型",
+    "subtitle": "证据登记的参照数据。新部署时这张表是空的，不先建至少一条，证据就登记不了。",
+    "nameZh": "中文名称",
+    "nameEn": "英文名称",
+    "format": "格式",
+    "cadence": "采集频率",
+    "source": "典型来源",
+    "description": "说明",
+    "add": "新增证据类型",
+    "edit": "编辑证据类型",
+    "empty": "还没有证据类型——先在下面建一条，证据登记才能用。",
+    "cadences": {
+      "monthly": "每月",
+      "quarterly": "每季度",
+      "semiannual": "每半年",
+      "annual": "每年",
+      "ad_hoc": "不定期"
+    }
   }
 }

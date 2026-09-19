@@ -206,3 +206,54 @@ test("宽屏不受抽屉改造影响：侧边栏常驻，没有汉堡按钮", as
   await expect(page.getByRole("navigation")).toBeInViewport();
   await expect(page.getByRole("button", { name: "打开导航" })).toBeHidden();
 });
+
+test("只读账号直接敲设置页 URL 会被弹回首页，而不是看到管理员页面的空壳", async ({ page, request }) => {
+  // 后端对这三个接口都返 403，所以本来就没有数据泄露；问题是前端照常渲染
+  // 管理员页面的骨架（表单、按钮、报错），让只读用户以为自己该有这些权限。
+  // `SettingsLayout` 只是把标签藏起来，`<Outlet />` 仍然渲染子路由。
+  const viewer = `viewer-${Date.now()}@example.com`;
+  const admin = await request.post(`${API}/api/auth/login`, { data: ADMIN });
+  const token = (await admin.json()).access_token;
+  await request.post(`${API}/api/users`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { email: viewer, name: "Viewer", password: "pw123456", role: "viewer" },
+  });
+
+  await page.goto("/");
+  await page.getByLabel("邮箱").fill(viewer);
+  await page.getByLabel("密码").fill("pw123456");
+  await page.getByRole("button", { name: "登录" }).click();
+  await expect(page.getByRole("heading", { name: "合规与治理态势驾驶舱" })).toBeVisible();
+
+  for (const path of ["/settings/users", "/settings/providers", "/settings/audit-log"]) {
+    await page.goto(path);
+    await expect(page).toHaveURL(/\/$/);
+  }
+});
+
+test("证据类型有地方维护——顺着前置提示点进去就能把冷启动解开", async ({ page }) => {
+  // 后端 POST /api/evidence-types 一直都在，但前端没有任何界面能建它，
+  // 而证据登记的保存按钮必须有 evidence_type_id——冷启动因此是死的。
+  // 这条走的就是用户的真实路径：看到引导 → 点进去 → 建成 → 回来能用。
+  await signIn(page);
+
+  await page.goto("/evidence");
+  await page.getByRole("button", { name: "新增", exact: true }).click();
+
+  // 引导必须指向**真的能建它**的页面。先前指的是 /settings，那里没有这个标签。
+  const link = page.getByRole("note").getByRole("link", { name: "证据类型" });
+  await expect(link).toHaveAttribute("href", "/settings/evidence-types");
+  await link.click();
+  await expect(page).toHaveURL(/\/settings\/evidence-types$/);
+
+  const name = `E2E 证据类型 ${Date.now()}`;
+  await page.getByLabel("中文名称").fill(name);
+  await page.getByLabel("英文名称").fill("E2E evidence type");
+  await page.getByRole("button", { name: "保存" }).click();
+  await expect(page.getByRole("cell", { name })).toBeVisible();
+
+  // 回到证据登记：这条前置已满足，就不该再被列出来
+  await page.goto("/evidence");
+  await page.getByRole("button", { name: "新增", exact: true }).click();
+  await expect(page.getByRole("note").getByRole("link", { name: "证据类型" })).toHaveCount(0);
+});

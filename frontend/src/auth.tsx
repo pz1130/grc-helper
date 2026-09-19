@@ -82,3 +82,8 @@ export function canManageLlmConfig(role: Role | undefined): boolean {
 export function canReadAuditLog(role: Role | undefined): boolean {
   return role === "admin" || role === "grc_lead";
 }
+
+/** 证据类型是参照数据，谁能登记证据谁就能维护它（后端是 EVIDENCE_WRITE）。 */
+export function canWriteEvidence(role: Role | undefined): boolean {
+  return role === "admin" || role === "grc_lead" || role === "contributor";
+}

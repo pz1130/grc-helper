@@ -236,7 +236,8 @@
       "needsVectorModel": "Needs a vector model",
       "notImplemented": "Not implemented",
       "notImplementedHint": "This task exists in the design but not yet in the backend; binding it has no effect"
-    }
+    },
+    "evidenceTypes": "Evidence types"
   },
   "review": {
     "bulkUnavailable": "Batch acceptance requires the configured confidence threshold, no suspect OCR source, and no duplicate requiring an individual decision. Review other proposals individually.",
@@ -809,5 +810,25 @@
     "embedding": "Embedding",
     "query_expansion": "Query expansion",
     "matrix_mapping": "Matrix mapping"
+  },
+  "evidenceTypes": {
+    "title": "Evidence types",
+    "subtitle": "Reference data for evidence registration. This table is empty on a fresh deployment; without at least one type, no evidence can be registered.",
+    "nameZh": "Name (Chinese)",
+    "nameEn": "Name (English)",
+    "format": "Format",
+    "cadence": "Cadence",
+    "source": "Typical source",
+    "description": "Description",
+    "add": "Add evidence type",
+    "edit": "Edit evidence type",
+    "empty": "No evidence types yet — create one below before registering evidence.",
+    "cadences": {
+      "monthly": "Monthly",
+      "quarterly": "Quarterly",
+      "semiannual": "Semi-annual",
+      "annual": "Annual",
+      "ad_hoc": "Ad hoc"
+    }
   }
 }

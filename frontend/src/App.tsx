@@ -1,8 +1,9 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
-import { useAuth } from "./auth";
+import { canManageLlmConfig, canReadAuditLog, canWriteEvidence, useAuth } from "./auth";
 import { BrandLogo } from "./components/BrandLogo";
 import { Layout } from "./components/Layout";
+import { RequireRole } from "./components/RequireRole";
 import { Login } from "./pages/Login";
 import { Overview } from "./pages/Overview";
 import { Documents } from "./pages/Documents";
@@ -11,7 +12,8 @@ import { ChangeImpact } from "./pages/ChangeImpact";
 import { AuditLog } from "./pages/settings/AuditLog";
 import { Providers } from "./pages/settings/Providers";
 import { Redaction } from "./pages/settings/Redaction";
-import { SettingsLayout } from "./pages/settings/SettingsLayout";
+import { EvidenceTypes } from "./pages/settings/EvidenceTypes";
+import { SettingsHome, SettingsLayout } from "./pages/settings/SettingsLayout";
 import { ThresholdsPage } from "./pages/settings/Thresholds";
 import { Users } from "./pages/settings/Users";
 import { Search } from "./pages/Search";
@@ -70,13 +72,17 @@ export function App() {
         <Route path="/risks" element={<RiskRegister />} />
         <Route path="/documents/:id" element={<DocumentDetail />} />
         <Route path="/documents/:id/change-impact" element={<ChangeImpact />} />
+        {/* 每个子路由各自守卫，不是一刀切：审计日志 grc_lead 也能看，
+            证据类型 contributor 也能维护。守卫只负责不渲染空壳，
+            真正的拦截在后端（spec §8.1）。 */}
         <Route path="/settings" element={<SettingsLayout />}>
-          <Route index element={<Navigate to="providers" replace />} />
-          <Route path="providers" element={<Providers />} />
-          <Route path="redaction" element={<Redaction />} />
-          <Route path="thresholds" element={<ThresholdsPage />} />
-          <Route path="users" element={<Users />} />
-          <Route path="audit-log" element={<AuditLog />} />
+          <Route index element={<SettingsHome />} />
+          <Route path="providers" element={<RequireRole allow={canManageLlmConfig}><Providers /></RequireRole>} />
+          <Route path="redaction" element={<RequireRole allow={canManageLlmConfig}><Redaction /></RequireRole>} />
+          <Route path="thresholds" element={<RequireRole allow={canManageLlmConfig}><ThresholdsPage /></RequireRole>} />
+          <Route path="users" element={<RequireRole allow={canManageLlmConfig}><Users /></RequireRole>} />
+          <Route path="evidence-types" element={<RequireRole allow={canWriteEvidence}><EvidenceTypes /></RequireRole>} />
+          <Route path="audit-log" element={<RequireRole allow={canReadAuditLog}><AuditLog /></RequireRole>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

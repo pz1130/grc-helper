@@ -292,7 +292,7 @@ export function Evidence() {
           <PrerequisiteNotice
             items={[
               { satisfied: (controls.data?.length ?? 0) > 0, label: t("evidence.prereqControls"), to: "/controls" },
-              { satisfied: (types.data?.length ?? 0) > 0, label: t("evidence.prereqTypes"), to: "/settings" },
+              { satisfied: (types.data?.length ?? 0) > 0, label: t("evidence.prereqTypes"), to: "/settings/evidence-types" },
             ]}
           />
           {error && <p role="alert">⚠️ {error}</p>}

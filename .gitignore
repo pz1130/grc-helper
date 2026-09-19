@@ -52,3 +52,7 @@ csf-flagged-mappings.md
 
 # playwright MCP 的中间产物（截图、快照、控制台日志）
 .playwright-mcp/
+
+# 直连生产栈的一次性脚本（绕开 make e2e 的隔离栈，见 OQ-3）
+frontend/*.cjs
+frontend/sample_*.xlsx

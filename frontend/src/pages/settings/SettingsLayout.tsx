@@ -1,7 +1,7 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { Navigate, NavLink, Outlet } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
-import { canManageLlmConfig, canReadAuditLog, useAuth } from "../../auth";
+import { canManageLlmConfig, canReadAuditLog, canWriteEvidence, useAuth } from "../../auth";
 
 export function SettingsLayout() {
   const { t } = useTranslation();
@@ -57,6 +57,14 @@ export function SettingsLayout() {
             {t("settings.users")}
           </NavLink>
         )}
+        {canWriteEvidence(user?.role) && (
+          <NavLink
+            to="evidence-types"
+            className={({ isActive }) => `kn-segmented-item ${isActive ? "active" : ""}`}
+          >
+            {t("settings.evidenceTypes")}
+          </NavLink>
+        )}
         {canReadAuditLog(user?.role) && (
           <NavLink
             to="audit-log"
@@ -70,4 +78,18 @@ export function SettingsLayout() {
       <Outlet />
     </section>
   );
+}
+
+/**
+ * `/settings` 落到这个角色能进的第一个标签。
+ *
+ * 原先写死跳 `providers`——加了路由守卫之后，contributor 会被守卫再弹回首页，
+ * 等于"设置页对他不存在"，而他其实能维护证据类型。
+ */
+export function SettingsHome() {
+  const { user } = useAuth();
+  if (canManageLlmConfig(user?.role)) return <Navigate to="providers" replace />;
+  if (canWriteEvidence(user?.role)) return <Navigate to="evidence-types" replace />;
+  if (canReadAuditLog(user?.role)) return <Navigate to="audit-log" replace />;
+  return <Navigate to="/" replace />;
 }
