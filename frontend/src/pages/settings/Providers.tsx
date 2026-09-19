@@ -130,11 +130,11 @@ export function Providers() {
           <table>
             <thead>
               <tr>
-                <th>name</th>
-                <th>kind</th>
-                <th>model</th>
-                <th>api key</th>
-                <th style={{ textAlign: "right" }}>Action</th>
+                <th>{t("settings.providersConfig.name")}</th>
+                <th>{t("settings.providersConfig.kind")}</th>
+                <th>{t("settings.providersConfig.model")}</th>
+                <th>{t("settings.providersConfig.apiKey")}</th>
+                <th style={{ textAlign: "right" }}>{t("common.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -142,7 +142,7 @@ export function Providers() {
                 <tr key={p.id}>
                   <td>
                     <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{p.name}</span>
-                    {p.is_fallback && <span className="kn-badge kn-badge-purple" style={{ marginLeft: 8 }}>fallback</span>}
+                    {p.is_fallback && <span className="kn-badge kn-badge-purple" style={{ marginLeft: 8 }}>{t("settings.providersConfig.fallback")}</span>}
                   </td>
                   <td>
                     <span className="kn-badge">{p.kind}</span>
@@ -209,7 +209,7 @@ export function Providers() {
         <h4 style={{ margin: "0 0 14px 0", fontSize: "1rem" }}>{t("common.add")}</h4>
         <form onSubmit={submit} style={{ display: "grid", gap: 12, maxWidth: 520 }}>
           <input
-            placeholder="name"
+            placeholder={t("settings.providersConfig.name")}
             value={form.name}
             required
             onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -222,7 +222,7 @@ export function Providers() {
             ))}
           </select>
           <input
-            placeholder="model"
+            placeholder={t("settings.providersConfig.model")}
             value={form.model}
             required
             onChange={(e) => setForm({ ...form, model: e.target.value })}
@@ -234,7 +234,7 @@ export function Providers() {
           />
           <input
             type="password"
-            placeholder="api key"
+            placeholder={t("settings.providersConfig.apiKey")}
             value={form.api_key}
             required
             onChange={(e) => setForm({ ...form, api_key: e.target.value })}
@@ -251,14 +251,14 @@ export function Providers() {
       <div className="kn-card">
         <h3 style={{ margin: "0 0 16px 0", fontSize: "1.125rem" }}>{t("settings.routing")}</h3>
         <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginBottom: 14 }}>
-          Map specific inference pipelines to dedicated AI providers
+          {t("settings.providersConfig.routingHint")}
         </p>
         <div className="kn-table-container" style={{ margin: 0 }}>
           <table>
             <thead>
               <tr>
-                <th>Task Pipeline</th>
-                <th>Assigned Provider</th>
+                <th>{t("settings.providersConfig.taskPipeline")}</th>
+                <th>{t("settings.providersConfig.assignedProvider")}</th>
               </tr>
             </thead>
             <tbody>
@@ -267,11 +267,11 @@ export function Providers() {
                 return (
                   <tr key={key}>
                     <td>
-                      <code style={{ color: "var(--accent-blue)" }}>{key}</code>
+                      <span title={key}>{t(`taskNames.${key}`, { defaultValue: key })}</span>
                     </td>
                     <td>
                       <select
-                        aria-label={key}
+                        aria-label={t("settings.providersConfig.routeFor", { task: t(`taskNames.${key}`, { defaultValue: key }) })}
                         value={current?.provider_config_id ?? ""}
                         onChange={(e) =>
                           route.mutate({ task_key: key, provider_config_id: Number(e.target.value) })

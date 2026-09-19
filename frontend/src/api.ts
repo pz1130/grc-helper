@@ -27,7 +27,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 
   // If in demo mock mode, directly return realistic mock data
   if (token === DEMO_TOKEN) {
-    const mock = getMockResponse(path, init);
+    const mock = getMockResponse(path, init, i18n.language);
     if (mock !== undefined) {
       return mock as T;
     }

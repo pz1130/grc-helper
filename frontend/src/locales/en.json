@@ -5,7 +5,8 @@
     "language": "Language",
     "theme": "Appearance",
     "themeLight": "Light",
-    "themeDark": "Dark"
+    "themeDark": "Dark",
+    "tagline": "AI Governance Studio"
   },
   "nav": {
     "groups": {
@@ -40,7 +41,8 @@
     "email": "Email",
     "password": "Password",
     "submit": "Sign in",
-    "failed": "Incorrect email or password"
+    "failed": "Incorrect email or password",
+    "subtitle": "Governance, Risk & Compliance Platform"
   },
   "overview": {
     "title": "Overview",
@@ -63,7 +65,9 @@
     "viewAllReviews": "Go to Review Queue →",
     "emptyPending": "No pending proposals requiring review",
     "aiTasksDistribution": "AI Task Workload & Cost Distribution",
-    "totalCalls": "Total Model Invocations"
+    "totalCalls": "Total Model Invocations",
+    "task": "Task",
+    "cost": "Cost"
   },
   "documents": {
     "indexQueued": "Indexing queued. Document clauses will be searchable when it finishes.",
@@ -98,7 +102,28 @@
     "merge": "Merge into",
     "mergePick": "Choose a clause",
     "splitHint": "Place the cursor where this clause should break. The original row is kept; a sibling is added after it.",
-    "ocrSuspect": "Suspect OCR quality"
+    "ocrSuspect": "Suspect OCR quality",
+    "subtitle": "Regulatory and internal policy repository",
+    "total_one": "{{count}} document",
+    "total_other": "{{count}} documents",
+    "dropSubtitle": "PDF, DOCX · Automatic clause extraction and OCR processing",
+    "types": {
+      "policy": "Policy",
+      "standard": "Standard",
+      "guideline": "Guideline",
+      "procedure": "Procedure",
+      "regulation": "Regulation",
+      "other": "Other"
+    },
+    "statuses": {
+      "uploaded": "Uploaded",
+      "parsing": "Parsing",
+      "active": "Active",
+      "draft": "Draft",
+      "parse_failed": "Parse failed",
+      "archived": "Archived"
+    },
+    "outline": "Document outline"
   },
   "search": {
     "vectorReasons": {
@@ -116,7 +141,8 @@
     "noResults": "No matching clauses",
     "matchedBy": "Matched by",
     "byKeyword": "keyword",
-    "bySemantic": "semantic"
+    "bySemantic": "semantic",
+    "subtitle": "Hybrid lexical and semantic knowledge retrieval"
   },
   "settings": {
     "providerDisable": "Disable",
@@ -142,25 +168,60 @@
     "redactionConfig": {
       "subtitle": "Generation: Full PII & sensitive info masking · Embedding: Selective term-preserving redaction",
       "ruleset": "Ruleset",
-      "dictionaryOption": "dictionary (one per line)",
-      "prefixPlaceholder": "replacement prefix, e.g. ORG",
+      "dictionaryOption": "Dictionary (one entry per line)",
+      "prefixPlaceholder": "Replacement prefix, e.g. ORG",
       "notePlaceholder": "Notes",
       "sendPreview": "Send preview",
       "sendPreviewHint": "Paste sample text to preview what will actually be sent.",
       "previewInputAria": "Send preview input",
       "previewBtn": "Preview",
-      "hits": "Hits"
+      "hits": "Hits",
+      "generation": "Generation",
+      "embedding": "Embedding",
+      "type": "Type",
+      "pattern": "Pattern",
+      "prefix": "Replacement prefix",
+      "enabled": "Status",
+      "active": "Active",
+      "regex": "Regular expression"
     },
     "usersConfig": {
-      "auditorHint": "External auditor: choose viewer role and set expiration date.",
+      "auditorHint": "For an external auditor, choose the Viewer role and set an expiration date.",
       "passwordPlaceholder": "Initial password (at least 8 chars)",
-      "expiresAt": "Expiration date"
+      "expiresAt": "Expiration date",
+      "email": "Email",
+      "name": "Name",
+      "role": "Role",
+      "active": "Active",
+      "roleOf": "Role of {{email}}",
+      "activeOf": "Active status of {{email}}",
+      "newUserRole": "New user role",
+      "roles": {
+        "admin": "Administrator",
+        "grc_lead": "GRC lead",
+        "contributor": "Contributor",
+        "viewer": "Viewer"
+      }
     },
     "auditLogConfig": {
-      "description": "This log is append-only and serves as compliance audit trail."
+      "description": "This log is append-only and serves as compliance audit trail.",
+      "time": "Time",
+      "user": "User",
+      "action": "Action",
+      "entity": "Entity",
+      "change": "Change"
     },
     "providersConfig": {
-      "baseUrlPlaceholder": "base_url (leave empty for default; MiniMax China requires ?GroupId=yourGroupId)"
+      "baseUrlPlaceholder": "base_url (leave empty for default; MiniMax China requires ?GroupId=yourGroupId)",
+      "name": "Name",
+      "kind": "Kind",
+      "model": "Model",
+      "apiKey": "API key",
+      "fallback": "Fallback",
+      "routingHint": "Assign each inference task to a dedicated AI provider",
+      "taskPipeline": "Task pipeline",
+      "assignedProvider": "Assigned provider",
+      "routeFor": "Provider for {{task}}"
     }
   },
   "review": {
@@ -252,7 +313,8 @@
     "conflictTopic": "Conflict topic",
     "conflictDifference": "What differs",
     "conflictSideA": "Side A",
-    "conflictSideB": "Side B"
+    "conflictSideB": "Side B",
+    "subtitle": "Automated extraction verification and human review"
   },
   "audit": {
     "title": "Audit response workspace",
@@ -299,8 +361,16 @@
     "generated": "Answer proposal #{{id}} was created. Review it in the queue.",
     "saved": "Answer saved.",
     "references": "References: {{clauses}} clauses, {{controls}} controls, {{evidence}} evidence items",
-    "types": { "internal": "Internal", "external": "External", "regulatory": "Regulatory" },
-    "status": { "pending": "Pending", "drafted": "Drafted", "finalized": "Finalized" }
+    "types": {
+      "internal": "Internal",
+      "external": "External",
+      "regulatory": "Regulatory"
+    },
+    "status": {
+      "pending": "Pending",
+      "drafted": "Drafted",
+      "finalized": "Finalized"
+    }
   },
   "controls": {
     "title": "Controls",
@@ -355,7 +425,8 @@
       "depends_on": "Depends on",
       "conflicts_with": "Conflicts with",
       "duplicates": "Duplicates"
-    }
+    },
+    "subtitle": "Internal control catalog and automated requirement grounding"
   },
   "techAssets": {
     "title": "Tech asset registry",
@@ -376,11 +447,35 @@
     "supportedControls": "Controls supported by this asset",
     "noControls": "No applicable controls are linked to this asset.",
     "categories": {
-      "cloud": "Cloud", "pam": "PAM", "siem": "SIEM", "edr": "EDR", "iam": "IAM", "dlp": "DLP", "backup": "Backup", "network": "Network", "database": "Database", "ticketing": "Ticketing", "other": "Other"
+      "cloud": "Cloud",
+      "pam": "PAM",
+      "siem": "SIEM",
+      "edr": "EDR",
+      "iam": "IAM",
+      "dlp": "DLP",
+      "backup": "Backup",
+      "network": "Network",
+      "database": "Database",
+      "ticketing": "Ticketing",
+      "other": "Other"
     },
-    "environments": { "prod": "Production", "dr": "Disaster recovery", "dev": "Development", "all": "All environments" },
-    "statuses": { "active": "Active", "planned": "Planned", "retiring": "Retiring" },
-    "implementationStatuses": { "implemented": "Implemented", "partial": "Partial", "planned": "Planned", "not_applicable": "Not applicable" }
+    "environments": {
+      "prod": "Production",
+      "dr": "Disaster recovery",
+      "dev": "Development",
+      "all": "All environments"
+    },
+    "statuses": {
+      "active": "Active",
+      "planned": "Planned",
+      "retiring": "Retiring"
+    },
+    "implementationStatuses": {
+      "implemented": "Implemented",
+      "partial": "Partial",
+      "planned": "Planned",
+      "not_applicable": "Not applicable"
+    }
   },
   "evidence": {
     "title": "Evidence library",
@@ -406,7 +501,13 @@
     "clearFilters": "Clear filters",
     "dueAfter": "Valid after",
     "dueBefore": "Due before",
-    "statuses": { "planned": "Planned", "collected": "Collected", "missing": "Missing", "valid": "Valid", "expired": "Expired" }
+    "statuses": {
+      "planned": "Planned",
+      "collected": "Collected",
+      "missing": "Missing",
+      "valid": "Valid",
+      "expired": "Expired"
+    }
   },
   "frameworks": {
     "title": "Frameworks",
@@ -435,7 +536,14 @@
     "runMapping": "Run AI mapping",
     "mappingQueued": "Mapping job queued ({{id}}).",
     "exportPackage": "Export readiness package",
-    "exportFailed": "Export failed"
+    "exportFailed": "Export failed",
+    "gap": "Gap",
+    "baselines": {
+      "low": "Low",
+      "moderate": "Moderate",
+      "high": "High"
+    },
+    "subtitle": "External standards, regulatory baselines and compliance mapping"
   },
   "mapping": {
     "strength": {
@@ -571,16 +679,37 @@
   "graph": {
     "title": "Graph",
     "stats": "{{nodes}} nodes · {{edges}} edges",
-    "layout": { "document": "By document", "function": "By function", "force": "Force" },
-    "drawer": { "title": "Details", "openInDocument": "Open in document", "toReview": "Go to review queue", "notCovered": "Not covered", "control": "Control", "frameworkItem": "Framework item" },
-    "edgeKind": { "depends_on": "Depends on", "duplicates": "Duplicates", "conflicts_with": "Conflicts with", "full": "Full", "partial": "Partial", "supporting": "Supporting" },
+    "layout": {
+      "document": "By document",
+      "function": "By function",
+      "force": "Force"
+    },
+    "drawer": {
+      "title": "Details",
+      "openInDocument": "Open in document",
+      "toReview": "Go to review queue",
+      "notCovered": "Not covered",
+      "control": "Control",
+      "frameworkItem": "Framework item"
+    },
+    "edgeKind": {
+      "depends_on": "Depends on",
+      "duplicates": "Duplicates",
+      "conflicts_with": "Conflicts with",
+      "full": "Full",
+      "partial": "Partial",
+      "supporting": "Supporting"
+    },
     "focus": "Focus",
     "hops": "Hops",
     "panorama": "Panorama",
     "pendingCount_one": "{{count}} pending",
     "pendingCount_other": "{{count}} pending",
     "truncated": "Truncated",
-    "view": { "relations": "Control relations", "mappings": "Framework mapping" },
+    "view": {
+      "relations": "Control relations",
+      "mappings": "Framework mapping"
+    },
     "gapCount_one": "{{count}} gap",
     "gapCount_other": "{{count}} gaps",
     "conflictPoints_one": "{{count}} conflict point",
@@ -597,8 +726,16 @@
     "viewLabel": "View",
     "layoutLabel": "Layout",
     "exportFailedSvg": "Failed to render SVG",
-    "canvasUnavailable": "Canvas not available",
-    "filters": { "pending": "Show pending proposals", "onlyUnconfirmed": "Only unconfirmed", "onlyConflicts": "Only conflicts", "framework": "Framework", "allFrameworks": "All frameworks" }
+    "canvasUnavailable": "Canvas unavailable",
+    "filters": {
+      "pending": "Show pending proposals",
+      "onlyUnconfirmed": "Only unconfirmed",
+      "onlyConflicts": "Only conflicts",
+      "framework": "Framework",
+      "allFrameworks": "All frameworks"
+    },
+    "canvasLabel": "Control graph",
+    "zoomLevel": "Zoom level"
   },
   "impact": {
     "title": "Change impact",
@@ -631,6 +768,22 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "close": "Close",
-    "empty": "No data"
+    "empty": "No data",
+    "actions": "Actions"
+  },
+  "taskNames": {
+    "clause_extraction": "Clause extraction",
+    "control_extract": "Control extraction",
+    "framework_mapping": "Framework mapping",
+    "gap_analysis": "Gap analysis",
+    "relation_inference": "Relation inference",
+    "conflict_detection": "Conflict detection",
+    "audit_prediction": "Audit prediction",
+    "answer_generation": "Answer generation",
+    "maturity_suggestion": "Maturity suggestion",
+    "evidence_suggestion": "Evidence suggestion",
+    "embedding": "Embedding",
+    "query_expansion": "Query expansion",
+    "matrix_mapping": "Matrix mapping"
   }
 }

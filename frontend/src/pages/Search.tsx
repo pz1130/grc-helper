@@ -71,7 +71,7 @@ export function Search() {
       <div style={{ marginBottom: 24 }}>
         <h2>{t("search.title")}</h2>
         <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)" }}>
-          Hybrid Lexical & Semantic Knowledge Retrieval Engine
+          {t("search.subtitle")}
         </p>
       </div>
 

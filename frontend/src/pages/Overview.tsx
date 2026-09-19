@@ -213,9 +213,9 @@ export function Overview() {
           <table>
             <thead>
               <tr>
-                <th>task</th>
+                <th>{t("overview.task")}</th>
                 <th>{t("overview.calls")}</th>
-                <th>cost</th>
+                <th>{t("overview.cost")}</th>
               </tr>
             </thead>
             <tbody>
@@ -223,7 +223,7 @@ export function Overview() {
                 <tr key={row.task_key}>
                   <td style={{ fontWeight: 500 }}>
                     <code style={{ fontSize: "0.8125rem", color: "var(--accent-emerald)", background: "rgba(16, 185, 129, 0.08)", padding: "2px 6px", borderRadius: 4, border: "1px solid rgba(16, 185, 129, 0.2)" }}>
-                      {row.task_key}
+                      {t(`taskNames.${row.task_key}`, { defaultValue: row.task_key })}
                     </code>
                   </td>
                   <td>

@@ -80,8 +80,8 @@ export function Redaction() {
               onChange={(e) => setRuleset(e.target.value as Ruleset)}
               style={{ padding: "5px 28px 5px 12px" }}
             >
-              <option value="generation">generation</option>
-              <option value="embedding">embedding</option>
+              <option value="generation">{t("settings.redactionConfig.generation")}</option>
+              <option value="embedding">{t("settings.redactionConfig.embedding")}</option>
             </select>
           </label>
         </div>
@@ -90,10 +90,10 @@ export function Redaction() {
           <table>
             <thead>
               <tr>
-                <th>type</th>
-                <th>pattern</th>
-                <th>prefix</th>
-                <th>enabled</th>
+                <th>{t("settings.redactionConfig.type")}</th>
+                <th>{t("settings.redactionConfig.pattern")}</th>
+                <th>{t("settings.redactionConfig.prefix")}</th>
+                <th>{t("settings.redactionConfig.enabled")}</th>
               </tr>
             </thead>
             <tbody>
@@ -113,7 +113,7 @@ export function Redaction() {
                     <td>
                       {r.enabled ? (
                         <span className="kn-badge kn-badge-emerald">
-                          <span className="kn-dot kn-dot-emerald" /> Active
+                          <span className="kn-dot kn-dot-emerald" /> {t("settings.redactionConfig.active")}
                         </span>
                       ) : (
                         <span className="kn-badge">—</span>
@@ -131,17 +131,17 @@ export function Redaction() {
         <h4 style={{ margin: "0 0 14px 0", fontSize: "1rem" }}>{t("common.add")}</h4>
         <form onSubmit={submit} style={{ display: "grid", gap: 12, maxWidth: 520 }}>
           <select
-            aria-label="pattern type"
+            aria-label={t("settings.redactionConfig.type")}
             value={form.pattern_type}
             onChange={(e) =>
               setForm({ ...form, pattern_type: e.target.value as "regex" | "dictionary" })
             }
           >
-            <option value="regex">regex</option>
+            <option value="regex">{t("settings.redactionConfig.regex")}</option>
             <option value="dictionary">{t("settings.redactionConfig.dictionaryOption")}</option>
           </select>
           <textarea
-            placeholder="pattern"
+            placeholder={t("settings.redactionConfig.pattern")}
             value={form.pattern}
             required
             rows={3}

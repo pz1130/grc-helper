@@ -80,11 +80,11 @@ export function Users() {
           <table>
             <thead>
               <tr>
-                <th>email</th>
-                <th>name</th>
-                <th>role</th>
-                <th>active</th>
-                <th>expires</th>
+                <th>{t("settings.usersConfig.email")}</th>
+                <th>{t("settings.usersConfig.name")}</th>
+                <th>{t("settings.usersConfig.role")}</th>
+                <th>{t("settings.usersConfig.active")}</th>
+                <th>{t("settings.usersConfig.expiresAt")}</th>
               </tr>
             </thead>
             <tbody>
@@ -94,7 +94,7 @@ export function Users() {
                   <td>{u.name}</td>
                   <td>
                     <select
-                      aria-label={`role of ${u.email}`}
+                      aria-label={t("settings.usersConfig.roleOf", { email: u.email })}
                       value={u.role}
                       onChange={(e) =>
                         update.mutate({ id: u.id, patch: { role: e.target.value as Role } })
@@ -103,7 +103,7 @@ export function Users() {
                     >
                       {ROLES.map((r) => (
                         <option key={r} value={r}>
-                          {r}
+                          {t(`settings.usersConfig.roles.${r}`)}
                         </option>
                       ))}
                     </select>
@@ -111,7 +111,7 @@ export function Users() {
                   <td>
                     <input
                       type="checkbox"
-                      aria-label={`active of ${u.email}`}
+                      aria-label={t("settings.usersConfig.activeOf", { email: u.email })}
                       checked={u.is_active}
                       onChange={(e) => update.mutate({ id: u.id, patch: { is_active: e.target.checked } })}
                     />
@@ -137,25 +137,25 @@ export function Users() {
         <form onSubmit={submit} style={{ display: "grid", gap: 12 }}>
           <input
             type="email"
-            placeholder="email"
+            placeholder={t("settings.usersConfig.email")}
             value={form.email}
             required
             onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
           <input
-            placeholder="name"
+            placeholder={t("settings.usersConfig.name")}
             value={form.name}
             required
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
           <select
-            aria-label="new user role"
+            aria-label={t("settings.usersConfig.newUserRole")}
             value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
           >
             {ROLES.map((r) => (
               <option key={r} value={r}>
-                {r}
+                {t(`settings.usersConfig.roles.${r}`)}
               </option>
             ))}
           </select>

@@ -629,7 +629,7 @@ export function ReviewQueue() {
             )}
           </h2>
           <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)" }}>
-            Autonomous Extraction Verification & Human-in-the-Loop Cockpit
+            {t("review.subtitle")}
           </p>
         </div>
       </div>

@@ -34,11 +34,11 @@ export function AuditLog() {
         <table>
           <thead>
             <tr>
-              <th>time</th>
-              <th>user</th>
-              <th>action</th>
-              <th>entity</th>
-              <th>change</th>
+              <th>{t("settings.auditLogConfig.time")}</th>
+              <th>{t("settings.auditLogConfig.user")}</th>
+              <th>{t("settings.auditLogConfig.action")}</th>
+              <th>{t("settings.auditLogConfig.entity")}</th>
+              <th>{t("settings.auditLogConfig.change")}</th>
             </tr>
           </thead>
           <tbody>

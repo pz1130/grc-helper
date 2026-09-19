@@ -33,14 +33,20 @@ test("语言可切换到英文", async ({ page }) => {
   // getByLabel 会命中两个。按 combobox 角色取那个 select——它正是为可驱动性留的。
   await page.getByRole("combobox", { name: "语言" }).selectOption("en");
   await expect(page.getByRole("heading", { name: "Compliance & Governance Cockpit" })).toBeVisible();
+  await page.goto("/documents");
+  await expect(page.getByText("Regulatory and internal policy repository")).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Actions" })).toBeVisible();
+  await page.goto("/settings/providers");
+  await expect(page.getByRole("columnheader", { name: "API key" })).toBeVisible();
+  await expect(page.getByText("Assign each inference task to a dedicated AI provider")).toBeVisible();
 });
 
 test("新建的 provider 只显示掩码后的 key", async ({ page }) => {
   await signIn(page);
   await page.goto("/settings/providers");
 
-  await page.getByPlaceholder("name").fill(PROVIDER_NAME);
-  await page.getByPlaceholder("api key").fill(SECRET);
+  await page.getByPlaceholder("名称").fill(PROVIDER_NAME);
+  await page.getByPlaceholder("API 密钥").fill(SECRET);
   await page.getByRole("button", { name: "保存" }).first().click();
 
   // 名字在路由下拉的 option 里也会出现，且历次冒烟会在库里留下多行，
@@ -95,9 +101,9 @@ test("GRC Lead 看不到也进不去 AI 配置页", async ({ page, request }) =>
   await page.goto("/settings/users");
 
   const lead = `lead-${Date.now()}@example.com`;
-  await page.getByPlaceholder("email").fill(lead);
-  await page.getByPlaceholder("name").fill("Lead");
-  await page.getByLabel("new user role").selectOption("grc_lead");
+  await page.getByPlaceholder("邮箱").fill(lead);
+  await page.getByPlaceholder("姓名").fill("Lead");
+  await page.getByLabel("新用户角色").selectOption("grc_lead");
   await page.getByPlaceholder("初始密码（至少 8 位）").fill("pw123456");
   await page.getByRole("button", { name: "保存" }).click();
   // exact 必需：启用状态那格的 aria-label 里也带着邮箱

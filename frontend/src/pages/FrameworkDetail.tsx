@@ -151,9 +151,9 @@ export function FrameworkDetail() {
               style={{ padding: "5px 28px 5px 12px" }}
             >
               <option value="">{t("frameworks.baselineAll")}</option>
-              <option value="low">low</option>
-              <option value="moderate">moderate</option>
-              <option value="high">high</option>
+              <option value="low">{t("frameworks.baselines.low")}</option>
+              <option value="moderate">{t("frameworks.baselines.moderate")}</option>
+              <option value="high">{t("frameworks.baselines.high")}</option>
             </select>
           </label>
         </div>
@@ -242,7 +242,7 @@ export function FrameworkDetail() {
                 gap: 10,
               }}
             >
-              <span className="kn-badge kn-badge-ruby">GAP</span>
+              <span className="kn-badge kn-badge-ruby">{t("frameworks.gap")}</span>
               <code>{gap.code}</code>
               <span style={{ color: "var(--text-primary)" }}>{gap.title}</span>
               {gap.has_supporting && (

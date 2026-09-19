@@ -268,7 +268,7 @@ export function Layout() {
               {t("app.name")}
             </h1>
             <div style={{ fontSize: "0.6875rem", color: "var(--text-tertiary)", fontWeight: 500 }}>
-              AI Governance Studio
+              {t("app.tagline")}
             </div>
           </div>
         </div>

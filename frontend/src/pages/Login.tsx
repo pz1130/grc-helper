@@ -126,7 +126,7 @@ export function Login() {
           <div style={{ textAlign: "center", marginBottom: 6 }}>
             <h1 style={{ fontSize: "1.75rem", margin: 0 }}>{t("login.title")}</h1>
             <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", marginTop: 6 }}>
-              Governance, Risk & Compliance Platform
+              {t("login.subtitle")}
             </p>
           </div>
 

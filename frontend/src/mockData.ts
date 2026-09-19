@@ -10,14 +10,15 @@ export interface MockUser {
 export const DEMO_USER: MockUser = {
   id: 1,
   email: "admin@example.com",
-  name: "Admin (Demo Mode)",
+  name: "GRC Demo",
   role: "admin",
 };
 
 export const DEMO_TOKEN = "demo-mock-token";
 
-export function getMockResponse(path: string, _init: RequestInit = {}): unknown {
+export function getMockResponse(path: string, _init: RequestInit = {}, language = "zh"): unknown {
   const url = path.split("?")[0];
+  const pick = (zh: string, en: string) => language.startsWith("zh") ? zh : en;
 
   if (url === "/api/auth/me") {
     return DEMO_USER;
@@ -57,7 +58,7 @@ export function getMockResponse(path: string, _init: RequestInit = {}): unknown 
     return [
       {
         id: 1,
-        title: "企业信息安全总体方针与管理办法",
+        title: pick("企业信息安全总体方针与管理办法", "Enterprise Information Security Policy"),
         doc_type: "policy",
         status: "active",
         version: "v3.2",
@@ -71,7 +72,7 @@ export function getMockResponse(path: string, _init: RequestInit = {}): unknown 
       },
       {
         id: 2,
-        title: "用户身份鉴别与访问控制技术规范",
+        title: pick("用户身份鉴别与访问控制技术规范", "Identity and Access Control Standard"),
         doc_type: "standard",
         status: "active",
         version: "v2.1",
@@ -85,7 +86,7 @@ export function getMockResponse(path: string, _init: RequestInit = {}): unknown 
       },
       {
         id: 3,
-        title: "数据跨境流动与敏感信息防泄漏规约",
+        title: pick("数据跨境流动与敏感信息防泄漏规约", "Cross-border Data Transfer and DLP Guideline"),
         doc_type: "guideline",
         status: "draft",
         version: "v1.4",
@@ -99,7 +100,7 @@ export function getMockResponse(path: string, _init: RequestInit = {}): unknown 
       },
       {
         id: 4,
-        title: "生产环境特权账号生命周期管理细则",
+        title: pick("生产环境特权账号生命周期管理细则", "Production Privileged Account Lifecycle Procedure"),
         doc_type: "procedure",
         status: "active",
         version: "v2.0",
@@ -125,18 +126,18 @@ export function getMockResponse(path: string, _init: RequestInit = {}): unknown 
 
   if (url === "/api/frameworks") {
     return [
-      { id: 1, code: "nist-csf-2.0", name: "NIST 网络安全框架 2.0 (CSF 2.0)", version: "2.0", publisher: "nist.gov", total_controls: 106 },
+      { id: 1, code: "nist-csf-2.0", name: pick("NIST 网络安全框架 2.0 (CSF 2.0)", "NIST Cybersecurity Framework 2.0 (CSF 2.0)"), version: "2.0", publisher: "nist.gov", total_controls: 106 },
       { id: 2, code: "nist-800-53-r5", name: "NIST SP 800-53 Rev.5", version: "5.1.1", publisher: "nist.gov", total_controls: 1189 },
-      { id: 3, code: "iso-27001-2022", name: "ISO/IEC 27001:2022 信息安全管理体系", version: "2022", publisher: "iso.org", total_controls: 93 },
+      { id: 3, code: "iso-27001-2022", name: pick("ISO/IEC 27001:2022 信息安全管理体系", "ISO/IEC 27001:2022 Information Security Management Systems"), version: "2022", publisher: "iso.org", total_controls: 93 },
     ];
   }
 
   if (url === "/api/controls") {
     return [
-      { id: 1, code: "AC-1", title: "访问控制策略与规程", category: "Access Control", status: "implemented", description: "建立、分发并审查组织范围内的访问控制策略与配套实施流程。" },
-      { id: 2, code: "IA-2", title: "身份识别与鉴别 (组织级)", category: "Identification & Auth", status: "in_progress", description: "针对所有内部网络和特权账户访问强制要求启用抗钓鱼多因素认证 (MFA)。" },
-      { id: 3, code: "SC-7", title: "边界防护与微隔离机制", category: "System & Comm", status: "implemented", description: "在网络内部关键业务系统间实施零信任微隔离和深层数据包检测。" },
-      { id: 4, code: "SI-4", title: "信息系统监控与入侵检测", category: "System Integrity", status: "implemented", description: "全天候 24/7 收集生产集群系统日志、审计跟踪并接入 SIEM 告警中心。" },
+      { id: 1, code: "AC-1", title: pick("访问控制策略与规程", "Access Control Policy and Procedures"), category: pick("访问控制", "Access Control"), status: "implemented", description: pick("建立、分发并审查组织范围内的访问控制策略与配套实施流程。", "Establish, distribute and review organization-wide access control policies and procedures.") },
+      { id: 2, code: "IA-2", title: pick("身份识别与鉴别（组织级）", "Identification and Authentication"), category: pick("身份与鉴别", "Identification & Authentication"), status: "in_progress", description: pick("所有内部网络和特权账户访问均须启用抗钓鱼多因素认证（MFA）。", "Require phishing-resistant multifactor authentication for internal network and privileged account access.") },
+      { id: 3, code: "SC-7", title: pick("边界防护与微隔离机制", "Boundary Protection and Microsegmentation"), category: pick("系统与通信", "System & Communications"), status: "implemented", description: pick("在关键业务系统之间实施零信任微隔离和深层数据包检测。", "Apply zero-trust microsegmentation and deep packet inspection between critical business systems.") },
+      { id: 4, code: "SI-4", title: pick("信息系统监控与入侵检测", "System Monitoring and Intrusion Detection"), category: pick("系统完整性", "System Integrity"), status: "implemented", description: pick("全天候收集生产集群系统日志与审计记录，并接入 SIEM 告警中心。", "Continuously collect production system logs and audit trails and route them to the SIEM alerting center.") },
     ];
   }
 
@@ -151,16 +152,16 @@ export function getMockResponse(path: string, _init: RequestInit = {}): unknown 
 
   if (url === "/api/evidence") {
     return [
-      { id: 1, title: "2026 Q3 堡垒机审计记录与跳板机访问回放", status: "valid", control_code: "AC-1", expires_at: "2026-12-31" },
-      { id: 2, title: "生产数据库 SSL 泛域名证书轮换工单", status: "expired", control_code: "SC-7", expires_at: "2026-08-15" },
-      { id: 3, title: "第三方渗透测试评估总结报告 (2026)", status: "valid", control_code: "SI-4", expires_at: "2027-03-01" },
+      { id: 1, title: pick("2026 Q3 堡垒机审计记录与跳板机访问回放", "2026 Q3 Bastion Host Audit and Session Replay"), status: "valid", control_code: "AC-1", expires_at: "2026-12-31" },
+      { id: 2, title: pick("生产数据库 SSL 泛域名证书轮换工单", "Production Database SSL Wildcard Certificate Rotation"), status: "expired", control_code: "SC-7", expires_at: "2026-08-15" },
+      { id: 3, title: pick("第三方渗透测试评估总结报告（2026）", "Third-party Penetration Test Report (2026)"), status: "valid", control_code: "SI-4", expires_at: "2027-03-01" },
     ];
   }
 
   if (url === "/api/proposals") {
     return [
-      { id: 101, kind: "mapping", source_text: "第 4.2 条：所有进入生产机房的人员须经双人复核并留痕", target_framework: "NIST CSF 2.0 PR.AC-1", confidence: 0.94, status: "pending" },
-      { id: 102, kind: "extraction", source_text: "第 7.1 条：静态数据与传输数据均应采用 AES-256 或同等级别加密", target_framework: "ISO 27001 A.10.1", confidence: 0.89, status: "pending" },
+      { id: 101, kind: "mapping", source_text: pick("第 4.2 条：所有进入生产机房的人员须经双人复核并留痕", "Clause 4.2: Production data-center access requires dual approval and an audit trail."), target_framework: "NIST CSF 2.0 PR.AC-1", confidence: 0.94, status: "pending" },
+      { id: 102, kind: "extraction", source_text: pick("第 7.1 条：静态数据与传输数据均应采用 AES-256 或同等级别加密", "Clause 7.1: Data at rest and in transit must use AES-256 or equivalent encryption."), target_framework: "ISO 27001 A.10.1", confidence: 0.89, status: "pending" },
     ];
   }
 

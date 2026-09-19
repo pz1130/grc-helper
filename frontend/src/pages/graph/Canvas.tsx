@@ -236,7 +236,7 @@ export function Canvas({
         width="100%"
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label="Control graph"
+        aria-label={t("graph.canvasLabel")}
         style={{
           background: "var(--stage-card-subtle)",
           borderRadius: 16,
@@ -501,7 +501,7 @@ export function Canvas({
           >
             −
           </button>
-          <span className="kn-hud-badge" title="Zoom level">
+          <span className="kn-hud-badge" title={t("graph.zoomLevel")}>
             {Math.round(zoom * 100)}%
           </span>
           <button

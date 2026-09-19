@@ -102,7 +102,7 @@ export function Frameworks() {
         <div>
           <h2>{t("frameworks.title")}</h2>
           <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)" }}>
-            External Standards, Regulatory Baselines & Compliance Mapping Hub
+            {t("frameworks.subtitle")}
           </p>
         </div>
       </div>

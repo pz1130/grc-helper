@@ -5,7 +5,8 @@
     "language": "语言",
     "theme": "外观",
     "themeLight": "浅色",
-    "themeDark": "深色"
+    "themeDark": "深色",
+    "tagline": "AI 治理工作台"
   },
   "nav": {
     "groups": {
@@ -40,7 +41,8 @@
     "email": "邮箱",
     "password": "密码",
     "submit": "登录",
-    "failed": "邮箱或密码不正确"
+    "failed": "邮箱或密码不正确",
+    "subtitle": "治理、风险与合规平台"
   },
   "overview": {
     "title": "总览",
@@ -63,7 +65,9 @@
     "viewAllReviews": "进入确认队列 →",
     "emptyPending": "暂无需要紧急复核的提案",
     "aiTasksDistribution": "AI 任务负载与成本分布",
-    "totalCalls": "累计模型调用"
+    "totalCalls": "累计模型调用",
+    "task": "任务",
+    "cost": "成本"
   },
   "documents": {
     "indexQueued": "索引任务已提交，完成后可检索文档条款。",
@@ -98,11 +102,32 @@
     "merge": "合并到",
     "mergePick": "选择条款",
     "splitHint": "把光标放在要切开的位置。原条款保留，后面新增一条兄弟条款。",
-    "ocrSuspect": "OCR 质量存疑"
+    "ocrSuspect": "OCR 质量存疑",
+    "subtitle": "监管与内部制度文档库",
+    "total_one": "共 {{count}} 份文档",
+    "total_other": "共 {{count}} 份文档",
+    "dropSubtitle": "PDF、DOCX · 自动提取条款并处理 OCR",
+    "types": {
+      "policy": "政策",
+      "standard": "标准",
+      "guideline": "指南",
+      "procedure": "程序",
+      "regulation": "法规",
+      "other": "其他"
+    },
+    "statuses": {
+      "uploaded": "已上传",
+      "parsing": "解析中",
+      "active": "已生效",
+      "draft": "草稿",
+      "parse_failed": "解析失败",
+      "archived": "已归档"
+    },
+    "outline": "文档目录"
   },
   "search": {
     "vectorReasons": {
-      "provider_unconfigured": "当前仅使用关键词检索：向量服务未配置或已停用，请到设置检查 embedding 任务路由。",
+      "provider_unconfigured": "当前仅使用关键词检索：向量服务未配置或已停用，请到设置检查“向量嵌入”任务路由。",
       "index_incomplete": "当前仅使用关键词检索：没有可用的文档条款向量，请重建检索索引并等待任务完成。",
       "provider_error": "当前仅使用关键词检索：向量服务调用失败，请检查服务配置或稍后重试。"
     },
@@ -110,13 +135,14 @@
     "placeholder": "搜索制度条款，中英文均可",
     "run": "搜索",
     "expanded": "已扩展检索词",
-    "keywordOnly": "当前仅使用关键词检索（语义检索不可用：未配置 embedding provider 或索引未建完）",
+    "keywordOnly": "当前仅使用关键词检索（语义检索不可用：未配置向量服务或索引未建完）",
     "indexing": "索引进度",
     "indexIncomplete": "索引尚未完成，结果可能不全",
     "noResults": "没有找到匹配的条款",
     "matchedBy": "命中方式",
     "byKeyword": "关键词",
-    "bySemantic": "语义"
+    "bySemantic": "语义",
+    "subtitle": "融合关键词与语义的知识检索"
   },
   "settings": {
     "providerDisable": "停用",
@@ -125,7 +151,7 @@
     "providerConfirmDelete": "确认删除",
     "title": "设置",
     "subtitle": "系统配置、AI 集成、合规阈值与安全治理",
-    "providers": "AI Provider",
+    "providers": "AI 服务商",
     "routing": "任务路由",
     "redaction": "脱敏规则",
     "thresholds": "阈值与预算",
@@ -142,25 +168,60 @@
     "redactionConfig": {
       "subtitle": "生成任务：完整遮盖个人与敏感信息 · 嵌入任务：保留专业术语的定向脱敏",
       "ruleset": "规则集",
-      "dictionaryOption": "dictionary（每行一个词）",
-      "prefixPlaceholder": "replacement prefix，如 ORG",
+      "dictionaryOption": "词典（每行一个词）",
+      "prefixPlaceholder": "替换前缀，如 ORG",
       "notePlaceholder": "备注",
       "sendPreview": "发送预览",
       "sendPreviewHint": "粘一段真实文字，看看实际会发出去什么。",
       "previewInputAria": "发送预览输入",
       "previewBtn": "预览",
-      "hits": "命中"
+      "hits": "命中",
+      "generation": "生成任务",
+      "embedding": "嵌入任务",
+      "type": "类型",
+      "pattern": "匹配模式",
+      "prefix": "替换前缀",
+      "enabled": "启用状态",
+      "active": "已启用",
+      "regex": "正则表达式"
     },
     "usersConfig": {
-      "auditorHint": "外部审计员：角色选 viewer，并填有效期。",
+      "auditorHint": "外部审计员请选择“只读用户”角色，并设置有效期。",
       "passwordPlaceholder": "初始密码（至少 8 位）",
-      "expiresAt": "有效期"
+      "expiresAt": "有效期",
+      "email": "邮箱",
+      "name": "姓名",
+      "role": "角色",
+      "active": "启用状态",
+      "roleOf": "{{email}} 的角色",
+      "activeOf": "{{email}} 的启用状态",
+      "newUserRole": "新用户角色",
+      "roles": {
+        "admin": "管理员",
+        "grc_lead": "GRC 负责人",
+        "contributor": "协作者",
+        "viewer": "只读用户"
+      }
     },
     "auditLogConfig": {
-      "description": "本日志只增不删，可作为本系统自身接受审计时的证据。"
+      "description": "本日志只增不删，可作为本系统自身接受审计时的证据。",
+      "time": "时间",
+      "user": "用户",
+      "action": "操作",
+      "entity": "对象",
+      "change": "变更"
     },
     "providersConfig": {
-      "baseUrlPlaceholder": "base_url（留空用默认；MiniMax 中国站须加 ?GroupId=你的GroupId）"
+      "baseUrlPlaceholder": "base_url（留空用默认；MiniMax 中国站须加 ?GroupId=你的GroupId）",
+      "name": "名称",
+      "kind": "类型",
+      "model": "模型",
+      "apiKey": "API 密钥",
+      "fallback": "备用",
+      "routingHint": "将各项推理任务分配给指定的 AI 服务商",
+      "taskPipeline": "任务流程",
+      "assignedProvider": "已分配服务商",
+      "routeFor": "{{task}}的服务商"
     }
   },
   "review": {
@@ -252,7 +313,8 @@
     "conflictTopic": "冲突主题",
     "conflictDifference": "差异",
     "conflictSideA": "甲方条款",
-    "conflictSideB": "乙方条款"
+    "conflictSideB": "乙方条款",
+    "subtitle": "自动提取校验与人工复核工作台"
   },
   "audit": {
     "title": "审计答复工作台",
@@ -299,8 +361,16 @@
     "generated": "答复提案 #{{id}} 已生成，请在确认队列审核。",
     "saved": "答复已保存。",
     "references": "引用：{{clauses}} 条条款、{{controls}} 个控制点、{{evidence}} 项证据",
-    "types": { "internal": "内部审计", "external": "外部审计", "regulatory": "监管审计" },
-    "status": { "pending": "待生成", "drafted": "草稿中", "finalized": "已定稿" }
+    "types": {
+      "internal": "内部审计",
+      "external": "外部审计",
+      "regulatory": "监管审计"
+    },
+    "status": {
+      "pending": "待生成",
+      "drafted": "草稿中",
+      "finalized": "已定稿"
+    }
   },
   "controls": {
     "title": "控制点库",
@@ -338,7 +408,14 @@
       "control_sources_other": "将转挂 {{count}} 条支撑条款",
       "control_relations_other": "将转挂 {{count}} 条关联",
       "control_embeddings_other": "将转挂 {{count}} 条向量",
-      "risk_entries_other": "将转挂 {{count}} 条风险条目"
+      "risk_entries_other": "将转挂 {{count}} 条风险条目",
+      "mappings_one": "将转挂 {{count}} 条映射",
+      "evidence_items_one": "将转挂 {{count}} 条证据",
+      "implementations_one": "将转挂 {{count}} 条落地实现",
+      "control_sources_one": "将转挂 {{count}} 条支撑条款",
+      "control_relations_one": "将转挂 {{count}} 条关联",
+      "control_embeddings_one": "将转挂 {{count}} 条向量",
+      "risk_entries_one": "将转挂 {{count}} 条风险条目"
     },
     "relationTypes": {
       "defines": "定义",
@@ -348,7 +425,8 @@
       "depends_on": "依赖",
       "conflicts_with": "冲突",
       "duplicates": "重复"
-    }
+    },
+    "subtitle": "内部控制目录与自动化要求溯源"
   },
   "techAssets": {
     "title": "技术栈台账",
@@ -369,11 +447,35 @@
     "supportedControls": "该资产支撑的控制点",
     "noControls": "暂无适用的控制点关联。",
     "categories": {
-      "cloud": "云平台", "pam": "特权访问管理", "siem": "SIEM", "edr": "EDR", "iam": "身份管理", "dlp": "DLP", "backup": "备份", "network": "网络", "database": "数据库", "ticketing": "工单", "other": "其他"
+      "cloud": "云平台",
+      "pam": "特权访问管理",
+      "siem": "SIEM",
+      "edr": "EDR",
+      "iam": "身份管理",
+      "dlp": "DLP",
+      "backup": "备份",
+      "network": "网络",
+      "database": "数据库",
+      "ticketing": "工单",
+      "other": "其他"
     },
-    "environments": { "prod": "生产", "dr": "灾备", "dev": "开发", "all": "全部环境" },
-    "statuses": { "active": "在用", "planned": "计划中", "retiring": "退役中" },
-    "implementationStatuses": { "implemented": "已实施", "partial": "部分实施", "planned": "计划中", "not_applicable": "不适用" }
+    "environments": {
+      "prod": "生产",
+      "dr": "灾备",
+      "dev": "开发",
+      "all": "全部环境"
+    },
+    "statuses": {
+      "active": "在用",
+      "planned": "计划中",
+      "retiring": "退役中"
+    },
+    "implementationStatuses": {
+      "implemented": "已实施",
+      "partial": "部分实施",
+      "planned": "计划中",
+      "not_applicable": "不适用"
+    }
   },
   "evidence": {
     "title": "证据库",
@@ -399,7 +501,13 @@
     "clearFilters": "清除筛选",
     "dueAfter": "有效期起始",
     "dueBefore": "到期时间止",
-    "statuses": { "planned": "计划收集", "collected": "已收集", "missing": "缺失", "valid": "有效", "expired": "已过期" }
+    "statuses": {
+      "planned": "计划收集",
+      "collected": "已收集",
+      "missing": "缺失",
+      "valid": "有效",
+      "expired": "已过期"
+    }
   },
   "frameworks": {
     "title": "框架管理",
@@ -428,7 +536,14 @@
     "runMapping": "运行 AI 映射",
     "mappingQueued": "映射任务已入队（{{id}}）。",
     "exportPackage": "导出准备包",
-    "exportFailed": "导出失败"
+    "exportFailed": "导出失败",
+    "gap": "差距",
+    "baselines": {
+      "low": "低",
+      "moderate": "中",
+      "high": "高"
+    },
+    "subtitle": "外部标准、监管基线与合规映射中心"
   },
   "mapping": {
     "strength": {
@@ -564,15 +679,36 @@
   "graph": {
     "title": "图谱",
     "stats": "{{nodes}} 个节点 · {{edges}} 条边",
-    "layout": { "document": "按文件", "function": "按 Function", "force": "力导向" },
-    "drawer": { "title": "详情", "openInDocument": "跳转原文", "toReview": "去确认队列", "notCovered": "未覆盖", "control": "控制点", "frameworkItem": "框架项" },
-    "edgeKind": { "depends_on": "依赖", "duplicates": "重复", "conflicts_with": "冲突", "full": "完全", "partial": "部分", "supporting": "支撑" },
+    "layout": {
+      "document": "按文件",
+      "function": "按功能域",
+      "force": "力导向"
+    },
+    "drawer": {
+      "title": "详情",
+      "openInDocument": "跳转原文",
+      "toReview": "去确认队列",
+      "notCovered": "未覆盖",
+      "control": "控制点",
+      "frameworkItem": "框架项"
+    },
+    "edgeKind": {
+      "depends_on": "依赖",
+      "duplicates": "重复",
+      "conflicts_with": "冲突",
+      "full": "完全",
+      "partial": "部分",
+      "supporting": "支撑"
+    },
     "focus": "焦点",
     "hops": "展开跳数",
     "panorama": "全景",
     "pendingCount_other": "{{count}} 条待确认",
     "truncated": "已截断",
-    "view": { "relations": "控制点关系", "mappings": "框架映射" },
+    "view": {
+      "relations": "控制点关系",
+      "mappings": "框架映射"
+    },
     "gapCount_other": "{{count}} 项差距",
     "conflictPoints_other": "{{count}} 处冲突",
     "thinLabels": "稀释标签",
@@ -587,8 +723,19 @@
     "viewLabel": "视图",
     "layoutLabel": "布局",
     "exportFailedSvg": "SVG 渲染失败",
-    "canvasUnavailable": "canvas 不可用",
-    "filters": { "pending": "显示待确认提案", "onlyUnconfirmed": "只看未确认", "onlyConflicts": "只看冲突", "framework": "框架", "allFrameworks": "全部框架" }
+    "canvasUnavailable": "绘图区域不可用",
+    "filters": {
+      "pending": "显示待确认提案",
+      "onlyUnconfirmed": "只看未确认",
+      "onlyConflicts": "只看冲突",
+      "framework": "框架",
+      "allFrameworks": "全部框架"
+    },
+    "canvasLabel": "控制关系图",
+    "zoomLevel": "缩放比例",
+    "pendingCount_one": "{{count}} 条待确认",
+    "gapCount_one": "{{count}} 项差距",
+    "conflictPoints_one": "{{count}} 处冲突"
   },
   "impact": {
     "title": "变更影响",
@@ -621,6 +768,22 @@
     "cancel": "取消",
     "delete": "删除",
     "close": "关闭",
-    "empty": "暂无数据"
+    "empty": "暂无数据",
+    "actions": "操作"
+  },
+  "taskNames": {
+    "clause_extraction": "条款提取",
+    "control_extract": "控制点提取",
+    "framework_mapping": "框架映射",
+    "gap_analysis": "差距分析",
+    "relation_inference": "关系推断",
+    "conflict_detection": "冲突检测",
+    "audit_prediction": "审计预测",
+    "answer_generation": "答复生成",
+    "maturity_suggestion": "成熟度建议",
+    "evidence_suggestion": "证据建议",
+    "embedding": "向量嵌入",
+    "query_expansion": "查询扩展",
+    "matrix_mapping": "矩阵映射"
   }
 }

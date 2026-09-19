@@ -164,7 +164,7 @@ export function Documents() {
         <div>
           <h2>{t("documents.title")}</h2>
           <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)" }}>
-            Regulatory & Internal Policy Documents Repository
+            {t("documents.subtitle")}
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -186,7 +186,7 @@ export function Documents() {
             </select>
           </label>
           <span className="kn-badge kn-badge-blue">
-            {documents.data?.length ?? 0} Total Documents
+            {t("documents.total", { count: documents.data?.length ?? 0 })}
           </span>
         </div>
       </div>
@@ -207,7 +207,7 @@ export function Documents() {
           <line x1="12" y1="3" x2="12" y2="15" />
         </svg>
         <div className="kn-dropzone-title">{t("documents.dropHint")}</div>
-        <div className="kn-dropzone-subtitle">PDF, DOCX · Automatic Clause Extraction & OCR Processing</div>
+        <div className="kn-dropzone-subtitle">{t("documents.dropSubtitle")}</div>
         <input
           ref={fileInput}
           type="file"
@@ -244,7 +244,7 @@ export function Documents() {
               <th>{t("documents.effective")}</th>
               <th>{t("documents.review")}</th>
               <th title={t("documents.blindSpotHint")}>{t("documents.extraction")}</th>
-              <th style={{ textAlign: "right" }}>Actions</th>
+              <th style={{ textAlign: "right" }}>{t("common.actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -286,25 +286,25 @@ export function Documents() {
                   </td>
                   <td>
                     <span className="kn-badge" style={{ textTransform: "capitalize" }}>
-                      {document.doc_type}
+                      {t(`documents.types.${document.doc_type}`, { defaultValue: document.doc_type })}
                     </span>
                   </td>
                   <td>
                     {isInFlight ? (
                       <span className="kn-badge kn-badge-blue kn-pulse">
                         <span className="kn-dot kn-dot-blue" />
-                        ⏳ {document.status}
+                        ⏳ {t(`documents.statuses.${document.status}`, { defaultValue: document.status })}
                       </span>
                     ) : isActive ? (
                       <span className="kn-badge kn-badge-emerald">
                         <span className="kn-dot kn-dot-emerald" />
-                        {document.status}
+                        {t(`documents.statuses.${document.status}`, { defaultValue: document.status })}
                       </span>
                     ) : isFailed ? (
                       <div>
                         <span className="kn-badge kn-badge-ruby">
                           <span className="kn-dot kn-dot-ruby" />
-                          {document.status}
+                          {t(`documents.statuses.${document.status}`, { defaultValue: document.status })}
                         </span>
                         {document.parse_error && (
                           <div style={{ color: "var(--accent-ruby)", fontSize: "0.75rem", marginTop: 4 }}>
@@ -313,7 +313,7 @@ export function Documents() {
                         )}
                       </div>
                     ) : (
-                      <span className="kn-badge">{document.status}</span>
+                      <span className="kn-badge">{t(`documents.statuses.${document.status}`, { defaultValue: document.status })}</span>
                     )}
                   </td>
                   <td>{document.version ? <code>{document.version}</code> : "—"}</td>

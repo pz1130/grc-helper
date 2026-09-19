@@ -262,7 +262,7 @@ export function Controls() {
         <div>
           <h2>{t("controls.title")}</h2>
           <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--text-secondary)" }}>
-            Internal Control Catalog & Automated Requirement Grounding
+            {t("controls.subtitle")}
           </p>
         </div>
       </div>

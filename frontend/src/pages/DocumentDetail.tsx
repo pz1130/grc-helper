@@ -321,7 +321,7 @@ export function DocumentDetail() {
           }}
         >
           <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-tertiary)", textTransform: "uppercase", padding: "0 8px 10px 8px", letterSpacing: "0.06em" }}>
-            Document Outline
+            {t("documents.outline")}
           </div>
           {clauses.data && (
             <Tree nodes={clauses.data} onSelect={setSelected} selected={selected?.id ?? null} />
